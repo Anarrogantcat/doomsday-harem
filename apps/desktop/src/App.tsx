@@ -10,12 +10,13 @@ import { WorldPanel } from "./panels/WorldPanel.tsx";
 import { VehiclePanel } from "./panels/VehiclePanel.tsx";
 import { QuestPanel } from "./panels/QuestPanel.tsx";
 import { DefensePanel } from "./panels/DefensePanel.tsx";
+import { CompanionDataPanel } from "./panels/CompanionDataPanel.tsx";
 import { ScenePlayer } from "./panels/ScenePlayer.tsx";
 import { CheatPanel } from "./panels/CheatPanel.tsx";
 import { LlmPanel } from "./panels/LlmPanel.tsx";
 import { useGame } from "./store/game.ts";
 
-type Tab = "status" | "map" | "vehicle" | "quests" | "defense" | "harem" | "jobs" | "tech" | "base" | "wardrobe" | "items" | "scenes" | "llm" | "cheats";
+type Tab = "status" | "map" | "vehicle" | "quests" | "defense" | "harem" | "roster" | "jobs" | "tech" | "base" | "wardrobe" | "items" | "scenes" | "llm" | "cheats";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "status", label: "状态" },
@@ -24,6 +25,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "quests", label: "主线" },
   { id: "defense", label: "防御" },
   { id: "harem", label: "后宫" },
+  { id: "roster", label: "角色" },
   { id: "jobs", label: "岗位" },
   { id: "tech", label: "科技" },
   { id: "base", label: "基地" },
@@ -68,6 +70,7 @@ export function App() {
         {tab === "quests" && <QuestPanel />}
         {tab === "defense" && <DefensePanel />}
         {tab === "harem" && <HaremPanel />}
+        {tab === "roster" && <CompanionDataPanel />}
         {tab === "jobs" && <JobBoard />}
         {tab === "tech" && <TechTreePanel />}
         {tab === "base" && <BasePanel />}

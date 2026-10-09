@@ -87,6 +87,13 @@ import {
   newDefenseState, defenseToJSON, defenseFromJSON, describeDefense,
   RAID_LABEL, OUTCOME_LABEL
 } from "../systems/defense.ts";
+import {
+  type CompanionDef, type Specialty,
+  COMPANIONS, companionDef, startingCompanions, companionStats,
+  traitsOf, lustGrowthFor, shouldInvite, shouldRaid, approachLine, raidLine,
+  specialtyBonus, bestJobFor, describeCompanion,
+  PERSONALITY_LABEL, PERSONALITY_TRAITS
+} from "../systems/companions.ts";
 import { mulberry32 } from "../systems/inventory.ts";
 import { newSave, type SaveData, type SavedEntity, type SavedRelation, type SavedJob, type SavedTech } from "../save/serialize.ts";
 import { VERSION } from "../version.ts";
@@ -139,39 +146,51 @@ export interface SessionOptions {
 
 const DEFAULT_SURVIVAL: Survival = { hunger: 80, thirst: 70, stamina: 90, energy: 85, mood: 60 };
 
-/** 开局同伴（末日降临前已在安全屋的四位） */
-function defaultCompanions(): CompanionRuntime[] {
-  const mk = (
-    id: string, name: string, title: string, age: number, heightCm: number,
-    rel: Partial<Relationship>, lustValue: number, jobId: JobId | null, bonus: number,
-    preset: WardrobePreset, tags: string[] = []
-  ): CompanionRuntime => ({
-    id,
-    identity: { name, title, age, heightCm, tags },
+/**
+ * 由角色数据构建运行时同伴。
+ * 全部 21 位后宫的身份、年龄、身高、体型、性格、岗位专长、初始数值
+ * 都来自 systems/companions.ts，此处只做数据到运行时的映射。
+ */
+export function makeCompanion(def: CompanionDef, joined = true): CompanionRuntime {
+  return {
+    id: def.id,
+    identity: {
+      name: def.name,
+      title: def.title,
+      age: def.age,
+      heightCm: def.heightCm,
+      tags: [def.origin, def.personality, def.build]
+    },
     physiology: {
       sex: "female",
-      virgin: id === "sister" || id === "sister2",
+      virgin: def.origin === "family" || def.origin === "mainline" || def.origin === "side",
       pregnant: false,
       pregnancyProgress: 0,
       fertileWindow: false
     },
-    relationship: { ...DEFAULT_RELATIONSHIP, role: "family", ...rel },
-    lust: { ...DEFAULT_LUST, value: lustValue },
-    job: { id: jobId, bonus, daysOnJob: 0 },
-    wardrobe: presetWardrobe(preset),
-    joined: true
-  });
+    relationship: {
+      ...DEFAULT_RELATIONSHIP,
+      affection: def.initial.affection,
+      loyalty: def.initial.loyalty,
+      bond: def.initial.bond,
+      role: def.origin === "family" ? "family"
+        : def.origin === "ai" ? "ai"
+        : def.origin === "mainline" ? "main" : "side"
+    },
+    lust: { ...DEFAULT_LUST, value: def.initialLust },
+    job: {
+      id: def.specialties.length > 0 ? def.specialties[0].job : null,
+      bonus: def.specialties.length > 0 ? def.specialties[0].bonus : 0,
+      daysOnJob: 0
+    },
+    wardrobe: presetWardrobe(def.wardrobePreset),
+    joined
+  };
+}
 
-  return [
-    mk("mother", "母亲", "单亲母亲", 45, 172,
-       { affection: 50, loyalty: 40, bond: 3 }, 40, "kitchen", 0.20, "mother"),
-    mk("sister", "姐姐", "项目经理", 26, 174,
-       { affection: 60, loyalty: 50, bond: 3 }, 92, "logistics", 0.15, "sister"),
-    mk("sister2", "妹妹", "大学生", 19, 162,
-       { affection: 40, loyalty: 30, bond: 2 }, 85, "greenhouse", 0.10, "sister2"),
-    mk("ai", "特殊AI", "基地核心", 1, 0,
-       { affection: 85, loyalty: 80, bond: 4, role: "ai" }, 30, "archive", 0.20, "ai", ["ai", "no-body"])
-  ];
+/** 开局同伴（末日降临前已在安全屋的四位：母亲 / 姐姐 / 妹妹 / 特殊AI） */
+function defaultCompanions(): CompanionRuntime[] {
+  return startingCompanions().map((def) => makeCompanion(def, true));
 }
 
 export class GameSession {
@@ -1082,32 +1101,37 @@ export class GameSession {
     const granted: Array<{ id: string; name: string; title: string }> = [];
     for (const g of r.grantsCompanions) {
       if (this.companion(g.id)) continue;
-      this.companions.push({
-        id: g.id,
-        identity: { name: g.name, title: g.title, age: 18, heightCm: 160, tags: ["side"] },
-        physiology: { sex: "female", virgin: true, pregnant: false, pregnancyProgress: 0, fertileWindow: false },
-        relationship: { ...DEFAULT_RELATIONSHIP, affection: 25, loyalty: 15, bond: 1, role: "side" },
-        lust: { ...DEFAULT_LUST, value: 20 },
-        job: { id: null, bonus: 0, daysOnJob: 0 },
-        wardrobe: presetWardrobe("sister2"),
-        joined: true
-      });
+      const def = companionDef(g.id);
+      if (def) {
+        this.companions.push(makeCompanion(def, true));
+      } else {
+        // 数据缺失时退化为最小构造
+        this.companions.push({
+          id: g.id,
+          identity: { name: g.name, title: g.title, age: 18, heightCm: 160, tags: ["side"] },
+          physiology: { sex: "female", virgin: true, pregnant: false, pregnancyProgress: 0, fertileWindow: false },
+          relationship: { ...DEFAULT_RELATIONSHIP, affection: 25, loyalty: 15, bond: 1, role: "side" },
+          lust: { ...DEFAULT_LUST, value: 20 },
+          job: { id: null, bonus: 0, daysOnJob: 0 },
+          wardrobe: presetWardrobe("sister2"),
+          joined: true
+        });
+      }
       granted.push(g);
     }
 
     // 主线目标同伴在完成时加入，并补发暂存好感
     if (r.questCompleted && !this.companion(def.companionId)) {
       const pending = this.quests[questId]?.pendingAffection ?? 0;
-      this.companions.push({
-        id: def.companionId,
-        identity: { name: def.companionName, title: def.companionTitle, age: 26, heightCm: 168, tags: ["mainline"] },
-        physiology: { sex: "female", virgin: true, pregnant: false, pregnancyProgress: 0, fertileWindow: false },
-        relationship: { ...DEFAULT_RELATIONSHIP, affection: Math.min(100, 25 + pending), loyalty: 20, bond: 1, role: "main" },
-        lust: { ...DEFAULT_LUST, value: 20 },
-        job: { id: null, bonus: 0, daysOnJob: 0 },
-        wardrobe: presetWardrobe("sister"),
-        joined: true
-      });
+      const cdef = companionDef(def.companionId);
+      if (cdef) {
+        const c = makeCompanion(cdef, true);
+        c.relationship = {
+          ...c.relationship,
+          affection: Math.min(100, c.relationship.affection + pending)
+        };
+        this.companions.push(c);
+      }
       this.quests[questId] = { ...this.quests[questId], pendingAffection: 0 };
     }
 
@@ -1167,9 +1191,10 @@ export class GameSession {
     if (r.success && r.template) {
       const id = r.template.id + "_" + this.companions.length;
       if (!this.companion(id)) {
+        // 随机招募的角色来自模板库，没有预置数据，按模板构造
         this.companions.push({
           id,
-          identity: { name: r.template.name, title: r.template.title, age: 24, heightCm: 165, tags: [r.template.trait] },
+          identity: { name: r.template.name, title: r.template.title, age: 24, heightCm: 165, tags: [r.template.trait, "recruited"] },
           physiology: { sex: "female", virgin: true, pregnant: false, pregnancyProgress: 0, fertileWindow: false },
           relationship: { ...DEFAULT_RELATIONSHIP, affection: r.affection, loyalty: 10, bond: 1, role: "side" },
           lust: { ...DEFAULT_LUST, value: 15 },
