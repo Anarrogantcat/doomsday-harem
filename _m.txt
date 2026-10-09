@@ -1,0 +1,13 @@
+fix(build): 补齐 Tauri 构建所需的图标、capabilities 与 Rust trait 导入
+
+- 生成应用图标（PNG 多尺寸 + ICO 内嵌），末日暗夜配色的心形徽标
+- 新增 capabilities/default.json，声明窗口/对话框/文件系统权限
+- tauri.conf.json 补上窗口 label 与完整图标列表
+- save.rs 补 use sha2::Digest，修复 Sha256::digest 无法解析
+- 版本同步脚本纳入 Cargo.toml
+- ScenePlayer 接入模型生成（流式输出 + 失败回退手写剧本）
+
+验证
+- cargo check 通过（Rust 1.99 + MSVC 14.44 + SDK 10.0.22621）
+- vite build 通过（77 模块，172KB）
+- 测试 135 项全部通过

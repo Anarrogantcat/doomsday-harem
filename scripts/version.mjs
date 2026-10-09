@@ -100,6 +100,26 @@ if (existsSync(tsPath)) {
   }
 }
 
+// 同步 Cargo.toml 的 package.version
+const cargoPath = join(root, "apps/desktop/src-tauri/Cargo.toml");
+if (existsSync(cargoPath)) {
+  const cargo = readFileSync(cargoPath, "utf8");
+  const next = cargo.replace(/^(version\s*=\s*)"[^"]*"/m, `$1"${version}"`);
+  if (checkOnly) {
+    if (next !== cargo) {
+      console.error("✗ apps/desktop/src-tauri/Cargo.toml 与 VERSION 不一致");
+      failed++;
+    } else {
+      console.log(`✓ apps/desktop/src-tauri/Cargo.toml: ${version}`);
+    }
+  } else if (next !== cargo) {
+    writeFileSync(cargoPath, next, "utf8");
+    console.log(`→ apps/desktop/src-tauri/Cargo.toml: ${version}`);
+  } else {
+    console.log(`= apps/desktop/src-tauri/Cargo.toml: ${version}（已一致）`);
+  }
+}
+
 if (failed > 0) {
   console.error(`\n✗ ${failed} 个文件版本不一致`);
   process.exit(1);
