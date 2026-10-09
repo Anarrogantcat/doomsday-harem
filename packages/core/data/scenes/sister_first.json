@@ -1,0 +1,172 @@
+{
+  "id": "sister_first",
+  "title": "互相破处",
+  "participants": [
+    "主角",
+    "姐姐"
+  ],
+  "tone": "压抑十年的释放 / 疼痛与满足",
+  "beats": [
+    {
+      "id": "b1",
+      "poseKey": "push_down",
+      "lines": [
+        {
+          "layer": "action",
+          "text": "姐姐把主角按在床沿，膝盖抵住她的腿，居高临下地看着她。"
+        },
+        {
+          "layer": "sense",
+          "text": "夜里的空气是凉的，只有两个人身上是热的。"
+        },
+        {
+          "layer": "speech",
+          "speaker": "姐姐",
+          "text": "你以前不是这样的。但我还是想要你。"
+        },
+        {
+          "layer": "mind",
+          "text": "十年了。她想过很多次，没有一次是这样。"
+        }
+      ]
+    },
+    {
+      "id": "b2",
+      "poseKey": "straddle",
+      "lines": [
+        {
+          "layer": "action",
+          "text": "她跨坐上来，扶住主角的肩，缓缓往下压。"
+        },
+        {
+          "layer": "sense",
+          "text": "温热的紧致从顶端一寸寸吞上来，湿滑的阻力卡在中段。"
+        },
+        {
+          "layer": "speech",
+          "speaker": "姐姐",
+          "text": "……等一下。别动，让我自己来。"
+        },
+        {
+          "layer": "mind",
+          "text": "疼。但她笑了。"
+        }
+      ]
+    },
+    {
+      "id": "b3",
+      "poseKey": "sink",
+      "lines": [
+        {
+          "layer": "action",
+          "text": "她咬住下唇，猛地坐到底。"
+        },
+        {
+          "layer": "sense",
+          "text": "一声压抑的闷哼，两个人都僵住了。"
+        },
+        {
+          "layer": "speech",
+          "speaker": "姐姐",
+          "text": "我等你这个……等了快十年。"
+        },
+        {
+          "layer": "mind",
+          "text": "两个人一起疼，一起完整。"
+        }
+      ]
+    },
+    {
+      "id": "b4",
+      "poseKey": "slow",
+      "lines": [
+        {
+          "layer": "action",
+          "text": "她开始慢慢地动，起落很浅，像在确认什么。"
+        },
+        {
+          "layer": "sense",
+          "text": "床板发出很轻的吱响，混着两人不稳的呼吸。"
+        },
+        {
+          "layer": "speech",
+          "speaker": "姐姐",
+          "text": "早知道你会变成这样，我早就该……"
+        },
+        {
+          "layer": "mind",
+          "text": "后面的话她没说完，也不需要说完。"
+        }
+      ]
+    },
+    {
+      "id": "b5",
+      "poseKey": "faster",
+      "lines": [
+        {
+          "layer": "action",
+          "text": "节奏快起来，她俯下身，把脸埋进主角的颈窝。"
+        },
+        {
+          "layer": "sense",
+          "text": "汗水贴着皮肤，体温高得不正常。"
+        },
+        {
+          "layer": "speech",
+          "speaker": "姐姐",
+          "text": "别停……你也不许停。"
+        },
+        {
+          "layer": "mind",
+          "text": "门外很安静。母亲和妹妹都已经睡了。"
+        }
+      ]
+    },
+    {
+      "id": "b6",
+      "poseKey": "climax",
+      "lines": [
+        {
+          "layer": "action",
+          "text": "她的动作乱掉，指甲抠进主角的背。"
+        },
+        {
+          "layer": "sense",
+          "text": "内里一阵一阵地绞紧，把主角也拖了下去。"
+        },
+        {
+          "layer": "speech",
+          "speaker": "姐姐",
+          "text": "——嗯……！"
+        },
+        {
+          "layer": "mind",
+          "text": "第一次，就这样给了彼此。"
+        }
+      ]
+    },
+    {
+      "id": "b7",
+      "poseKey": "afterglow",
+      "lines": [
+        {
+          "layer": "action",
+          "text": "她软下来，趴在主角身上，很久没有动。"
+        },
+        {
+          "layer": "sense",
+          "text": "床单皱得不成样子，空气里有淡淡的腥甜。"
+        },
+        {
+          "layer": "speech",
+          "speaker": "姐姐",
+          "text": "……你身上，现在有我的味道了。"
+        },
+        {
+          "layer": "mind",
+          "text": "从今往后，这条线再也回不去了。"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# build
+dist/
+build/
+target/
+*.tsbuildinfo
+
+# runtime data
+*.sav
+saves/
+mods/
+
+# logs / os
+*.log
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
