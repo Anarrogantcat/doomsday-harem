@@ -49,3 +49,9 @@ button:hover { border-color: var(--accent); }
 fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 0 0 12px; }
 legend { color: var(--sub); font-size: 12px; padding: 0 6px; }
 .cheatlist ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.9; }
+
+
+.branchbar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+.row-done td { background: rgba(200,80,110,.08); }
+.row-locked td { opacity: .45; }
+.ok { color: #6ab06a; font-size: 12px; }

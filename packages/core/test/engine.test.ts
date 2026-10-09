@@ -31,6 +31,15 @@ import { PixelRenderer, sisterSheet } from "../src/render/pixel.ts";
 import { SceneRegistry } from "../src/registry/scene.ts";
 import { toRows, fromRows, rowSummary } from "../src/save/store.ts";
 import { DEFAULT_VIEW_CONFIG } from "../src/text/view.ts";
+import {
+  BRANCHES, BRANCH_NAMES, allNodes, findNode,
+  type TechNode, type BranchId
+} from "../src/tech/branches.ts";
+import {
+  newTechState, isUnlocked, prereqsMet, checkAvailability, canUnlock, unlock,
+  unlockBranchToTier, unlockAll, reset, tickResearch, startResearch,
+  aggregateBonuses, branchProgress, branchView
+} from "../src/tech/tree.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const scenePath = join(__dirname, "..", "data", "scenes", "sister_first.json");
@@ -677,4 +686,177 @@ test("store: 往返后不变式仍成立", () => {
   data.relations.push({ fromId: "hero", toId: "x", affection: 50, loyalty: 50, bond: 2, intimacy: 0, lust: 0, daysSinceIntimacy: 0 });
   const back = fromRows(toRows(1, data), VERSION, SCHEMA_VERSION);
   assert.equal(checkInvariants(back).length, 0);
+});
+
+
+
+// ============ 科技树 ============
+test("tech: 八条分支节点齐备", () => {
+  assert.equal(BRANCHES.length, 8);
+  const ids = new Set(allNodes().map((n) => n.id));
+  assert.equal(ids.size, allNodes().length, "节点 id 必须唯一");
+  for (const b of BRANCHES) {
+    assert.ok(b.nodes.length >= 6, `${b.id} 节点过少：${b.nodes.length}`);
+  }
+});
+
+test("tech: 所有前置引用有效且层级不高于自身", () => {
+  for (const node of allNodes()) {
+    for (const r of node.requires) {
+      const pre = findNode(r);
+      assert.ok(pre, `${node.id} 引用了不存在的前置 ${r}`);
+      // 同层前置合法（如 shelter_private 依赖同层的 shelter_medical），
+      // 但不得出现"依赖更高层"的循环倒挂
+      assert.ok(pre!.tier <= node.tier, `${node.id}(T${node.tier}) 的前置 ${r}(T${pre!.tier}) 层级倒挂`);
+    }
+  }
+});
+
+test("tech: 每个分支的入口层都有无前置节点（不存在孤儿层）", () => {
+  for (const b of BRANCHES) {
+    const tiers = [...new Set(b.nodes.map((n) => n.tier))].sort((a, z) => a - z);
+    const entry = tiers[0];
+    // 机器人（末日前已存在）、制药与寿命（依赖医疗站）按设计自 T3 起步，
+    // 避难所 / 远征 / 自我 / 防御 / 能源 自 T1 起
+    const LATE_ENTRY: BranchId[] = ["robot", "pharma", "longevity"];
+    if (!LATE_ENTRY.includes(b.id)) {
+      assert.equal(entry, 1, `${b.id} 应从 T1 起步，实际 T${entry}`);
+    } else {
+      assert.equal(entry, 3, `${b.id} 应按设计自 T3 起步，实际 T${entry}`);
+    }
+    // 入口层必须存在无前置的节点，否则整条分支不可达
+    const entryNodes = b.nodes.filter((n) => n.tier === entry);
+    assert.ok(
+      entryNodes.some((n) => n.requires.length === 0),
+      `${b.id} 入口层 T${entry} 无无前置节点，整条分支不可达`
+    );
+    // 其余每层至少有一个节点的前置位于更低的层
+    for (const t of tiers.filter((x) => x > entry)) {
+      const layer = b.nodes.filter((n) => n.tier === t);
+      const reachable = layer.some((n) => n.requires.some((r) => findNode(r)!.tier < t));
+      assert.ok(reachable, `${b.id} T${t} 无可达节点`);
+    }
+  }
+});
+
+test("tech: 前置未满足时不可解锁", () => {
+  let s = newTechState();
+  const res = { 玻璃: 99, LED灯: 99, PVC管: 99, 滤网: 99 };
+  const av = checkAvailability(s, "shelter_greenhouse", res);
+  assert.equal(av.ok, false);
+  assert.equal(av.reason, "missing-prereq");
+  assert.deepEqual(av.missingPrereqs, ["shelter_purify"]);
+});
+
+test("tech: 资源不足时不可解锁", () => {
+  let s = newTechState();
+  const av = checkAvailability(s, "shelter_power", { 铜线: 3, 磁铁: 1 });
+  assert.equal(av.ok, false);
+  assert.equal(av.reason, "missing-resource");
+  assert.deepEqual(av.missingResources, ["铜线", "磁铁"]);
+});
+
+test("tech: 满足条件可解锁，解锁后幂等", () => {
+  let s = newTechState();
+  assert.equal(canUnlock(s, "shelter_power", { 铜线: 10, 磁铁: 5 }), true);
+  s = unlock(s, "shelter_power");
+  assert.equal(isUnlocked(s, "shelter_power"), true);
+  const av = checkAvailability(s, "shelter_power", {});
+  assert.equal(av.reason, "unlocked");
+  // 前置链打通后可研究下一层
+  assert.equal(canUnlock(s, "shelter_reinforce", { 水泥: 30, 钢筋: 20 }), true);
+});
+
+test("tech: 研究推进按工时累积，到点完成", () => {
+  let s = newTechState();
+  s = startResearch(s, "shelter_power");
+  const node = findNode("shelter_power")!;
+  let r = tickResearch(s, node.hours / 2);
+  assert.equal(r.completed, null);
+  assert.ok(Math.abs(r.state.researching!.hours - node.hours / 2) < 0.001);
+  r = tickResearch(r.state, node.hours / 2 + 1);
+  assert.equal(r.completed, "shelter_power");
+  assert.equal(r.state.researching, null);
+  assert.equal(isUnlocked(r.state, "shelter_power"), true);
+});
+
+test("tech: 效率倍率与秒完成", () => {
+  let s = newTechState();
+  s = startResearch(s, "shelter_power");
+  const node = findNode("shelter_power")!;
+  // 2 倍效率，一半工时即可完成
+  const fast = tickResearch(s, node.hours / 2, 2);
+  assert.equal(fast.completed, "shelter_power");
+
+  let s2 = newTechState();
+  s2 = startResearch(s2, "shelter_power");
+  const inst = tickResearch(s2, 0, 1, true);
+  assert.equal(inst.completed, "shelter_power");
+});
+
+test("tech: 一键解锁到指定层级保持前置完整", () => {
+  let s = newTechState();
+  s = unlockBranchToTier(s, "energy", 3);
+  for (const node of BRANCHES.find((b) => b.id === "energy")!.nodes.filter((n) => n.tier <= 3)) {
+    assert.ok(isUnlocked(s, node.id), `${node.id} 应已解锁`);
+  }
+  // T4 未解锁
+  assert.equal(isUnlocked(s, "en_solar3"), false);
+});
+
+test("tech: 全解锁包含所有节点", () => {
+  const s = unlockAll(newTechState());
+  for (const node of allNodes()) assert.ok(isUnlocked(s, node.id));
+  assert.equal(s.unlocked.size, allNodes().length);
+});
+
+test("tech: 加成汇总区分乘算与加算", () => {
+  let s = newTechState();
+  s = unlock(s, "shelter_storage");   // storageMult: 2（乘）
+  s = unlock(s, "exp_storage");       // storageMult: 1.5（乘）
+  s = unlock(s, "self_cardio");       // staminaMax: 0.2（加）
+  const b = aggregateBonuses(s);
+  assert.equal(b["storageMult"], 3);        // 2 × 1.5
+  assert.equal(Math.round(b["staminaMax"] * 100), 20);
+});
+
+test("tech: 分支进度统计", () => {
+  let s = newTechState();
+  s = unlockBranchToTier(s, "pharma", 3);
+  const p = branchProgress(s).find((x) => x.branch === "pharma")!;
+  assert.equal(p.name, "制药科技");
+  assert.ok(p.unlocked >= 2);
+  assert.equal(p.maxTier, 3);
+  assert.ok(p.percent > 0 && p.percent < 100);
+});
+
+test("tech: 分支视图按层级排序并标注可用性", () => {
+  const s = newTechState();
+  const view = branchView(s, "pharma");
+  assert.ok(view.length >= 6);
+  const tiers = view.map((v) => v.node.tier);
+  assert.deepEqual(tiers, [...tiers].sort((a, b) => a - b));
+  assert.equal(view[0].available, true, "T3 基础制药无前置，应可用");
+});
+
+test("tech: 扶她药节点存在且效果明确", () => {
+  const rec = findNode("ph_med_recreational")!;
+  assert.match(rec.effect, /短暂/);
+  const preg = findNode("ph_med_pregnant")!;
+  assert.match(preg.effect, /主角受孕/);
+  assert.equal(preg.tier, 4);
+});
+
+test("tech: 特殊AI接口节点位于机器人分支", () => {
+  const node = findNode("rob_ai_interface")!;
+  assert.equal(node.tier, 6);
+  assert.match(node.effect, /长出脚|移动载体/);
+  assert.ok(node.requires.includes("rob_network"));
+});
+
+test("tech: 重置清空全部状态", () => {
+  let s = unlockAll(newTechState());
+  s = reset(s);
+  assert.equal(s.unlocked.size, 0);
+  assert.equal(s.researching, null);
 });

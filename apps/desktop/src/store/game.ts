@@ -2,8 +2,9 @@ import { create } from "zustand";
 import {
   World, DEFAULT_RELATIONSHIP, DEFAULT_LUST,
   effectsFor, saveBadge, DEFAULT_CHEAT,
-  type CheatOptions, type CheatEffects,
-  type Relationship, type Lust, type Survival,
+  newTechState, unlock as techUnlock, unlockBranchToTier, unlockAll as techUnlockAll,
+  type CheatOptions, type CheatEffects, type TechState,
+  type Relationship, type Lust, type Survival, type BranchId,
 } from "@doomsday/core";
 
 export interface CompanionState {
@@ -22,11 +23,16 @@ export interface GameState {
   minute: number;
   hero: { survival: Survival; identity: { name: string; title: string; heightCm: number } };
   companions: CompanionState[];
+  tech: TechState;
   cheat: CheatOptions;
   setCheat: (patch: Partial<CheatOptions>) => void;
   cheatEffects: () => CheatEffects | null;
   cheatBadge: () => string | null;
   satisfyCompanion: (id: string) => void;
+  unlockTech: (id: string) => void;
+  unlockBranch: (branch: BranchId, tier: number) => void;
+  unlockEverything: () => void;
+  techFx: () => CheatEffects | null;
 }
 
 const world = new World();
@@ -48,10 +54,12 @@ export const useGame = create<GameState>((set, get) => ({
     identity: { name: "主角", title: "扶她御姐", heightCm: 178 }
   },
   companions: seed,
+  tech: newTechState(),
 
   setCheat: (patch) => set((s) => ({ cheat: { ...s.cheat, ...patch } })),
   cheatEffects: () => effectsFor(get().cheat),
   cheatBadge: () => saveBadge(get().cheat),
+  techFx: () => effectsFor(get().cheat),
 
   satisfyCompanion: (id) =>
     set((s) => ({
@@ -68,7 +76,11 @@ export const useGame = create<GameState>((set, get) => ({
             }
           : c
       )
-    }))
+    })),
+
+  unlockTech: (id) => set((s) => ({ tech: techUnlock(s.tech, id) })),
+  unlockBranch: (branch, tier) => set((s) => ({ tech: unlockBranchToTier(s.tech, branch, tier) })),
+  unlockEverything: () => set((s) => ({ tech: techUnlockAll(s.tech) }))
 }));
 
 export { DEFAULT_CHEAT };

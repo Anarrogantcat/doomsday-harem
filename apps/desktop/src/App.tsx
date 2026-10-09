@@ -3,15 +3,17 @@ import { StatusBar } from "./panels/StatusBar.tsx";
 import { HaremPanel } from "./panels/HaremPanel.tsx";
 import { JobBoard } from "./panels/JobBoard.tsx";
 import { ScenePlayer } from "./panels/ScenePlayer.tsx";
+import { TechTreePanel } from "./panels/TechTreePanel.tsx";
 import { CheatPanel } from "./panels/CheatPanel.tsx";
 import { useGame } from "./store/game.ts";
 
-type Tab = "world" | "harem" | "jobs" | "scenes" | "cheats";
+type Tab = "world" | "harem" | "jobs" | "tech" | "scenes" | "cheats";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "world", label: "世界" },
   { id: "harem", label: "后宫" },
   { id: "jobs", label: "岗位" },
+  { id: "tech", label: "科技树" },
   { id: "scenes", label: "场景" },
   { id: "cheats", label: "设置" }
 ];
@@ -42,6 +44,7 @@ export function App() {
         {tab === "world" && <StatusBar />}
         {tab === "harem" && <HaremPanel />}
         {tab === "jobs" && <JobBoard />}
+        {tab === "tech" && <TechTreePanel />}
         {tab === "scenes" && <ScenePlayer />}
         {tab === "cheats" && <CheatPanel />}
       </main>
