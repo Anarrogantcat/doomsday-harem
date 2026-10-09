@@ -29,3 +29,5 @@ Thumbs.db
 # 另一会话的孤立草稿（保留参考，不参与构建）
 _wip/
 _*.log
+
+_commitmsg.txt
