@@ -65,6 +65,10 @@ export interface GameState {
   pauseQuest: (questId: string) => void;
   resumeQuest: (questId: string) => void;
   tryRecruitHere: () => void;
+  triggerRaid: (kind: string) => void;
+  rescueCaptured: (companionId: string) => void;
+  repairWall: () => void;
+  rollRaid: () => void;
   repairClothing: (who: string) => void;
 
   setCheat: (patch: Partial<CheatOptions>) => void;
@@ -379,6 +383,37 @@ export const useGame = create<GameState>((set, get) => ({
     if (!r.template) pushLog("附近没有遇到幸存者");
     else if (r.success) pushLog(`招募成功：${r.template.name}（${r.template.trait}）`);
     else pushLog(`遇到 ${r.template.name}，但对方拒绝了`);
+    refresh();
+  },
+
+  triggerRaid: (kind) => {
+    const { session, pushLog, refresh } = get();
+    const r = session.triggerRaid(kind as never);
+    if (!r) pushLog(`无法触发事件 ${kind}`);
+    else pushLog(`${kind}：${r.outcome}（伤亡 ${r.casualties}，弹药 -${r.ammoUsed}）`);
+    refresh();
+  },
+
+  rescueCaptured: (companionId) => {
+    const { session, pushLog, refresh } = get();
+    const seed = session.time.day * 1000 + session.time.minute;
+    const ok = session.rescueCaptured(companionId, seed);
+    pushLog(ok ? `营救成功：${companionId}` : `营救失败：${companionId}`);
+    refresh();
+  },
+
+  repairWall: () => {
+    const { session, pushLog, refresh } = get();
+    const n = session.repairWall(1);
+    pushLog(n > 0 ? `围墙修复 ${n} 级` : "围墙无需修复");
+    refresh();
+  },
+
+  rollRaid: () => {
+    const { session, pushLog, refresh } = get();
+    const ev = session.rollTonightRaid();
+    if (!ev) pushLog("今晚平安无事");
+    else pushLog(`今晚有情况：${ev.def.description}`);
     refresh();
   },
 

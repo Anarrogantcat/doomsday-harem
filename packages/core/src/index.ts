@@ -11,6 +11,7 @@ export * from "./systems/base.ts";
 export * from "./systems/world.ts";
 export * from "./systems/vehicle.ts";
 export * from "./systems/quest.ts";
+export * from "./systems/defense.ts";
 // inventory 与 clothing 有同名导出（itemsByTag），显式重导出
 export {
   type ItemCategory, type Quality, type ItemDef, type Stack, type Container,

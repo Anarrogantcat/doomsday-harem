@@ -79,6 +79,14 @@ import {
   pauseQuest as pauseQuestPure, resumeQuest as resumeQuestPure, resetQuest as resetQuestPure,
   tryRecruit, summarizeQuests, questsToJSON, questsFromJSON
 } from "../systems/quest.ts";
+import {
+  type RaidKind, type RaidDef, type RaidEvent, type RaidResult, type RaidOutcome,
+  type DefenseInput, type DefenseLevel, type DefenseJSON, type ReputationState,
+  RAIDS, raidDef, availableRaids, defenseLevel, rollRaid, resolveRaid, forceRaid,
+  newReputation, afterRaid, decayReputation,
+  newDefenseState, defenseToJSON, defenseFromJSON, describeDefense,
+  RAID_LABEL, OUTCOME_LABEL
+} from "../systems/defense.ts";
 import { mulberry32 } from "../systems/inventory.ts";
 import { newSave, type SaveData, type SavedEntity, type SavedRelation, type SavedJob, type SavedTech } from "../save/serialize.ts";
 import { VERSION } from "../version.ts";
@@ -190,6 +198,8 @@ export class GameSession {
   vehicle: Vehicle;
   /** 主线状态 */
   quests: Record<string, QuestState>;
+  /** 防御状态（名声/血腥值/围墙破损/被掳走） */
+  defense: DefenseJSON;
 
   private opts: {
     heroName: string;
@@ -247,6 +257,7 @@ export class GameSession {
     this.travelMode = "walk";
     this.vehicle = newVehicle();
     this.quests = newQuestStates();
+    this.defense = newDefenseState();
   }
 
   /**
@@ -459,7 +470,13 @@ export class GameSession {
       vehicleRange: vehicleStats(this.vehicle).range,
       vehiclePrivate: vehicleHasPrivateRoom(this.vehicle),
       questsCompleted: Object.values(this.quests).filter((q) => q.completed).length,
-      questsTotal: QUESTS.length
+      questsTotal: QUESTS.length,
+      defenseTier: this.defenseLevel().tier,
+      defenseSafety: this.defenseLevel().safety,
+      reputation: this.defense.reputation,
+      blood: this.defense.blood,
+      wallDamage: this.defense.wallDamage,
+      capturedCount: this.defense.captured.length
     };
     // 每位同伴的关键数值以 <id>_<field> 暴露
     for (const c of this.companions) {
@@ -596,7 +613,16 @@ export class GameSession {
   /** 快进若干天（睡眠） */
   sleep(days = 1): TickOutput {
     const out = fastForward(this.tickInput("sleep"), days);
-    return this.apply(out, days * 24);
+    const result = this.apply(out, days * 24);
+    // 睡觉期间逐夜判定遇袭
+    for (let d = 0; d < days; d++) {
+      const ev = this.rollTonightRaid();
+      if (ev) {
+        const r = this.resolveRaidEvent(ev, ev.canNegotiate ? "negotiate" : "fight");
+        result.warnings.push(`夜袭：${RAID_LABEL[ev.kind]}（${OUTCOME_LABEL[r.outcome]}）`);
+      }
+    }
+    return result;
   }
 
   /** 同伴的欲情按天累积（独立于主角） */
@@ -1156,6 +1182,169 @@ export class GameSession {
     return r;
   }
 
+  // ---------- 防御 ----------
+
+  /** 组装防御输入（从基地设施与岗位推导） */
+  private defenseInput(): DefenseInput {
+    const b = this.baseBonuses();
+    const patrol = this.companions
+      .filter((c) => c.joined && (c.job.id === "patrol" || c.job.id === "training"))
+      .reduce((s, c) => s + c.job.bonus, 0);
+    const defenders = this.companions.filter((c) => c.joined && c.job.id !== null).length;
+    // 主角战斗属性（科技加成）
+    const heroBonus = (b["defense"] ?? 0) / 100 + (b["cover"] ?? 0) / 200;
+
+    return {
+      facilityDefense: b["defense"] ?? 0,
+      earlyWarning: b["earlyWarning"] ?? 0,
+      cover: b["cover"] ?? 0,
+      autoFire: b["autoFire"] ?? 0,
+      shield: b["shield"] ?? 0,
+      patrolBonus: patrol,
+      defenders,
+      heroBonus
+    };
+  }
+
+  /** 当前防御等级 */
+  defenseLevel(): DefenseLevel {
+    return defenseLevel(this.defenseInput());
+  }
+
+  /** 判定今晚是否有事件 */
+  rollTonightRaid(): RaidEvent | null {
+    const seed = this.time.day * 7919 + this.time.minute;
+    const rng = mulberry32(seed);
+    const night = this.slot === "night" || this.slot === "lateNight" || this.slot === "dawn";
+    return rollRaid({
+      day: this.time.day,
+      defense: this.defenseLevel(),
+      night,
+      reputation: this.defense.reputation,
+      blood: this.defense.blood
+    }, rng);
+  }
+
+  /** 结算一次事件 */
+  resolveRaidEvent(
+    event: RaidEvent,
+    choice: "fight" | "negotiate" | "hold" = "fight"
+  ): RaidResult {
+    const seed = this.time.day * 7919 + this.time.minute + event.count;
+    const rng = mulberry32(seed);
+
+    // 我方战力：主角基础 + 同伴战斗岗位
+    const companionPower = this.companions
+      .filter((c) => c.joined && c.job.id !== null)
+      .reduce((s, c) => s + c.job.bonus * 40, 0);
+    const heroPower = 40 + (this.baseBonuses()["trainingRate"] ?? 0) * 100;
+    const power = heroPower + companionPower;
+
+    const ammo = countOf(this.storage, "ammo_762") + countOf(this.storage, "ammo_9mm")
+      + countOf(this.backpack, "ammo_762") + countOf(this.backpack, "ammo_9mm");
+
+    const defenders = this.companions.filter((c) => c.joined && c.job.id !== null).map((c) => c.id);
+
+    const result = resolveRaid({
+      event,
+      defense: this.defenseLevel(),
+      power,
+      ammo,
+      defenders,
+      choice
+    }, rng);
+
+    // 应用后果（声望从当前状态出发）
+    const rep = afterRaid(
+      { reputation: this.defense.reputation, blood: this.defense.blood },
+      event.kind,
+      result.outcome
+    );
+    this.defense = {
+      ...this.defense,
+      reputation: rep.reputation,
+      blood: rep.blood,
+      wallDamage: this.defense.wallDamage + result.wallDamage,
+      lastRaidDay: this.time.day,
+      captured: [...new Set([...this.defense.captured, ...result.captured])],
+      history: [...this.defense.history, { day: this.time.day, kind: event.kind, outcome: result.outcome }]
+    };
+
+    // 扣弹药
+    if (result.ammoUsed > 0) {
+      const from762 = Math.min(result.ammoUsed, countOf(this.storage, "ammo_762"));
+      if (from762 > 0) this.storage = remove(this.storage, "ammo_762", from762).container;
+      const rest = result.ammoUsed - from762;
+      if (rest > 0) {
+        const from9 = Math.min(rest, countOf(this.storage, "ammo_9mm"));
+        if (from9 > 0) this.storage = remove(this.storage, "ammo_9mm", from9).container;
+      }
+      this.storage = prune(this.storage);
+    }
+
+    // 战利品
+    for (const [id, n] of Object.entries(result.spoils)) this.addToStorage(id, n);
+
+    // 被掳走的同伴标记为未加入（等待营救）
+    for (const id of result.captured) {
+      const c = this.companion(id);
+      if (c) c.joined = false;
+    }
+
+    // 受伤同伴：心情下降
+    if (result.casualties > 0) {
+      const alive = this.companions.filter((c) => c.joined);
+      for (let i = 0; i < Math.min(result.casualties, alive.length); i++) {
+        alive[i].relationship = gain(alive[i].relationship, 0, 0);
+        alive[i].lust = { ...alive[i].lust };
+      }
+    }
+
+    return result;
+  }
+
+  /** 手动触发事件（作弊器/测试） */
+  triggerRaid(kind: RaidKind): RaidResult | null {
+    const event = forceRaid(kind, this.time.day);
+    if (!event) return null;
+    return this.resolveRaidEvent(event, "fight");
+  }
+
+  /** 营救被掳走的同伴 */
+  rescueCaptured(companionId: string, seed: number): boolean {
+    if (!this.defense.captured.includes(companionId)) return false;
+    const rng = mulberry32(seed);
+    // 成功率受防御等级与名声影响
+    const lvl = this.defenseLevel();
+    const chance = 0.4 + lvl.safety * 0.004;
+    if (rng() > chance) return false;
+
+    this.defense = {
+      ...this.defense,
+      captured: this.defense.captured.filter((x) => x !== companionId)
+    };
+    const c = this.companion(companionId);
+    if (c) c.joined = true;
+    return true;
+  }
+
+  /** 修复围墙 */
+  repairWall(amount = 1): number {
+    const before = this.defense.wallDamage;
+    this.defense = { ...this.defense, wallDamage: Math.max(0, before - amount) };
+    return before - this.defense.wallDamage;
+  }
+
+  /** 防御摘要 */
+  defenseText(): string {
+    return describeDefense(this.defenseLevel(), this.defense);
+  }
+
+  /** 事件历史 */
+  raidHistory() {
+    return [...this.defense.history];
+  }
+
   // ---------- 服装 ----------
 
   setWeather(weather: Weather): void {
@@ -1431,6 +1620,7 @@ export class GameSession {
     data.flags["world"] = mapToJSON(this.world);
     data.flags["vehicle"] = vehicleToJSON(this.vehicle);
     data.flags["quests"] = questsToJSON(this.quests);
+    data.flags["defense"] = defenseToJSON(this.defense);
     data.flags["travelMode"] = this.travelMode;
     data.flags["backpack"] = containerToJSON(this.backpack);
     data.flags["storage"] = containerToJSON(this.storage);
@@ -1475,6 +1665,7 @@ export class GameSession {
     s.world = mapFromJSON(data.flags["world"] as never);
     s.vehicle = vehicleFromJSON(data.flags["vehicle"] as never);
     s.quests = questsFromJSON(data.flags["quests"] as never);
+    s.defense = defenseFromJSON(data.flags["defense"] as never);
     const tm = data.flags["travelMode"];
     if (typeof tm === "string") s.travelMode = tm as TravelMode["id"];
     s.backpack = containerFromJSON(data.flags["backpack"] as never, 40, 30);
@@ -1505,7 +1696,7 @@ export class GameSession {
           k === "weather" || k === "wardrobe_hero" || k === "wardrobes" ||
           k === "backpack" || k === "storage" || k === "base" ||
           k === "world" || k === "travelMode" || k === "vehicle" ||
-          k === "quests") continue;
+          k === "quests" || k === "defense") continue;
       flags[k] = v;
     }
     s.flags = flags;
@@ -1522,6 +1713,7 @@ export class GameSession {
     region: string; regionName: string; discovered: number;
     vehicleMods: number; vehicleArmor: number;
     questsCompleted: number; questsTotal: number;
+    defenseTier: number; defenseSafety: number; captured: number;
   } {
     const total = branchProgress(this.tech).reduce((s, b) => s + b.total, 0);
     const h = Math.floor(this.time.minute / 60);
@@ -1549,7 +1741,10 @@ export class GameSession {
       vehicleMods: this.vehicle.mods.length,
       vehicleArmor: vehicleStats(this.vehicle).armorLevel,
       questsCompleted: Object.values(this.quests).filter((q) => q.completed).length,
-      questsTotal: QUESTS.length
+      questsTotal: QUESTS.length,
+      defenseTier: this.defenseLevel().tier,
+      defenseSafety: this.defenseLevel().safety,
+      captured: this.defense.captured.length
     };
   }
 }
