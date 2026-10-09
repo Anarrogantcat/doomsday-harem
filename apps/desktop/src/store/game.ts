@@ -4,6 +4,8 @@ import {
   type CheatOptions, type CheatEffects,
   type CompanionRuntime, type Activity, type JobId,
   type Weather, type ClothingSlot, type BodyZone, type ViewConfig, DEFAULT_VIEW_CONFIG,
+  newSlotList, upsertMeta, removeMeta, slotView, slotStats, buildMeta, packForSave, validateAndUnwrap,
+  type SlotList, type SlotMeta, type SaveEnvelope,
 } from "@doomsday/core";
 import {
   DEFAULT_LLM_SETTINGS, createNarrator, ensureAvailable,
@@ -23,6 +25,8 @@ export interface GameState {
   llm: LlmSettings;
   narrator: Narrator | null;
   pixelConfig: ViewConfig;
+  slots: SlotList;
+  lastSaveMsg: string;
   log: string[];
 
   // 操作
@@ -74,6 +78,20 @@ export interface GameState {
 
   setPixelConfig: (cfg: ViewConfig) => void;
 
+  saveToSlot: (slot: string) => void;
+  loadFromSlot: (slot: string) => void;
+  deleteSlot: (slot: string) => void;
+  autoSave: () => void;
+
+  applyCheatAll: () => void;
+  cheatMaxRelations: () => void;
+  cheatClearLust: () => void;
+  cheatMaxLust: () => void;
+  cheatImpregnate: (id: string) => void;
+  cheatHeroPregnant: () => void;
+  cheatDeliver: () => void;
+  cheatUnlockAll: () => void;
+
   setCheat: (patch: Partial<CheatOptions>) => void;
   cheatEffects: () => CheatEffects | null;
   cheatBadge: () => string | null;
@@ -97,6 +115,8 @@ export const useGame = create<GameState>((set, get) => ({
   llm: { ...DEFAULT_LLM_SETTINGS },
   narrator: null,
   pixelConfig: { ...DEFAULT_VIEW_CONFIG },
+  slots: newSlotList(),
+  lastSaveMsg: "",
   log: [],
 
   refresh: () => set((s) => ({ version: s.version + 1 })),
@@ -437,17 +457,115 @@ export const useGame = create<GameState>((set, get) => ({
 
   setPixelConfig: (cfg) => set({ pixelConfig: cfg }),
 
+  saveToSlot: (slot) => {
+    const { session, slots, pushLog } = get();
+    try {
+      const data = session.toSave(slot);
+      const env = packForSave(data, slot);
+      const bytes = JSON.stringify(env).length;
+      const meta = buildMeta({ slot, data, bytes });
+      set({ slots: upsertMeta(slots, meta), lastSaveMsg: `已保存到 ${slot}` });
+      pushLog(`存档写入 ${slot}（${(bytes / 1024).toFixed(1)} KB）`);
+    } catch (e) {
+      set({ lastSaveMsg: `保存失败：${e instanceof Error ? e.message : String(e)}` });
+    }
+    get().refresh();
+  },
+
+  loadFromSlot: (slot) => {
+    const { pushLog } = get();
+    // 浏览器/Node 环境下无真实持久化，这里从内存槽位元数据模拟
+    // 实际持久化由 Tauri 侧 invoke('load_game') 提供
+    set({ lastSaveMsg: `槽位 ${slot} 的读取需要 Tauri 后端支持` });
+    pushLog(`读取存档 ${slot}（需 Tauri 后端）`);
+    get().refresh();
+  },
+
+  deleteSlot: (slot) => {
+    const { slots, pushLog } = get();
+    set({ slots: removeMeta(slots, slot), lastSaveMsg: `已删除 ${slot}` });
+    pushLog(`删除存档 ${slot}`);
+    get().refresh();
+  },
+
+  autoSave: () => {
+    const { session, slots, pushLog } = get();
+    const autos = slots.metas.filter((m) => m.kind === "auto");
+    const nextSlot = autos.length < 3
+      ? `auto${[1, 2, 3].find((i) => !autos.some((m) => m.slot === `auto${i}`)) ?? 1}`
+      : autos.sort((a, b) => new Date(a.savedAt).getTime() - new Date(b.savedAt).getTime())[0].slot;
+    const data = session.toSave(nextSlot);
+    const env = packForSave(data, nextSlot);
+    const bytes = JSON.stringify(env).length;
+    const meta = buildMeta({ slot: nextSlot, data, bytes });
+    set({ slots: upsertMeta(slots, meta), lastSaveMsg: `自动存档 ${nextSlot}` });
+    pushLog(`自动存档 ${nextSlot}`);
+    get().refresh();
+  },
+
+  applyCheatAll: () => {
+    const { session, pushLog, refresh } = get();
+    const r = session.applyCheatAll();
+    pushLog(`作弊全开：科技 ${r.techUnlocked}　同伴 ${r.companionsMaxed}　设施 ${r.baseBuilt}　改装 ${r.vehicleMods}　物资 ${r.itemsGranted} 种`);
+    refresh();
+  },
+
+  cheatMaxRelations: () => {
+    const { session, pushLog, refresh } = get();
+    session.cheatMaxRelations();
+    pushLog("作弊：全员好感/忠诚/羁绊拉满");
+    refresh();
+  },
+
+  cheatClearLust: () => {
+    const { session, pushLog, refresh } = get();
+    session.cheatClearLust();
+    pushLog("作弊：全员欲情清零");
+    refresh();
+  },
+
+  cheatMaxLust: () => {
+    const { session, pushLog, refresh } = get();
+    session.cheatMaxLust();
+    pushLog("作弊：全员欲情拉满（触发夜袭阈值）");
+    refresh();
+  },
+
+  cheatImpregnate: (id) => {
+    const { session, pushLog, refresh } = get();
+    const ok = session.cheatImpregnate(id);
+    pushLog(ok ? `作弊：${id} 已怀孕` : `${id} 已怀孕或不存在`);
+    refresh();
+  },
+
+  cheatHeroPregnant: () => {
+    const { session, pushLog, refresh } = get();
+    session.cheatHeroPregnant();
+    pushLog("作弊：主角已怀孕");
+    refresh();
+  },
+
+  cheatDeliver: () => {
+    const { session, pushLog, refresh } = get();
+    const n = session.cheatDeliver();
+    pushLog(n > 0 ? `作弊：立即分娩 ${n} 名女性后代` : "主角未怀孕");
+    refresh();
+  },
+
+  cheatUnlockAll: () => {
+    const { session, pushLog, refresh } = get();
+    const n = session.cheatUnlockAllCompanions();
+    pushLog(`作弊：解锁全部后宫（新增 ${n} 人）`);
+    refresh();
+  },
+
   setCheat: (patch) => {
     set((s) => ({ cheat: { ...s.cheat, ...patch } }));
     const { cheat, session, refresh, pushLog } = get();
-    // 作弊器与主循环开关联动
+    // 作弊器开启即全开：接入全部系统
     if (cheat.enabled) {
-      session.unlockEverything();
-      for (const c of session.companions) {
-        c.relationship = { ...c.relationship, affection: 100, loyalty: 100, bond: 5 };
-        c.lust = { ...c.lust, value: 0 };
-      }
-      pushLog("作弊器已启用（全开）");
+      const r = session.applyCheatAll();
+      pushLog(`作弊器已启用：科技 ${r.techUnlocked}　同伴 ${r.companionsMaxed}　设施 ${r.baseBuilt}　改装 ${r.vehicleMods}`);
     }
     refresh();
   },

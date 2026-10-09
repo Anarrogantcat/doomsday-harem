@@ -12,12 +12,13 @@ import { QuestPanel } from "./panels/QuestPanel.tsx";
 import { DefensePanel } from "./panels/DefensePanel.tsx";
 import { CompanionDataPanel } from "./panels/CompanionDataPanel.tsx";
 import { CanvasView } from "./panels/CanvasView.tsx";
+import { SavePanel } from "./panels/SavePanel.tsx";
 import { ScenePlayer } from "./panels/ScenePlayer.tsx";
 import { CheatPanel } from "./panels/CheatPanel.tsx";
 import { LlmPanel } from "./panels/LlmPanel.tsx";
 import { useGame } from "./store/game.ts";
 
-type Tab = "status" | "map" | "canvas" | "vehicle" | "quests" | "defense" | "harem" | "roster" | "jobs" | "tech" | "base" | "wardrobe" | "items" | "scenes" | "llm" | "cheats";
+type Tab = "status" | "map" | "canvas" | "vehicle" | "quests" | "defense" | "harem" | "roster" | "jobs" | "tech" | "base" | "wardrobe" | "items" | "scenes" | "llm" | "save" | "cheats";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "status", label: "状态" },
@@ -35,6 +36,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "items", label: "物品" },
   { id: "scenes", label: "场景" },
   { id: "llm", label: "模型" },
+  { id: "save", label: "存档" },
   { id: "cheats", label: "设置" }
 ];
 
@@ -101,6 +103,7 @@ export function App() {
         {tab === "items" && <InventoryPanel />}
         {tab === "scenes" && <ScenePlayer />}
         {tab === "llm" && <LlmPanel />}
+        {tab === "save" && <SavePanel />}
         {tab === "cheats" && <CheatPanel />}
       </main>
     </div>

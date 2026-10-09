@@ -1207,6 +1207,146 @@ export class GameSession {
     return r;
   }
 
+  // ---------- 作弊器接线 ----------
+
+  /**
+   * 一键应用作弊效果到全部系统。
+   * 开启作弊即全开（对应设计：不分档）。
+   */
+  applyCheatAll(): {
+    techUnlocked: number;
+    companionsMaxed: number;
+    baseBuilt: number;
+    vehicleMods: number;
+    itemsGranted: number;
+  } {
+    // 科技全解锁
+    this.tech = unlockAll(this.tech);
+
+    // 同伴数值拉满
+    for (const c of this.companions) {
+      c.relationship = {
+        ...c.relationship,
+        affection: 100,
+        loyalty: 100,
+        bond: 5
+      };
+      c.lust = { ...c.lust, value: 0, daysSinceIntimacy: 0, forced: false };
+    }
+
+    // 基地全建成
+    this.base = instantBuildAll(this.base);
+
+    // 房车全改装
+    this.vehicle = installAll(this.vehicle);
+
+    // 资源给足（覆盖全部科技与配方所需）
+    let granted = 0;
+    const stock: Record<string, number> = {
+      copper_wire: 999, magnet: 999, pvc_pipe: 999, filter_mesh: 999,
+      activated_carbon: 999, pump: 999, fan: 999, duct: 999, glass: 999,
+      led: 999, metal_shelf: 999, insulation: 999, furniture: 999,
+      solar_panel: 999, battery: 999, controller: 999, electronics: 999,
+      machine_part: 999, mold: 999, hydraulic: 999, armor_plate: 999,
+      welding_kit: 999, rare_catalyst: 999, rare_plant: 999,
+      hormone_precursor: 999, gene_sample: 999, isotope: 999,
+      wood: 9999, stone: 9999, cement: 9999, steel_bar: 9999, cloth: 9999,
+      canned_food: 999, dried_food: 999, bread: 999, meat: 999,
+      vegetable: 999, candy: 999, coffee: 999, alcohol: 999,
+      water_bottle: 999, dirty_water: 999, water_purifier: 999,
+      painkiller: 999, antibiotic: 999, bandage: 999, stimulant: 999,
+      surgical_kit: 99, gene_stabilizer: 99, regen_promoter: 99,
+      ammo_762: 9999, ammo_9mm: 9999, ammo_shell: 9999, gunpowder: 999,
+      knife: 99, axe: 99, bat: 99, pistol: 99, rifle: 99, shotgun: 99, machinegun: 99,
+      toolbox: 99, crowbar: 99, flashlight: 99, rope: 99, binocular: 99,
+      radio: 99, radar_module: 99, sensor: 99, drone_part: 99,
+      dildo_double: 99, strap_on: 99, vibrator: 99, egg_vibe: 99,
+      restraint_set: 99, lube: 99,
+      futa_recreational: 99, futa_pregnant: 99, contraceptive: 99, fertility_boost: 99,
+      jewelry: 99, perfume: 99, chocolate: 99, book: 99, music_player: 99,
+      key_villa: 9, key_neighbor: 9, access_card: 99, data_chip: 99,
+      archive: 99, formula_notes: 9, gene_data: 9, flight_coords: 9,
+      medical_supply: 999
+    };
+    for (const [id, n] of Object.entries(stock)) {
+      const got = this.addToStorage(id, n);
+      if (got > 0) granted++;
+    }
+
+    // 怀孕/欲情等状态类作弊由 UI 单独控制
+
+    return {
+      techUnlocked: this.tech.unlocked.size,
+      companionsMaxed: this.companions.length,
+      baseBuilt: this.base.facilities.filter((f) => f.tier > 0).length,
+      vehicleMods: this.vehicle.mods.length,
+      itemsGranted: granted
+    };
+  }
+
+  /** 作弊：全体同伴好感拉满 */
+  cheatMaxRelations(): void {
+    for (const c of this.companions) {
+      c.relationship = { ...c.relationship, affection: 100, loyalty: 100, bond: 5 };
+    }
+  }
+
+  /** 作弊：清除全部欲情 */
+  cheatClearLust(): void {
+    for (const c of this.companions) {
+      c.lust = { ...c.lust, value: 0, daysSinceIntimacy: 0, forced: false };
+    }
+    this.hero.lust = { ...this.hero.lust, value: 0 };
+  }
+
+  /** 作弊：全体欲情拉满 */
+  cheatMaxLust(): void {
+    for (const c of this.companions) {
+      c.lust = { ...c.lust, value: 100, daysSinceIntimacy: 15, forced: true };
+    }
+    this.hero.lust = { ...this.hero.lust, value: 100 };
+  }
+
+  /** 作弊：立即怀孕 */
+  cheatImpregnate(companionId: string): boolean {
+    return this.conceiveCompanion(companionId);
+  }
+
+  /** 作弊：主角立即怀孕 */
+  cheatHeroPregnant(fatherId = "sister"): void {
+    this.startHeroPregnancy(fatherId);
+  }
+
+  /** 作弊：立即分娩 */
+  cheatDeliver(): number {
+    if (!this.hero.pregnancy) return 0;
+    const n = this.hero.pregnancy.multiple;
+    for (let i = 0; i < n; i++) {
+      const idx = this.offspring.length + 1;
+      this.offspring.push(
+        makeOffspring(`child_${idx}`, `女儿${idx}`, this.hero.id, this.hero.pregnancy.fatherId, this.time.day)
+      );
+    }
+    this.hero.pregnancy = null;
+    this.hero.physiology = { ...this.hero.physiology, pregnant: false, pregnancyProgress: 0 };
+    return n;
+  }
+
+  /** 作弊：解锁全部后宫（21 位全部加入） */
+  cheatUnlockAllCompanions(): number {
+    let added = 0;
+    for (const def of COMPANIONS) {
+      if (this.companion(def.id)) {
+        const c = this.companion(def.id)!;
+        if (!c.joined) { c.joined = true; added++; }
+        continue;
+      }
+      this.companions.push(makeCompanion(def, true));
+      added++;
+    }
+    return added;
+  }
+
   // ---------- 防御 ----------
 
   /** 组装防御输入（从基地设施与岗位推导） */
