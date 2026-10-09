@@ -48,6 +48,10 @@ export interface GameState {
   takeFromStorage: (itemId: string, n?: number) => void;
   putToStorage: (itemId: string, n?: number) => void;
   craftItem: (recipeId: string) => void;
+  beginBuild: (facilityId: string) => void;
+  finishBuild: (facilityId: string) => void;
+  finishAllBuilds: (level?: "surface" | "bunker" | "resource") => void;
+  demolishFacility: (facilityId: string) => void;
   repairClothing: (who: string) => void;
 
   setCheat: (patch: Partial<CheatOptions>) => void;
@@ -224,6 +228,35 @@ export const useGame = create<GameState>((set, get) => ({
     const r = session.craft(recipeId);
     if (r.ok) pushLog(`合成完成：${recipeId}`);
     else pushLog(`合成失败：${r.missingTech.length ? "缺科技 " + r.missingTech.join("、") : "缺材料"}`);
+    refresh();
+  },
+
+  beginBuild: (facilityId) => {
+    const { session, pushLog, refresh } = get();
+    const r = session.beginBuild(facilityId);
+    if (r.ok) pushLog(`开工：${facilityId}`);
+    else pushLog(`无法开工 ${facilityId}（${r.reason}）`);
+    refresh();
+  },
+
+  finishBuild: (facilityId) => {
+    const { session, pushLog, refresh } = get();
+    session.finishBuild(facilityId);
+    pushLog(`秒建成：${facilityId}`);
+    refresh();
+  },
+
+  finishAllBuilds: (level) => {
+    const { session, pushLog, refresh } = get();
+    session.finishAllBuilds(level);
+    pushLog(`一键建成：${level ?? "全部"}`);
+    refresh();
+  },
+
+  demolishFacility: (facilityId) => {
+    const { session, pushLog, refresh } = get();
+    session.demolishFacility(facilityId);
+    pushLog(`拆除：${facilityId}`);
     refresh();
   },
 

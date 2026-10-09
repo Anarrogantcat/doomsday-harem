@@ -7,6 +7,7 @@ export * from "./systems/survival.ts";
 export * from "./systems/relationship.ts";
 export * from "./systems/jobs.ts";
 export * from "./systems/clothing.ts";
+export * from "./systems/base.ts";
 // inventory 与 clothing 有同名导出（itemsByTag），显式重导出
 export {
   type ItemCategory, type Quality, type ItemDef, type Stack, type Container,

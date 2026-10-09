@@ -37,10 +37,20 @@ import {
 import {
   type Container, type Quality,
   newContainer, newStorage, add, addMany, remove, countOf, totalCount, weightOf,
-  canAfford, transfer, prune, use as useItem, rollLoot, lootTable,
+  canAfford, missingFor, transfer, prune, use as useItem, rollLoot, lootTable,
   recipeById, canCraft, craft as craftRecipe,
   containerToJSON, containerFromJSON, describeContainer, itemDef, resolveItemId, normalizeCost
 } from "../systems/inventory.ts";
+import {
+  type Base, type BaseLevel, type FacilityCategory, type FacilityDef, type BuildCheck,
+  newBase, facilityDef, facilitiesByLevel, facilitiesByCategory,
+  findFacility, tierOf, isBuilt, isBuilding,
+  upgradeCost, upgradeHours, checkBuild, startBuild, tickBuild,
+  instantBuild, instantBuildAll, demolish,
+  aggregateFacilityBonuses, effectText, summarize, livingCapacity, hSceneUnlocked,
+  baseToJSON, baseFromJSON, describeBase, FACILITIES,
+  LEVEL_LABEL, FACILITY_CATEGORY_LABEL
+} from "../systems/base.ts";
 import { newSave, type SaveData, type SavedEntity, type SavedRelation, type SavedJob, type SavedTech } from "../save/serialize.ts";
 import { VERSION } from "../version.ts";
 
@@ -141,6 +151,8 @@ export class GameSession {
   offspring: Offspring[];
   /** 当前天气，影响保暖判定 */
   weather: Weather;
+  /** 基地设施 */
+  base: Base;
 
   private opts: {
     heroName: string;
@@ -193,6 +205,7 @@ export class GameSession {
     this.registry = new SceneRegistry();
     this.offspring = [];
     this.weather = "clear";
+    this.base = newBase();
   }
 
   /**
@@ -393,7 +406,10 @@ export class GameSession {
       hero_exposure: exposure(this.hero.wardrobe),
       hero_insulation: insulation(this.hero.wardrobe),
       hero_armor: armorOf(this.hero.wardrobe),
-      hero_charm: charmOf(this.hero.wardrobe)
+      hero_charm: charmOf(this.hero.wardrobe),
+      baseBuilt: this.base.facilities.filter((x) => x.tier > 0).length,
+      housingCapacity: livingCapacity(this.base),
+      privateRoom: hSceneUnlocked(this.base)
     };
     // 每位同伴的关键数值以 <id>_<field> 暴露
     for (const c of this.companions) {
@@ -474,8 +490,23 @@ export class GameSession {
   }
 
   /** 应用一次 tick 结果到会话状态 */
-  private apply(out: TickOutput): TickOutput {
+  private apply(out: TickOutput, elapsedHours = 0): TickOutput {
     this.time = out.time;
+
+    // 建造推进（建造效率受工坊与机械师岗位加成）
+    if (elapsedHours > 0 && this.base.building) {
+      const craftRate = this.baseBonuses()["craftRate"] ?? 0;
+      const crew = this.companions
+        .filter((c) => c.joined && (c.job.id === "craft" || c.job.id === "logistics"))
+        .reduce((s, c) => s + c.job.bonus, 0);
+      const rate = 1 + craftRate + crew;
+      const bt = tickBuild(this.base, elapsedHours, rate);
+      this.base = bt.base;
+      if (bt.completed) {
+        const def = facilityDef(bt.completed);
+        out.warnings.push(`建成：${def?.name ?? bt.completed} Lv${bt.completedTier}`);
+      }
+    }
     this.hero.survival = out.survival;
     this.hero.lust = out.lust;
     this.tech = out.tech;
@@ -509,13 +540,13 @@ export class GameSession {
   /** 推进若干游戏内小时 */
   advance(hours: number, activity: Activity = "idle"): TickOutput {
     const out = tick(this.tickInput(activity), hours);
-    return this.apply(out);
+    return this.apply(out, hours);
   }
 
   /** 快进若干天（睡眠） */
   sleep(days = 1): TickOutput {
     const out = fastForward(this.tickInput("sleep"), days);
-    return this.apply(out);
+    return this.apply(out, days * 24);
   }
 
   /** 同伴的欲情按天累积（独立于主角） */
@@ -633,6 +664,89 @@ export class GameSession {
     this.hero.pregnancy = p;
     this.hero.physiology = { ...this.hero.physiology, pregnant: true };
     return p;
+  }
+
+  // ---------- 基地建造 ----------
+
+  /** 建造可用性检查 */
+  buildCheck(facilityId: string): BuildCheck | null {
+    const def = facilityDef(facilityId);
+    if (!def) return null;
+    return checkBuild(
+      this.base, def, [...this.tech.unlocked], this.resources,
+      (cost) => missingFor(this.mergedStorage(), cost)
+    );
+  }
+
+  /** 开工建造（扣除材料） */
+  beginBuild(facilityId: string): { ok: boolean; reason?: string; missing?: Record<string, number> } {
+    const check = this.buildCheck(facilityId);
+    if (!check) return { ok: false, reason: "unknown-facility" };
+    if (!check.ok) return { ok: false, reason: check.reason, missing: check.missingResource };
+
+    if (!this.spendMerged(check.cost)) {
+      return { ok: false, reason: "missing-resource", missing: missingFor(this.mergedStorage(), check.cost) };
+    }
+    this.base = startBuild(this.base, facilityId);
+    return { ok: true };
+  }
+
+  /** 立即完工（作弊器） */
+  finishBuild(facilityId: string): void {
+    this.base = instantBuild(this.base, facilityId);
+  }
+
+  /** 一键建成整层（作弊器） */
+  finishAllBuilds(level?: BaseLevel): void {
+    this.base = instantBuildAll(this.base, level);
+  }
+
+  /** 拆除设施 */
+  demolishFacility(facilityId: string): void {
+    this.base = demolish(this.base, facilityId);
+  }
+
+  /** 某设施当前等级 */
+  tierOf(facilityId: string): number {
+    return tierOf(this.base, facilityId);
+  }
+
+  /** 基地加成 */
+  baseBonuses(): Record<string, number> {
+    return aggregateFacilityBonuses(this.base);
+  }
+
+  /** 设施当前效果文本 */
+  facilityEffect(facilityId: string): string {
+    const def = facilityDef(facilityId);
+    if (!def) return "";
+    return effectText(this.base, def);
+  }
+
+  /** 基地概览 */
+  baseSummary() {
+    return summarize(this.base);
+  }
+
+  /** 居住容量（同伴上限） */
+  housingCapacity(): number {
+    return livingCapacity(this.base);
+  }
+
+  /** 是否已解锁私密场景设施 */
+  privateUnlocked(): boolean {
+    return hSceneUnlocked(this.base);
+  }
+
+  /** 已建成设施清单 */
+  builtFacilities(): Array<{ def: FacilityDef; tier: number }> {
+    const out: Array<{ def: FacilityDef; tier: number }> = [];
+    for (const fac of this.base.facilities) {
+      if (fac.tier <= 0) continue;
+      const def = facilityDef(fac.id);
+      if (def) out.push({ def, tier: fac.tier });
+    }
+    return out;
   }
 
   // ---------- 服装 ----------
@@ -906,6 +1020,7 @@ export class GameSession {
       }
     }
 
+    data.flags["base"] = baseToJSON(this.base);
     data.flags["backpack"] = containerToJSON(this.backpack);
     data.flags["storage"] = containerToJSON(this.storage);
     data.flags["offspring"] = this.offspring;
@@ -945,6 +1060,7 @@ export class GameSession {
         s.tech = { ...s.tech, researching: { nodeId: t.nodeId, hours: t.progress } };
       }
     }
+    s.base = baseFromJSON(data.flags["base"] as never);
     s.backpack = containerFromJSON(data.flags["backpack"] as never, 40, 30);
     s.storage = containerFromJSON(data.flags["storage"] as never);
     // 兼容旧存档：resources 字典迁入仓库
@@ -971,7 +1087,7 @@ export class GameSession {
     for (const [k, v] of Object.entries(data.flags)) {
       if (k === "resources" || k === "offspring" || k === "slot" ||
           k === "weather" || k === "wardrobe_hero" || k === "wardrobes" ||
-          k === "backpack" || k === "storage") continue;
+          k === "backpack" || k === "storage" || k === "base") continue;
       flags[k] = v;
     }
     s.flags = flags;
@@ -984,6 +1100,7 @@ export class GameSession {
     companions: number; techUnlocked: number; techTotal: number; offspring: number;
     pendingRaids: string[]; researching: string | null;
     weather: Weather; heroExposure: number; heroInsulation: number;
+    baseBuilt: number; baseTotal: number; building: string | null;
   } {
     const total = branchProgress(this.tech).reduce((s, b) => s + b.total, 0);
     const h = Math.floor(this.time.minute / 60);
@@ -1001,7 +1118,10 @@ export class GameSession {
       researching: this.tech.researching?.nodeId ?? null,
       weather: this.weather,
       heroExposure: exposure(this.hero.wardrobe),
-      heroInsulation: insulation(this.hero.wardrobe)
+      heroInsulation: insulation(this.hero.wardrobe),
+      baseBuilt: this.base.facilities.filter((x) => x.tier > 0).length,
+      baseTotal: FACILITIES.length,
+      building: this.base.building
     };
   }
 }
