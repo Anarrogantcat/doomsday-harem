@@ -51,6 +51,16 @@ import {
   baseToJSON, baseFromJSON, describeBase, FACILITIES,
   LEVEL_LABEL, FACILITY_CATEGORY_LABEL
 } from "../systems/base.ts";
+import {
+  type WorldMap, type RegionDef, type RegionState, type TravelMode, type TravelPlan, type TravelResult,
+  type TerrainKind, type DangerLevel,
+  REGIONS, regionDef, regionsByTerrain, regionsByTag,
+  newWorldMap, regionState, currentRegion, neighbors, discoveredNeighbors, distanceBetween,
+  TRAVEL_MODES, planTravel, travel, lootRegion, clearRegion, effectiveDanger,
+  explorationProgress, mapToJSON, mapFromJSON, describeMap,
+  TERRAIN_LABEL, DANGER_LABEL
+} from "../systems/world.ts";
+import { mulberry32 } from "../systems/inventory.ts";
 import { newSave, type SaveData, type SavedEntity, type SavedRelation, type SavedJob, type SavedTech } from "../save/serialize.ts";
 import { VERSION } from "../version.ts";
 
@@ -153,6 +163,10 @@ export class GameSession {
   weather: Weather;
   /** 基地设施 */
   base: Base;
+  /** 世界地图 */
+  world: WorldMap;
+  /** 当前使用的交通方式 */
+  travelMode: TravelMode["id"];
 
   private opts: {
     heroName: string;
@@ -206,6 +220,8 @@ export class GameSession {
     this.offspring = [];
     this.weather = "clear";
     this.base = newBase();
+    this.world = newWorldMap();
+    this.travelMode = "walk";
   }
 
   /**
@@ -409,7 +425,11 @@ export class GameSession {
       hero_charm: charmOf(this.hero.wardrobe),
       baseBuilt: this.base.facilities.filter((x) => x.tier > 0).length,
       housingCapacity: livingCapacity(this.base),
-      privateRoom: hSceneUnlocked(this.base)
+      privateRoom: hSceneUnlocked(this.base),
+      region: this.world.current,
+      regionDanger: effectiveDanger(this.world, this.world.current),
+      discoveredRegions: Object.values(this.world.regions).filter((r) => r.discovered).length,
+      totalKm: this.world.totalKm
     };
     // 每位同伴的关键数值以 <id>_<field> 暴露
     for (const c of this.companions) {
@@ -749,6 +769,100 @@ export class GameSession {
     return out;
   }
 
+  // ---------- 探索 ----------
+
+  /** 当前位置定义 */
+  here(): RegionDef | undefined {
+    return currentRegion(this.world);
+  }
+
+  /** 设置交通方式 */
+  setTravelMode(mode: TravelMode["id"]): void {
+    this.travelMode = mode;
+  }
+
+  /** 是否拥有车辆（车库已建成） */
+  vehicleAvailable(): boolean {
+    return this.tierOf("garage") > 0;
+  }
+
+  /** 装甲房车是否可用（房车装甲科技） */
+  armoredAvailable(): boolean {
+    return this.has("vehicle_armor_b") || this.tierOf("garage") >= 2;
+  }
+
+  /** 当前燃料储备 */
+  fuel(): number {
+    return countOf(this.storage, "gunpowder") * 10 + countOf(this.backpack, "gunpowder") * 10;
+  }
+
+  /** 规划旅行 */
+  planTravelTo(regionId: string, mode?: TravelMode["id"]): TravelPlan {
+    const m = mode ?? this.travelMode;
+    const available: TravelMode["id"] = this.vehicleAvailable() ? m : (m === "car" || m === "apc" ? "walk" : m);
+    return planTravel(this.world, regionId, available, {
+      fuel: this.fuel(),
+      stamina: this.hero.survival.stamina,
+      vehicleAvailable: this.vehicleAvailable(),
+      armored: this.armoredAvailable()
+    });
+  }
+
+  /** 执行旅行 */
+  travelTo(regionId: string, mode?: TravelMode["id"]): { ok: boolean; plan: TravelPlan; encounters: number; discovered: string[]; reason?: string } {
+    const plan = this.planTravelTo(regionId, mode);
+    if (!plan.reachable) {
+      return { ok: false, plan, encounters: 0, discovered: [], reason: plan.reason };
+    }
+
+    // 消耗体力与时间
+    const seed = this.time.day * 10000 + this.time.minute;
+    const rng = mulberry32(seed);
+    const r = travel(this.world, plan, seed, rng);
+    this.world = r.map;
+
+    this.hero.survival = {
+      ...this.hero.survival,
+      stamina: Math.max(0, this.hero.survival.stamina - plan.staminaCost)
+    };
+
+    // 推进时间
+    const out = tick(this.tickInput("expedition"), plan.hours);
+    this.apply(out, plan.hours);
+
+    return { ok: true, plan, encounters: r.encounters, discovered: r.discovered };
+  }
+
+  /** 在当前区域搜刮一次，产出到背包 */
+  lootCurrent(): { tableId: string | null; got: Array<{ id: string; n: number; quality: string }>; exhausted: boolean } {
+    const seed = this.time.day * 10000 + this.time.minute + this.world.totalKm;
+    const rng = mulberry32(seed);
+    const r = lootRegion(this.world, rng);
+    this.world = r.map;
+    if (!r.tableId) return { tableId: null, got: [], exhausted: true };
+
+    const loot = this.loot(r.tableId, r.seed);
+    return { tableId: r.tableId, got: loot.got.map((g) => ({ id: g.id, n: g.n, quality: g.quality })), exhausted: false };
+  }
+
+  /** 清理当前区域（降低危险度） */
+  clearCurrent(): number {
+    const before = effectiveDanger(this.world, this.world.current);
+    this.world = clearRegion(this.world, this.world.current);
+    const after = effectiveDanger(this.world, this.world.current);
+    return before - after;
+  }
+
+  /** 探索进度 */
+  exploration(): { discovered: number; total: number; percent: number } {
+    return explorationProgress(this.world);
+  }
+
+  /** 地图概览文本 */
+  mapText(): string {
+    return describeMap(this.world);
+  }
+
   // ---------- 服装 ----------
 
   setWeather(weather: Weather): void {
@@ -1021,6 +1135,8 @@ export class GameSession {
     }
 
     data.flags["base"] = baseToJSON(this.base);
+    data.flags["world"] = mapToJSON(this.world);
+    data.flags["travelMode"] = this.travelMode;
     data.flags["backpack"] = containerToJSON(this.backpack);
     data.flags["storage"] = containerToJSON(this.storage);
     data.flags["offspring"] = this.offspring;
@@ -1061,6 +1177,9 @@ export class GameSession {
       }
     }
     s.base = baseFromJSON(data.flags["base"] as never);
+    s.world = mapFromJSON(data.flags["world"] as never);
+    const tm = data.flags["travelMode"];
+    if (typeof tm === "string") s.travelMode = tm as TravelMode["id"];
     s.backpack = containerFromJSON(data.flags["backpack"] as never, 40, 30);
     s.storage = containerFromJSON(data.flags["storage"] as never);
     // 兼容旧存档：resources 字典迁入仓库
@@ -1087,7 +1206,8 @@ export class GameSession {
     for (const [k, v] of Object.entries(data.flags)) {
       if (k === "resources" || k === "offspring" || k === "slot" ||
           k === "weather" || k === "wardrobe_hero" || k === "wardrobes" ||
-          k === "backpack" || k === "storage" || k === "base") continue;
+          k === "backpack" || k === "storage" || k === "base" ||
+          k === "world" || k === "travelMode") continue;
       flags[k] = v;
     }
     s.flags = flags;
@@ -1101,6 +1221,7 @@ export class GameSession {
     pendingRaids: string[]; researching: string | null;
     weather: Weather; heroExposure: number; heroInsulation: number;
     baseBuilt: number; baseTotal: number; building: string | null;
+    region: string; regionName: string; discovered: number;
   } {
     const total = branchProgress(this.tech).reduce((s, b) => s + b.total, 0);
     const h = Math.floor(this.time.minute / 60);
@@ -1121,7 +1242,10 @@ export class GameSession {
       heroInsulation: insulation(this.hero.wardrobe),
       baseBuilt: this.base.facilities.filter((x) => x.tier > 0).length,
       baseTotal: FACILITIES.length,
-      building: this.base.building
+      building: this.base.building,
+      region: this.world.current,
+      regionName: currentRegion(this.world)?.name ?? this.world.current,
+      discovered: Object.values(this.world.regions).filter((r) => r.discovered).length
     };
   }
 }

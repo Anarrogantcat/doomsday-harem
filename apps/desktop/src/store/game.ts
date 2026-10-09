@@ -52,6 +52,10 @@ export interface GameState {
   finishBuild: (facilityId: string) => void;
   finishAllBuilds: (level?: "surface" | "bunker" | "resource") => void;
   demolishFacility: (facilityId: string) => void;
+  travelTo: (regionId: string, mode?: "walk" | "bike" | "car" | "apc") => void;
+  setTravelMode: (mode: "walk" | "bike" | "car" | "apc") => void;
+  lootCurrent: () => void;
+  clearCurrent: () => void;
   repairClothing: (who: string) => void;
 
   setCheat: (patch: Partial<CheatOptions>) => void;
@@ -257,6 +261,41 @@ export const useGame = create<GameState>((set, get) => ({
     const { session, pushLog, refresh } = get();
     session.demolishFacility(facilityId);
     pushLog(`拆除：${facilityId}`);
+    refresh();
+  },
+
+  travelTo: (regionId, mode) => {
+    const { session, pushLog, refresh } = get();
+    const r = session.travelTo(regionId, mode);
+    if (!r.ok) {
+      pushLog(`无法前往 ${regionId}（${r.reason}）`);
+    } else {
+      pushLog(`抵达 ${session.here()?.name ?? regionId}（${r.plan.km}km，${r.plan.hours.toFixed(1)}h）`);
+      if (r.discovered.length > 0) pushLog(`途中发现：${r.discovered.join("、")}`);
+      if (r.encounters > 0) pushLog(`途中遭遇 ${r.encounters} 次`);
+    }
+    refresh();
+  },
+
+  setTravelMode: (mode) => {
+    const { session, pushLog, refresh } = get();
+    session.setTravelMode(mode);
+    pushLog(`交通方式：${mode}`);
+    refresh();
+  },
+
+  lootCurrent: () => {
+    const { session, pushLog, refresh } = get();
+    const r = session.lootCurrent();
+    if (r.exhausted) pushLog("此处已无可搜刮的资源");
+    else pushLog(`搜刮 ${r.tableId}：${r.got.length ? r.got.map((g) => `${g.id}×${g.n}`).join("、") : "一无所获"}`);
+    refresh();
+  },
+
+  clearCurrent: () => {
+    const { session, pushLog, refresh } = get();
+    const n = session.clearCurrent();
+    pushLog(n > 0 ? `清理区域，危险度下降 ${n}` : "此处已无可清理");
     refresh();
   },
 

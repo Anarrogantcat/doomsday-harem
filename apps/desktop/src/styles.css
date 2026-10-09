@@ -75,3 +75,4 @@ select { background: #111419; border: 1px solid var(--line); color: var(--fg);
 button.danger { border-color: #c0392b; color: #e88; }
 button:disabled { opacity: .45; cursor: not-allowed; }
 .topbar .sub { font-size: 12px; }
+.row-dim td { opacity: .5; }
