@@ -71,6 +71,14 @@ import {
   vehicleToJSON, vehicleFromJSON, describeVehicle,
   VEHICLE_SLOT_LABEL, BASE_STATS
 } from "../systems/vehicle.ts";
+import {
+  type QuestDef, type QuestState, type QuestStage, type QuestCheck, type QuestContext,
+  type RecruitResult, type QuestSummary,
+  QUESTS, questDef, questForCompanion,
+  newQuestStates, currentStep, progressText, checkStep, advanceQuest as advanceQuestPure,
+  pauseQuest as pauseQuestPure, resumeQuest as resumeQuestPure, resetQuest as resetQuestPure,
+  tryRecruit, summarizeQuests, questsToJSON, questsFromJSON
+} from "../systems/quest.ts";
 import { mulberry32 } from "../systems/inventory.ts";
 import { newSave, type SaveData, type SavedEntity, type SavedRelation, type SavedJob, type SavedTech } from "../save/serialize.ts";
 import { VERSION } from "../version.ts";
@@ -180,6 +188,8 @@ export class GameSession {
   travelMode: TravelMode["id"];
   /** 房车 */
   vehicle: Vehicle;
+  /** 主线状态 */
+  quests: Record<string, QuestState>;
 
   private opts: {
     heroName: string;
@@ -236,6 +246,7 @@ export class GameSession {
     this.world = newWorldMap();
     this.travelMode = "walk";
     this.vehicle = newVehicle();
+    this.quests = newQuestStates();
   }
 
   /**
@@ -446,7 +457,9 @@ export class GameSession {
       totalKm: this.world.totalKm,
       vehicleArmor: vehicleStats(this.vehicle).armorLevel,
       vehicleRange: vehicleStats(this.vehicle).range,
-      vehiclePrivate: vehicleHasPrivateRoom(this.vehicle)
+      vehiclePrivate: vehicleHasPrivateRoom(this.vehicle),
+      questsCompleted: Object.values(this.quests).filter((q) => q.completed).length,
+      questsTotal: QUESTS.length
     };
     // 每位同伴的关键数值以 <id>_<field> 暴露
     for (const c of this.companions) {
@@ -969,6 +982,180 @@ export class GameSession {
     return describeVehicle(this.vehicle);
   }
 
+  // ---------- 主线 ----------
+
+  /** 主线上下文 */
+  private questContext(companionId: string): QuestContext {
+    const c = this.companion(companionId);
+    const countAny = (itemId: string) =>
+      countOf(this.storage, itemId) + countOf(this.backpack, itemId);
+    return {
+      flags: this.flags,
+      region: this.world.current,
+      countOf: countAny,
+      affection: c?.relationship.affection ?? 0,
+      paused: false
+    };
+  }
+
+  /** 检查某条主线的下一步 */
+  questCheck(questId: string): QuestCheck | null {
+    const def = questDef(questId);
+    const st = this.quests[questId];
+    if (!def || !st) return null;
+    const ctx = this.questContext(def.companionId);
+    ctx.paused = st.paused;
+    return checkStep(def, st, ctx);
+  }
+
+  /** 推进主线一步 */
+  advanceQuest(questId: string): {
+    ok: boolean;
+    reason?: string;
+    step?: string;
+    questCompleted?: boolean;
+    rewardItems?: Record<string, number>;
+    rewardAffection?: number;
+    granted?: Array<{ id: string; name: string; title: string }>;
+    rewards?: string[];
+  } {
+    const def = questDef(questId);
+    const st = this.quests[questId];
+    if (!def || !st) return { ok: false, reason: "unknown-quest" };
+
+    const ctx = this.questContext(def.companionId);
+    ctx.paused = st.paused;
+    const check = checkStep(def, st, ctx);
+    if (!check.ok) return { ok: false, reason: check.reason };
+
+    const r = advanceQuestPure(this.quests, def, ctx);
+    this.quests = r.states;
+
+    if (r.step?.requiresItems) this.spendMerged(r.step.requiresItems);
+    for (const [id, n] of Object.entries(r.rewardItems)) this.addToStorage(id, n);
+
+    // 好感：同伴已在队则直接给，否则保留在 pendingAffection 待加入时补发
+    if (r.rewardAffection > 0) {
+      const c = this.companion(def.companionId);
+      if (c) {
+        c.relationship = gain(c.relationship, r.rewardAffection, 0);
+        this.quests[questId] = {
+          ...this.quests[questId],
+          pendingAffection: Math.max(0, (this.quests[questId].pendingAffection ?? 0) - r.rewardAffection)
+        };
+      }
+    }
+
+    if (r.setFlag) this.flags[r.setFlag] = true;
+    if (r.questCompleted) {
+      this.flags[def.companionId + "_joined"] = true;
+      this.flags[questId + "_done"] = true;
+    }
+
+    // 附带后宫加入
+    const granted: Array<{ id: string; name: string; title: string }> = [];
+    for (const g of r.grantsCompanions) {
+      if (this.companion(g.id)) continue;
+      this.companions.push({
+        id: g.id,
+        identity: { name: g.name, title: g.title, age: 18, heightCm: 160, tags: ["side"] },
+        physiology: { sex: "female", virgin: true, pregnant: false, pregnancyProgress: 0, fertileWindow: false },
+        relationship: { ...DEFAULT_RELATIONSHIP, affection: 25, loyalty: 15, bond: 1, role: "side" },
+        lust: { ...DEFAULT_LUST, value: 20 },
+        job: { id: null, bonus: 0, daysOnJob: 0 },
+        wardrobe: presetWardrobe("sister2"),
+        joined: true
+      });
+      granted.push(g);
+    }
+
+    // 主线目标同伴在完成时加入，并补发暂存好感
+    if (r.questCompleted && !this.companion(def.companionId)) {
+      const pending = this.quests[questId]?.pendingAffection ?? 0;
+      this.companions.push({
+        id: def.companionId,
+        identity: { name: def.companionName, title: def.companionTitle, age: 26, heightCm: 168, tags: ["mainline"] },
+        physiology: { sex: "female", virgin: true, pregnant: false, pregnancyProgress: 0, fertileWindow: false },
+        relationship: { ...DEFAULT_RELATIONSHIP, affection: Math.min(100, 25 + pending), loyalty: 20, bond: 1, role: "main" },
+        lust: { ...DEFAULT_LUST, value: 20 },
+        job: { id: null, bonus: 0, daysOnJob: 0 },
+        wardrobe: presetWardrobe("sister"),
+        joined: true
+      });
+      this.quests[questId] = { ...this.quests[questId], pendingAffection: 0 };
+    }
+
+    // 附带后宫补发暂存好感
+    if (granted.length > 0) {
+      const pending = this.quests[questId]?.pendingAffection ?? 0;
+      if (pending > 0) {
+        for (const g of granted) {
+          const nc = this.companion(g.id);
+          if (nc) nc.relationship = gain(nc.relationship, pending, 0);
+        }
+        this.quests[questId] = { ...this.quests[questId], pendingAffection: 0 };
+      }
+    }
+
+    return {
+      ok: true,
+      step: r.step?.name,
+      questCompleted: r.questCompleted,
+      rewardItems: r.rewardItems,
+      rewardAffection: r.rewardAffection,
+      granted,
+      rewards: r.rewards
+    };
+  }
+
+  pauseQuest(questId: string): void {
+    this.quests = pauseQuestPure(this.quests, questId);
+  }
+
+  resumeQuest(questId: string): void {
+    this.quests = resumeQuestPure(this.quests, questId);
+  }
+
+  resetQuest(questId: string): void {
+    this.quests = resetQuestPure(this.quests, questId);
+  }
+
+  questSummary(): QuestSummary {
+    return summarizeQuests(this.quests);
+  }
+
+  questProgressFor(companionId: string): string {
+    const def = questForCompanion(companionId);
+    if (!def) return "（无主线）";
+    const st = this.quests[def.id];
+    return st ? progressText(def, st) : "（无主线）";
+  }
+
+  /** 随机遭遇招募 */
+  tryRecruitHere(seed: number): RecruitResult {
+    const here = currentRegion(this.world);
+    if (!here) return { template: null, success: false, affection: 0 };
+    const rng = mulberry32(seed);
+    const r = tryRecruit([here.id, ...(here.tags ?? [])], rng);
+
+    if (r.success && r.template) {
+      const id = r.template.id + "_" + this.companions.length;
+      if (!this.companion(id)) {
+        this.companions.push({
+          id,
+          identity: { name: r.template.name, title: r.template.title, age: 24, heightCm: 165, tags: [r.template.trait] },
+          physiology: { sex: "female", virgin: true, pregnant: false, pregnancyProgress: 0, fertileWindow: false },
+          relationship: { ...DEFAULT_RELATIONSHIP, affection: r.affection, loyalty: 10, bond: 1, role: "side" },
+          lust: { ...DEFAULT_LUST, value: 15 },
+          job: { id: null, bonus: 0, daysOnJob: 0 },
+          wardrobe: presetWardrobe("sister2"),
+          joined: true
+        });
+      }
+    }
+    return r;
+  }
+
   // ---------- 服装 ----------
 
   setWeather(weather: Weather): void {
@@ -1243,6 +1430,7 @@ export class GameSession {
     data.flags["base"] = baseToJSON(this.base);
     data.flags["world"] = mapToJSON(this.world);
     data.flags["vehicle"] = vehicleToJSON(this.vehicle);
+    data.flags["quests"] = questsToJSON(this.quests);
     data.flags["travelMode"] = this.travelMode;
     data.flags["backpack"] = containerToJSON(this.backpack);
     data.flags["storage"] = containerToJSON(this.storage);
@@ -1286,6 +1474,7 @@ export class GameSession {
     s.base = baseFromJSON(data.flags["base"] as never);
     s.world = mapFromJSON(data.flags["world"] as never);
     s.vehicle = vehicleFromJSON(data.flags["vehicle"] as never);
+    s.quests = questsFromJSON(data.flags["quests"] as never);
     const tm = data.flags["travelMode"];
     if (typeof tm === "string") s.travelMode = tm as TravelMode["id"];
     s.backpack = containerFromJSON(data.flags["backpack"] as never, 40, 30);
@@ -1315,7 +1504,8 @@ export class GameSession {
       if (k === "resources" || k === "offspring" || k === "slot" ||
           k === "weather" || k === "wardrobe_hero" || k === "wardrobes" ||
           k === "backpack" || k === "storage" || k === "base" ||
-          k === "world" || k === "travelMode" || k === "vehicle") continue;
+          k === "world" || k === "travelMode" || k === "vehicle" ||
+          k === "quests") continue;
       flags[k] = v;
     }
     s.flags = flags;
@@ -1331,6 +1521,7 @@ export class GameSession {
     baseBuilt: number; baseTotal: number; building: string | null;
     region: string; regionName: string; discovered: number;
     vehicleMods: number; vehicleArmor: number;
+    questsCompleted: number; questsTotal: number;
   } {
     const total = branchProgress(this.tech).reduce((s, b) => s + b.total, 0);
     const h = Math.floor(this.time.minute / 60);
@@ -1356,7 +1547,9 @@ export class GameSession {
       regionName: currentRegion(this.world)?.name ?? this.world.current,
       discovered: Object.values(this.world.regions).filter((r) => r.discovered).length,
       vehicleMods: this.vehicle.mods.length,
-      vehicleArmor: vehicleStats(this.vehicle).armorLevel
+      vehicleArmor: vehicleStats(this.vehicle).armorLevel,
+      questsCompleted: Object.values(this.quests).filter((q) => q.completed).length,
+      questsTotal: QUESTS.length
     };
   }
 }

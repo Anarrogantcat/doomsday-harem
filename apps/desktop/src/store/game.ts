@@ -61,6 +61,10 @@ export interface GameState {
   installAllVehicleMods: () => void;
   refuelVehicle: (liters: number) => void;
   repairVehicle: () => void;
+  advanceQuest: (questId: string) => void;
+  pauseQuest: (questId: string) => void;
+  resumeQuest: (questId: string) => void;
+  tryRecruitHere: () => void;
   repairClothing: (who: string) => void;
 
   setCheat: (patch: Partial<CheatOptions>) => void;
@@ -337,6 +341,44 @@ export const useGame = create<GameState>((set, get) => ({
     const { session, pushLog, refresh } = get();
     session.repairVehicle(100);
     pushLog("房车已修复");
+    refresh();
+  },
+
+  advanceQuest: (questId) => {
+    const { session, pushLog, refresh } = get();
+    const r = session.advanceQuest(questId);
+    if (!r.ok) {
+      pushLog(`主线 ${questId} 无法推进（${r.reason}）`);
+    } else {
+      pushLog(`主线推进：${r.step}`);
+      if (r.rewardAffection) pushLog(`好感 +${r.rewardAffection}`);
+      if (r.granted?.length) pushLog(`新同伴加入：${r.granted.map((g) => g.name).join("、")}`);
+      if (r.questCompleted) pushLog(`★ 主线完成：${(r.rewards ?? []).join("、")}`);
+    }
+    refresh();
+  },
+
+  pauseQuest: (questId) => {
+    const { session, pushLog, refresh } = get();
+    session.pauseQuest(questId);
+    pushLog(`主线暂停：${questId}`);
+    refresh();
+  },
+
+  resumeQuest: (questId) => {
+    const { session, pushLog, refresh } = get();
+    session.resumeQuest(questId);
+    pushLog(`主线继续：${questId}`);
+    refresh();
+  },
+
+  tryRecruitHere: () => {
+    const { session, pushLog, refresh } = get();
+    const seed = session.time.day * 10000 + session.time.minute + session.companions.length;
+    const r = session.tryRecruitHere(seed);
+    if (!r.template) pushLog("附近没有遇到幸存者");
+    else if (r.success) pushLog(`招募成功：${r.template.name}（${r.template.trait}）`);
+    else pushLog(`遇到 ${r.template.name}，但对方拒绝了`);
     refresh();
   },
 
