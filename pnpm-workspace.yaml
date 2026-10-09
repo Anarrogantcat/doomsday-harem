@@ -1,3 +1,6 @@
 packages:
   - "packages/*"
   - "apps/*"
+# 允许执行构建脚本的依赖（vite 需要 esbuild 的原生二进制）
+allowBuilds:
+  esbuild: true
