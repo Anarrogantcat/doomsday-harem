@@ -56,9 +56,9 @@ export function parseScript(src: string): ParseResult {
   let variant: ScriptVariant | null = null;
   let lastLine: Line | null = null;
 
-  const fail = (n: number, msg: string): never => {
+  function fail(n: number, msg: string): never {
     throw new Error(`脚本第 ${n} 行：${msg}`);
-  };
+  }
 
   for (let idx = 0; idx < lines.length; idx++) {
     const n = idx + 1;
@@ -84,13 +84,15 @@ export function parseScript(src: string): ParseResult {
     }
 
     if (line === "@end") {
-      if (!cur) fail(n, "@end 没有对应的 @scene");
-      if (cur.beats.length === 0) fail(n, `场景 ${cur.id} 没有任何 @beat`);
+      const sc = cur;
+      if (!sc) fail(n, "@end 没有对应的 @scene");
+      if (sc.beats.length === 0) fail(n, `场景 ${sc.id} 没有任何 @beat`);
       cur = null; beat = null; variant = null; lastLine = null;
       continue;
     }
 
     if (!cur) fail(n, "内容出现在 @scene 之外");
+    const scene: ScriptScene = cur;
 
     if (line.startsWith("@beat")) {
       const rest = line.slice("@beat".length).trim();
@@ -102,7 +104,7 @@ export function parseScript(src: string): ParseResult {
         if (k === "pose" && v) poseKey = v;
       }
       beat = { id, poseKey, lines: [] };
-      cur.beats.push(beat);
+      scene.beats.push(beat);
       variant = null; lastLine = null;
       continue;
     }
@@ -111,11 +113,13 @@ export function parseScript(src: string): ParseResult {
       const rest = line.slice("@variant".length).trim();
       const m = rest.match(/^(\S+)\s+when\s*:\s*(.+)$/);
       if (!m) fail(n, "@variant 格式应为：@variant <beatId> when: <表达式>");
-      if (!cur.beats.some((b) => b.id === m[1])) {
-        fail(n, `@variant 引用了不存在的节拍 '${m[1]}'`);
+      const beatId = m![1];
+      const whenExpr = m![2].trim();
+      if (!scene.beats.some((b) => b.id === beatId)) {
+        fail(n, `@variant 引用了不存在的节拍 '${beatId}'`);
       }
-      variant = { beatId: m[1], when: m[2].trim(), lines: [] };
-      cur.variants.push(variant);
+      variant = { beatId, when: whenExpr, lines: [] };
+      scene.variants.push(variant);
       lastLine = null;
       continue;
     }
@@ -145,11 +149,11 @@ export function parseScript(src: string): ParseResult {
     if (variant) fail(n, `@variant 块内只允许文本行，收到 '${key}'`);
     if (beat && key !== "title") fail(n, `@beat 块内只允许 action/sense/mind/speech，收到 '${key}'`);
 
-    if (key === "title") { cur.title = value; continue; }
-    if (key === "tone") { cur.tone = value; continue; }
-    if (key === "when") { cur.when = value; continue; }
+    if (key === "title") { scene.title = value; continue; }
+    if (key === "tone") { scene.tone = value; continue; }
+    if (key === "when") { scene.when = value; continue; }
     if (key === "participants") {
-      cur.participants = value.split(/[,，]/).map((s) => s.trim()).filter(Boolean);
+      scene.participants = value.split(/[,，]/).map((s) => s.trim()).filter(Boolean);
       continue;
     }
     fail(n, `未知的场景属性 '${key}'`);
