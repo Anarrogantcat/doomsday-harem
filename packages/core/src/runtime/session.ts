@@ -60,6 +60,17 @@ import {
   explorationProgress, mapToJSON, mapFromJSON, describeMap,
   TERRAIN_LABEL, DANGER_LABEL
 } from "../systems/world.ts";
+import {
+  type Vehicle, type VehicleStats, type ModDef, type ModTier, type VehicleSlot, type ModCheck,
+  MODS, modDef, modsByTier, modsBySlot,
+  newVehicle, hasMod, stats as vehicleStats, armorLabel,
+  checkMod, installMod, removeMod, installUpToTier, installAll,
+  refuel, charge as chargeVehicle, drive as driveVehicle, repair as repairVehicle,
+  hullRatio, canOffroad, hasPrivateRoom as vehicleHasPrivateRoom, droneCapacity,
+  firepower, crewCapacity, modsByInstalledTier, maxTier as vehicleMaxTier, modProgress,
+  vehicleToJSON, vehicleFromJSON, describeVehicle,
+  VEHICLE_SLOT_LABEL, BASE_STATS
+} from "../systems/vehicle.ts";
 import { mulberry32 } from "../systems/inventory.ts";
 import { newSave, type SaveData, type SavedEntity, type SavedRelation, type SavedJob, type SavedTech } from "../save/serialize.ts";
 import { VERSION } from "../version.ts";
@@ -167,6 +178,8 @@ export class GameSession {
   world: WorldMap;
   /** 当前使用的交通方式 */
   travelMode: TravelMode["id"];
+  /** 房车 */
+  vehicle: Vehicle;
 
   private opts: {
     heroName: string;
@@ -222,6 +235,7 @@ export class GameSession {
     this.base = newBase();
     this.world = newWorldMap();
     this.travelMode = "walk";
+    this.vehicle = newVehicle();
   }
 
   /**
@@ -429,7 +443,10 @@ export class GameSession {
       region: this.world.current,
       regionDanger: effectiveDanger(this.world, this.world.current),
       discoveredRegions: Object.values(this.world.regions).filter((r) => r.discovered).length,
-      totalKm: this.world.totalKm
+      totalKm: this.world.totalKm,
+      vehicleArmor: vehicleStats(this.vehicle).armorLevel,
+      vehicleRange: vehicleStats(this.vehicle).range,
+      vehiclePrivate: vehicleHasPrivateRoom(this.vehicle)
     };
     // 每位同伴的关键数值以 <id>_<field> 暴露
     for (const c of this.companions) {
@@ -800,8 +817,10 @@ export class GameSession {
   planTravelTo(regionId: string, mode?: TravelMode["id"]): TravelPlan {
     const m = mode ?? this.travelMode;
     const available: TravelMode["id"] = this.vehicleAvailable() ? m : (m === "car" || m === "apc" ? "walk" : m);
+    // 车辆模式读房车油箱；步行/自行车不需要燃料
+    const usesVehicle = available === "car" || available === "apc";
     return planTravel(this.world, regionId, available, {
-      fuel: this.fuel(),
+      fuel: usesVehicle ? this.vehicle.fuel : this.fuel(),
       stamina: this.hero.survival.stamina,
       vehicleAvailable: this.vehicleAvailable(),
       armored: this.armoredAvailable()
@@ -813,6 +832,12 @@ export class GameSession {
     const plan = this.planTravelTo(regionId, mode);
     if (!plan.reachable) {
       return { ok: false, plan, encounters: 0, discovered: [], reason: plan.reason };
+    }
+
+    // 房车出行消耗燃料
+    if (plan.mode.id === "car" || plan.mode.id === "apc") {
+      const dr = driveVehicle(this.vehicle, plan.km, 0);
+      this.vehicle = dr.vehicle;
     }
 
     // 消耗体力与时间
@@ -861,6 +886,87 @@ export class GameSession {
   /** 地图概览文本 */
   mapText(): string {
     return describeMap(this.world);
+  }
+
+  // ---------- 房车 ----------
+
+  /** 房车当前数值 */
+  vehicleStats(): VehicleStats {
+    return vehicleStats(this.vehicle);
+  }
+
+  /** 改装可用性检查 */
+  vehicleModCheck(modId: string): ModCheck | null {
+    const def = modDef(modId);
+    if (!def) return null;
+    return checkMod(this.vehicle, def, [...this.tech.unlocked],
+      (cost) => missingFor(this.mergedStorage(), cost));
+  }
+
+  /** 安装改装（扣材料） */
+  installVehicleMod(modId: string): { ok: boolean; reason?: string; missing?: Record<string, number> } {
+    const check = this.vehicleModCheck(modId);
+    if (!check) return { ok: false, reason: "unknown-mod" };
+    if (!check.ok) return { ok: false, reason: check.reason, missing: check.missingResource };
+
+    const def = modDef(modId)!;
+    if (!this.spendMerged(def.cost)) {
+      return { ok: false, reason: "missing-resource" };
+    }
+    this.vehicle = installMod(this.vehicle, modId);
+    return { ok: true };
+  }
+
+  /** 卸载改装 */
+  uninstallVehicleMod(modId: string): void {
+    this.vehicle = removeMod(this.vehicle, modId);
+  }
+
+  /** 一键装齐（作弊器） */
+  installAllVehicleMods(): void {
+    this.vehicle = installAll(this.vehicle);
+  }
+
+  /** 加油 */
+  refuelVehicle(liters: number): void {
+    this.vehicle = refuel(this.vehicle, liters);
+  }
+
+  /** 充电 */
+  chargeVehicle(kwh: number): void {
+    this.vehicle = chargeVehicle(this.vehicle, kwh);
+  }
+
+  /** 修理车身 */
+  repairVehicle(amount = 100): void {
+    this.vehicle = repairVehicle(this.vehicle, amount);
+  }
+
+  /** 行驶（供旅行调用） */
+  driveVehicle(km: number, offroad = 0) {
+    const r = driveVehicle(this.vehicle, km, offroad);
+    this.vehicle = r.vehicle;
+    return r;
+  }
+
+  /** 房车改装进度 */
+  vehicleProgress() {
+    return modProgress(this.vehicle);
+  }
+
+  /** 房车是否有私室（远征亲密场景） */
+  vehiclePrivateRoom(): boolean {
+    return vehicleHasPrivateRoom(this.vehicle);
+  }
+
+  /** 房车乘员容量 */
+  vehicleCrew(): number {
+    return crewCapacity(this.vehicle);
+  }
+
+  /** 房车摘要 */
+  vehicleText(): string {
+    return describeVehicle(this.vehicle);
   }
 
   // ---------- 服装 ----------
@@ -1136,6 +1242,7 @@ export class GameSession {
 
     data.flags["base"] = baseToJSON(this.base);
     data.flags["world"] = mapToJSON(this.world);
+    data.flags["vehicle"] = vehicleToJSON(this.vehicle);
     data.flags["travelMode"] = this.travelMode;
     data.flags["backpack"] = containerToJSON(this.backpack);
     data.flags["storage"] = containerToJSON(this.storage);
@@ -1178,6 +1285,7 @@ export class GameSession {
     }
     s.base = baseFromJSON(data.flags["base"] as never);
     s.world = mapFromJSON(data.flags["world"] as never);
+    s.vehicle = vehicleFromJSON(data.flags["vehicle"] as never);
     const tm = data.flags["travelMode"];
     if (typeof tm === "string") s.travelMode = tm as TravelMode["id"];
     s.backpack = containerFromJSON(data.flags["backpack"] as never, 40, 30);
@@ -1207,7 +1315,7 @@ export class GameSession {
       if (k === "resources" || k === "offspring" || k === "slot" ||
           k === "weather" || k === "wardrobe_hero" || k === "wardrobes" ||
           k === "backpack" || k === "storage" || k === "base" ||
-          k === "world" || k === "travelMode") continue;
+          k === "world" || k === "travelMode" || k === "vehicle") continue;
       flags[k] = v;
     }
     s.flags = flags;
@@ -1222,6 +1330,7 @@ export class GameSession {
     weather: Weather; heroExposure: number; heroInsulation: number;
     baseBuilt: number; baseTotal: number; building: string | null;
     region: string; regionName: string; discovered: number;
+    vehicleMods: number; vehicleArmor: number;
   } {
     const total = branchProgress(this.tech).reduce((s, b) => s + b.total, 0);
     const h = Math.floor(this.time.minute / 60);
@@ -1245,7 +1354,9 @@ export class GameSession {
       building: this.base.building,
       region: this.world.current,
       regionName: currentRegion(this.world)?.name ?? this.world.current,
-      discovered: Object.values(this.world.regions).filter((r) => r.discovered).length
+      discovered: Object.values(this.world.regions).filter((r) => r.discovered).length,
+      vehicleMods: this.vehicle.mods.length,
+      vehicleArmor: vehicleStats(this.vehicle).armorLevel
     };
   }
 }

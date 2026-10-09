@@ -56,6 +56,11 @@ export interface GameState {
   setTravelMode: (mode: "walk" | "bike" | "car" | "apc") => void;
   lootCurrent: () => void;
   clearCurrent: () => void;
+  installVehicleMod: (modId: string) => void;
+  uninstallVehicleMod: (modId: string) => void;
+  installAllVehicleMods: () => void;
+  refuelVehicle: (liters: number) => void;
+  repairVehicle: () => void;
   repairClothing: (who: string) => void;
 
   setCheat: (patch: Partial<CheatOptions>) => void;
@@ -296,6 +301,42 @@ export const useGame = create<GameState>((set, get) => ({
     const { session, pushLog, refresh } = get();
     const n = session.clearCurrent();
     pushLog(n > 0 ? `清理区域，危险度下降 ${n}` : "此处已无可清理");
+    refresh();
+  },
+
+  installVehicleMod: (modId) => {
+    const { session, pushLog, refresh } = get();
+    const r = session.installVehicleMod(modId);
+    if (r.ok) pushLog(`房车改装完成：${modId}`);
+    else pushLog(`改装失败 ${modId}（${r.reason}）`);
+    refresh();
+  },
+
+  uninstallVehicleMod: (modId) => {
+    const { session, pushLog, refresh } = get();
+    session.uninstallVehicleMod(modId);
+    pushLog(`卸下改装：${modId}`);
+    refresh();
+  },
+
+  installAllVehicleMods: () => {
+    const { session, pushLog, refresh } = get();
+    session.installAllVehicleMods();
+    pushLog("房车改装全部装齐");
+    refresh();
+  },
+
+  refuelVehicle: (liters) => {
+    const { session, pushLog, refresh } = get();
+    session.refuelVehicle(liters);
+    pushLog(`加油 ${liters}L（当前 ${session.vehicle.fuel.toFixed(0)}L）`);
+    refresh();
+  },
+
+  repairVehicle: () => {
+    const { session, pushLog, refresh } = get();
+    session.repairVehicle(100);
+    pushLog("房车已修复");
     refresh();
   },
 
