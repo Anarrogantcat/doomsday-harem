@@ -1,0 +1,23 @@
+feat: 本地模型接口 v0.6.0
+
+新增
+- 本地模型接口 packages/llm：Ollama / LM Studio / vLLM / llama.cpp /
+  OpenAI 兼容 / 自定义 / 离线，统一 LlmProvider 接口
+- 流式生成：Ollama NDJSON 与 OpenAI SSE 双协议，无流式能力自动退化
+- 传输层可注入 fetch，core 保持零依赖
+- 叙事服务 Narrator：模型失败自动降级到手写剧本，游戏不中断
+- 指数退避重试、LRU 缓存（可选 TTL 与持久化）
+- 提示词强制四层结构，自动注入角色关系/道具/时空/前序节拍
+- 设置系统与 React 模型设置面板
+- LLM 测试 32 项（mock fetch，不依赖真实模型）
+- docs/本地模型接口.md 设计文档
+
+变更
+- 桌面端依赖加入 @doomsday/llm
+- 版本同步脚本纳入 llm 包
+
+清理
+- 另一会话遗留的孤立草稿隔离至 _wip/（不参与构建）
+- index.ts 移除冲突的 systems/tech.ts 导出（tech/ 为正式实现）
+
+测试：135 项全部通过（core 103 + llm 32）

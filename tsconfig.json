@@ -14,12 +14,20 @@
       "node"
     ],
     "lib": [
-      "ES2022"
-    ]
+      "ES2022",
+      "DOM"
+    ],
+    "paths": {
+      "@doomsday/core": [
+        "./packages/core/src/index.ts"
+      ]
+    }
   },
   "include": [
     "packages/core/src/**/*.ts",
     "packages/core/test/**/*.ts",
-    "packages/core/demo.ts"
+    "packages/core/demo.ts",
+    "packages/llm/src/**/*.ts",
+    "packages/llm/test/**/*.ts"
   ]
 }

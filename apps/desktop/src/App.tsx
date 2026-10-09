@@ -3,18 +3,18 @@ import { StatusBar } from "./panels/StatusBar.tsx";
 import { HaremPanel } from "./panels/HaremPanel.tsx";
 import { JobBoard } from "./panels/JobBoard.tsx";
 import { ScenePlayer } from "./panels/ScenePlayer.tsx";
-import { TechTreePanel } from "./panels/TechTreePanel.tsx";
 import { CheatPanel } from "./panels/CheatPanel.tsx";
+import { LlmPanel } from "./panels/LlmPanel.tsx";
 import { useGame } from "./store/game.ts";
 
-type Tab = "world" | "harem" | "jobs" | "tech" | "scenes" | "cheats";
+type Tab = "world" | "harem" | "jobs" | "scenes" | "llm" | "cheats";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "world", label: "世界" },
   { id: "harem", label: "后宫" },
   { id: "jobs", label: "岗位" },
-  { id: "tech", label: "科技树" },
   { id: "scenes", label: "场景" },
+  { id: "llm", label: "模型" },
   { id: "cheats", label: "设置" }
 ];
 
@@ -28,11 +28,7 @@ export function App() {
         <span className="title">Doomsday Harem</span>
         <nav>
           {TABS.map((t) => (
-            <button
-              key={t.id}
-              className={tab === t.id ? "tab active" : "tab"}
-              onClick={() => setTab(t.id)}
-            >
+            <button key={t.id} className={tab === t.id ? "tab active" : "tab"} onClick={() => setTab(t.id)}>
               {t.label}
             </button>
           ))}
@@ -44,8 +40,8 @@ export function App() {
         {tab === "world" && <StatusBar />}
         {tab === "harem" && <HaremPanel />}
         {tab === "jobs" && <JobBoard />}
-        {tab === "tech" && <TechTreePanel />}
         {tab === "scenes" && <ScenePlayer />}
+        {tab === "llm" && <LlmPanel />}
         {tab === "cheats" && <CheatPanel />}
       </main>
     </div>

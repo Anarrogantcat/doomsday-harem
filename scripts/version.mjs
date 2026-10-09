@@ -15,6 +15,7 @@ const VERSION_FILE = join(root, "VERSION");
 const TARGETS = [
   "package.json",
   "packages/core/package.json",
+  "packages/llm/package.json",
   "apps/desktop/package.json",
   "apps/desktop/src-tauri/tauri.conf.json"
 ];

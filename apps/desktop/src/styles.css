@@ -55,3 +55,9 @@ legend { color: var(--sub); font-size: 12px; padding: 0 6px; }
 .row-done td { background: rgba(200,80,110,.08); }
 .row-locked td { opacity: .45; }
 .ok { color: #6ab06a; font-size: 12px; }
+.fieldrow { display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0; }
+.fieldrow label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--sub); }
+.fieldrow input { background: #111419; border: 1px solid var(--line); color: var(--fg);
+  border-radius: 6px; padding: 6px 8px; font-size: 13px; min-width: 140px; }
+.ok { color: #6cc07a; font-size: 12px; }
+input[type="checkbox"] { accent-color: var(--accent); }
