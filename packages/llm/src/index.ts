@@ -2,6 +2,7 @@ export * from "./types.ts";
 export * from "./transport.ts";
 export * from "./cache.ts";
 export * from "./prompt.ts";
+export * from "./context.ts";
 export * from "./factory.ts";
 export * from "./narrator.ts";
 export * from "./settings.ts";

@@ -205,9 +205,14 @@ export class Narrator {
     const beats: Beat[] = chunks.map((chunk, i) => {
       const lines: Line[] = classifyLines(chunk).map((l) => ({
         layer: l.layer as Line["layer"],
-        text: l.text
+        text: l.text,
+        speaker: l.speaker
       }));
-      return { id: `${ctx.sceneId}_gen${i + 1}`, poseKey: "generated", lines };
+      return {
+        id: `${ctx.sceneId}_gen${i + 1}`,
+        poseKey: ctx.pose ?? "generated",
+        lines
+      };
     });
 
     // 模型没输出分隔符时，按空行段落切
@@ -221,8 +226,12 @@ export class Narrator {
           tone: ctx.tone,
           beats: paras.map((p, i) => ({
             id: `${ctx.sceneId}_p${i + 1}`,
-            poseKey: "generated",
-            lines: classifyLines(p).map((l) => ({ layer: l.layer as Line["layer"], text: l.text }))
+            poseKey: ctx.pose ?? "generated",
+            lines: classifyLines(p).map((l) => ({
+              layer: l.layer as Line["layer"],
+              text: l.text,
+              speaker: l.speaker
+            }))
           }))
         };
       }

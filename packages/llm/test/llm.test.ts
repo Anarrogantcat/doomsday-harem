@@ -5,7 +5,7 @@ import {
   setFetch, type FetchLike, type HttpResponse
 } from "../src/transport.ts";
 import { LlmCache, cacheKey } from "../src/cache.ts";
-import { buildMessages, buildSystemPrompt, parseBeats, classifyLines } from "../src/prompt.ts";
+import { buildMessages, buildSystemPrompt, parseBeats, classifyLines, extractSpeech } from "../src/prompt.ts";
 import { createProvider, PROVIDER_PRESETS } from "../src/factory.ts";
 import { Narrator, createNarrator, ensureAvailable } from "../src/narrator.ts";
 import { OllamaProvider } from "../src/providers/ollama.ts";
@@ -250,6 +250,81 @@ test("prompt: system 强制四层结构与输出格式", () => {
   assert.match(s.content, /心理层/);
   assert.match(s.content, /对白层/);
   assert.match(s.content, /---/);
+});
+
+test("prompt: system 含说话人规范", () => {
+  const s = buildSystemPrompt();
+  assert.match(s.content, /角色名「台词内容」/);
+  assert.match(s.content, /主角的说话人一律标注为「主角」/);
+  assert.match(s.content, /禁止写出没有说话人的台词/);
+});
+
+test("prompt: system 含姿势与道具物理约束", () => {
+  const s = buildSystemPrompt();
+  assert.match(s.content, /双头龙：两端各由一人使用/);
+  assert.match(s.content, /不要自行切换体位/);
+  assert.match(s.content, /不要凭空出现第三人/);
+});
+
+test("prompt: system 含反暴力约束", () => {
+  const s = buildSystemPrompt();
+  assert.match(s.content, /禁止血腥描写/);
+  assert.match(s.content, /禁止暴力伤害/);
+  assert.match(s.content, /不是受伤/);
+});
+
+test("prompt: system 含角色一致性约束", () => {
+  const s = buildSystemPrompt();
+  assert.match(s.content, /害羞的角色不会主动扑上去/);
+  assert.match(s.content, /不得描写未穿着的衣物/);
+  assert.match(s.content, /旁观者/);
+});
+
+test("prompt: 场景上下文含性格/着装/定位", () => {
+  const msgs = buildMessages({
+    sceneId: "s1",
+    title: "姐妹同场",
+    tone: "姐姐主导",
+    participants: [
+      {
+        name: "姐姐", title: "项目经理", role: "主导方",
+        personality: "主动强势", tone: "直接、主动、带压迫感",
+        voiceSample: "跟我回房间。",
+        relation: "好感 60 / 羁绊 Lv3 / 欲情 92",
+        outfit: "围巾 / 工装衬衫 / 牛仔裤", exposure: 6
+      }
+    ],
+    props: ["双头龙"],
+    pose: "床沿坐姿",
+    beatCount: 2
+  });
+  const u = msgs[1].content;
+  assert.match(u, /主导方/);
+  assert.match(u, /主动强势/);
+  assert.match(u, /直接、主动、带压迫感/);
+  assert.match(u, /语气参考/);
+  assert.match(u, /围巾/);
+  assert.match(u, /暴露度 6%/);
+  assert.match(u, /当前姿势】床沿坐姿/);
+  assert.match(u, /生成 2 个节拍/);
+});
+
+test("prompt: 台词识别（extractSpeech）", () => {
+  assert.deepEqual(extractSpeech("姐姐「别动。」"), { speaker: "姐姐", text: "别动。" });
+  assert.deepEqual(extractSpeech("妹妹「我、我不是故意的……」"), { speaker: "妹妹", text: "我、我不是故意的……" });
+  assert.equal(extractSpeech("她跨坐上来。"), null);
+});
+
+test("prompt: 台词识别支持冒号写法", () => {
+  const r = extractSpeech("姐姐：别动。");
+  assert.equal(r?.speaker, "姐姐");
+});
+
+test("prompt: classifyLines 提取说话人", () => {
+  const out = classifyLines("姐姐「别动。」\n她跨坐上来。");
+  const speech = out.find((l) => l.layer === "speech");
+  assert.equal(speech?.speaker, "姐姐");
+  assert.equal(speech?.text, "别动。");
 });
 
 test("prompt: 场景上下文含角色关系与道具", () => {
