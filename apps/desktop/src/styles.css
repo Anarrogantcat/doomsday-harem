@@ -61,3 +61,17 @@ legend { color: var(--sub); font-size: 12px; padding: 0 6px; }
   border-radius: 6px; padding: 6px 8px; font-size: 13px; min-width: 140px; }
 .ok { color: #6cc07a; font-size: 12px; }
 input[type="checkbox"] { accent-color: var(--accent); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .grid2 { grid-template-columns: 1fr; } }
+.meter-fill.ok { background: var(--accent); }
+.meter-fill.warn { background: var(--warn); }
+.meter-fill.danger { background: #c0392b; }
+.row-ok td { background: rgba(108,192,122,.07); }
+.loglist { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.9; max-height: 520px; overflow: auto; }
+.loglist li { color: var(--sub); }
+select { background: #111419; border: 1px solid var(--line); color: var(--fg);
+  border-radius: 6px; padding: 5px 8px; font-size: 13px; min-width: 120px; }
+.jobcard li button { margin-left: 8px; font-size: 11px; padding: 2px 6px; }
+button.danger { border-color: #c0392b; color: #e88; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.topbar .sub { font-size: 12px; }

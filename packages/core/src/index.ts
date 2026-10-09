@@ -21,3 +21,5 @@ export * from "./registry/scene.ts";
 export * from "./tech/branches.ts";
 export * from "./tech/tree.ts";
 export * from "./runtime/loop.ts";
+export * from "./runtime/session.ts";
+export * from "./generated/scripts.ts";

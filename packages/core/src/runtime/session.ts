@@ -1,0 +1,649 @@
+/**
+ * 游戏会话 —— 把所有系统串成一个可操作的整体。
+ *
+ * 职责边界：
+ *  - 持有全部运行时状态（时间 / 主角 / 同伴 / 科技 / 资源 / 怀孕 / 标志位）
+ *  - 暴露玩家可执行的操作（推进时间、研究、分配岗位、满足欲情、触发场景）
+ *  - 提供存档往返（与 save/serialize.ts 对接）
+ *  - 不触碰 IO、不依赖渲染 —— UI 层订阅它，Node 测试直接调用它
+ */
+import type { GameTime, TimeSlot } from "../types.ts";
+import { makeTime, slot as slotOfTime } from "../time.ts";
+import type { Survival, Lust, Relationship, Job, Physiology, Identity, JobId } from "../components.ts";
+import { DEFAULT_LUST, DEFAULT_RELATIONSHIP, gain, satisfy, refuse, tickLust, type LustStage } from "../systems/relationship.ts";
+import { tickSurvival, type Activity } from "../systems/survival.ts";
+import { reassign, type JobAssignment } from "../systems/jobs.ts";
+import { tick, fastForward, type TickInput, type TickOutput } from "./loop.ts";
+import {
+  newTechState, startResearch, tickResearch, unlock, unlockAll, reset as resetTechState,
+  aggregateBonuses, branchProgress, isUnlocked, checkAvailability,
+  type TechState, type BranchProgress, type Availability
+} from "../tech/tree.ts";
+import { findNode } from "../tech/branches.ts";
+import { SceneRegistry } from "../registry/scene.ts";
+import type { Vars } from "../script/condition.ts";
+import type { Scene } from "../text/engine.ts";
+import { startPregnancy, advancePregnancy, type Pregnancy, type Offspring, makeOffspring } from "../systems/pregnancy.ts";
+import { newSave, type SaveData, type SavedEntity, type SavedRelation, type SavedJob, type SavedTech } from "../save/serialize.ts";
+import { VERSION } from "../version.ts";
+
+/** 一位同伴的运行时状态 */
+export interface CompanionRuntime {
+  id: string;
+  identity: Identity;
+  physiology: Physiology;
+  relationship: Relationship;
+  lust: Lust;
+  job: Job;
+  /** 是否已在队伍中（未加入的只存在于主线数据里） */
+  joined: boolean;
+}
+
+/** 主角运行时状态 */
+export interface HeroRuntime {
+  id: string;
+  identity: Identity;
+  physiology: Physiology;
+  survival: Survival;
+  lust: Lust;
+  pregnancy: Pregnancy | null;
+}
+
+export interface SessionOptions {
+  /** 初始时间 */
+  time?: GameTime;
+  /** 主角显示名 */
+  heroName?: string;
+  /** 欲情每日增长基数 */
+  lustDailyGain?: number;
+  /** 实验室研究效率倍率 */
+  researchRate?: number;
+  /** 初始资源 */
+  resources?: Record<string, number>;
+  /** 作弊器：秒完成研究 */
+  instantResearch?: boolean;
+  /** 作弊器：冻结时间 */
+  freezeTime?: boolean;
+}
+
+const DEFAULT_SURVIVAL: Survival = { hunger: 80, thirst: 70, stamina: 90, energy: 85, mood: 60 };
+
+/** 开局同伴（末日降临前已在安全屋的四位） */
+function defaultCompanions(): CompanionRuntime[] {
+  const mk = (
+    id: string, name: string, title: string, age: number, heightCm: number,
+    rel: Partial<Relationship>, lustValue: number, jobId: JobId | null, bonus: number,
+    tags: string[] = []
+  ): CompanionRuntime => ({
+    id,
+    identity: { name, title, age, heightCm, tags },
+    physiology: {
+      sex: "female",
+      virgin: id === "sister" || id === "sister2",
+      pregnant: false,
+      pregnancyProgress: 0,
+      fertileWindow: false
+    },
+    relationship: { ...DEFAULT_RELATIONSHIP, role: "family", ...rel },
+    lust: { ...DEFAULT_LUST, value: lustValue },
+    job: { id: jobId, bonus, daysOnJob: 0 },
+    joined: true
+  });
+
+  return [
+    mk("mother", "母亲", "单亲母亲", 45, 172,
+       { affection: 50, loyalty: 40, bond: 3 }, 40, "kitchen", 0.20),
+    mk("sister", "姐姐", "项目经理", 26, 174,
+       { affection: 60, loyalty: 50, bond: 3 }, 92, "logistics", 0.15),
+    mk("sister2", "妹妹", "大学生", 19, 162,
+       { affection: 40, loyalty: 30, bond: 2 }, 85, "greenhouse", 0.10),
+    mk("ai", "特殊AI", "基地核心", 1, 0,
+       { affection: 85, loyalty: 80, bond: 4, role: "ai" }, 30, "archive", 0.20, ["ai", "no-body"])
+  ];
+}
+
+export class GameSession {
+  time: GameTime;
+  hero: HeroRuntime;
+  companions: CompanionRuntime[];
+  tech: TechState;
+  resources: Record<string, number>;
+  flags: Record<string, unknown>;
+  registry: SceneRegistry;
+  offspring: Offspring[];
+
+  private opts: Required<Omit<SessionOptions, "time" | "heroName" | "resources">> & { heroName: string };
+
+  constructor(options: SessionOptions = {}) {
+    this.time = options.time ?? makeTime(1, 8 * 60);
+    this.opts = {
+      heroName: options.heroName ?? "主角",
+      lustDailyGain: options.lustDailyGain ?? 5,
+      researchRate: options.researchRate ?? 1,
+      instantResearch: options.instantResearch ?? false,
+      freezeTime: options.freezeTime ?? false
+    };
+
+    this.hero = {
+      id: "hero",
+      identity: {
+        name: this.opts.heroName,
+        title: "扶她御姐",
+        age: 28,
+        heightCm: 178,
+        tags: ["futanari"]
+      },
+      physiology: {
+        sex: "futanari",
+        virgin: true,
+        pregnant: false,
+        pregnancyProgress: 0,
+        fertileWindow: false
+      },
+      survival: { ...DEFAULT_SURVIVAL },
+      lust: { ...DEFAULT_LUST, value: 20 },
+      pregnancy: null
+    };
+
+    this.companions = defaultCompanions();
+    this.tech = newTechState();
+    this.resources = { ...(options.resources ?? {}) };
+    this.flags = {};
+    this.registry = new SceneRegistry();
+    this.offspring = [];
+  }
+
+  // ---------- 查询 ----------
+
+  get slot(): TimeSlot {
+    return slotOfTime(this.time);
+  }
+
+  get day(): number {
+    return this.time.day;
+  }
+
+  companion(id: string): CompanionRuntime | undefined {
+    return this.companions.find((c) => c.id === id);
+  }
+
+  /** 已加入的同伴 */
+  joined(): CompanionRuntime[] {
+    return this.companions.filter((c) => c.joined);
+  }
+
+  /** 用于剧本条件求值的变量集 */
+  vars(extra: Vars = {}): Vars {
+    const v: Vars = {
+      day: this.time.day,
+      minute: this.time.minute,
+      hunger: this.hero.survival.hunger,
+      thirst: this.hero.survival.thirst,
+      stamina: this.hero.survival.stamina,
+      energy: this.hero.survival.energy,
+      mood: this.hero.survival.mood,
+      lust: this.hero.lust.value,
+      virgin: this.hero.physiology.virgin,
+      pregnant: this.hero.physiology.pregnant,
+      companionCount: this.joined().length,
+      offspringCount: this.offspring.length
+    };
+    // 每位同伴的关键数值以 <id>_<field> 暴露
+    for (const c of this.companions) {
+      v[`${c.id}_affection`] = c.relationship.affection;
+      v[`${c.id}_loyalty`] = c.relationship.loyalty;
+      v[`${c.id}_bond`] = c.relationship.bond;
+      v[`${c.id}_lust`] = c.lust.value;
+      v[`${c.id}_joined`] = c.joined;
+      v[`${c.id}_virgin`] = c.physiology.virgin;
+    }
+    for (const [k, val] of Object.entries(this.flags)) {
+      if (typeof val === "number" || typeof val === "boolean" || typeof val === "string") {
+        v[k] = val;
+      }
+    }
+    return { ...v, ...extra };
+  }
+
+  /**
+   * 以某位同伴为「当前对话对象」的变量集。
+   *
+   * 剧本里写的是裸变量名（affection / bond / lust / virgin / days_since），
+   * 它们指的是当前场景的对话对象。此方法把这些名字绑定到该同伴。
+   */
+  varsFor(companionId: string): Vars {
+    const c = this.companion(companionId);
+    if (!c) return this.vars();
+    return this.vars({
+      affection: c.relationship.affection,
+      loyalty: c.relationship.loyalty,
+      bond: c.relationship.bond,
+      lust: c.lust.value,
+      days_since: c.lust.daysSinceIntimacy,
+      virgin: c.physiology.virgin,
+      pregnant: c.physiology.pregnant,
+      name: c.identity.name
+    });
+  }
+
+  /** 按显示名或 id 找到同伴 */
+  findCompanion(nameOrId: string): CompanionRuntime | undefined {
+    return this.companions.find((c) => c.id === nameOrId || c.identity.name === nameOrId);
+  }
+
+  bonuses(): Record<string, number> {
+    return aggregateBonuses(this.tech);
+  }
+
+  techProgress(): BranchProgress[] {
+    return branchProgress(this.tech);
+  }
+
+  availability(nodeId: string): Availability {
+    return checkAvailability(this.tech, nodeId, this.resources);
+  }
+
+  // ---------- 时间推进 ----------
+
+  private tickInput(activity: Activity): TickInput {
+    const researchJob = this.companions
+      .filter((c) => c.joined && c.job.id === "lab")
+      .reduce((s, c) => s + c.job.bonus, 0);
+    return {
+      time: this.time,
+      survival: this.hero.survival,
+      activity,
+      lust: this.hero.lust,
+      job: null,
+      tech: this.tech,
+      pregnancy: this.hero.pregnancy,
+      researchRate: this.opts.researchRate * (1 + researchJob),
+      lustDailyGain: this.opts.lustDailyGain,
+      instantResearch: this.opts.instantResearch,
+      freezeTime: this.opts.freezeTime
+    };
+  }
+
+  /** 应用一次 tick 结果到会话状态 */
+  private apply(out: TickOutput): TickOutput {
+    this.time = out.time;
+    this.hero.survival = out.survival;
+    this.hero.lust = out.lust;
+    this.tech = out.tech;
+    this.hero.pregnancy = out.pregnancy;
+
+    // 同伴的欲情与岗位疲劳随时间推进
+    const days = Math.max(0, out.time.day - (this.time.day - 0)) || 0;
+    for (const c of this.companions) {
+      if (!c.joined) continue;
+      const lt = tickLust(c.lust, 0, 0); // 仅重算阶段，不重复累积
+      c.lust = lt.lust;
+    }
+
+    if (out.delivered > 0) {
+      for (let i = 0; i < out.delivered; i++) {
+        const idx = this.offspring.length + 1;
+        this.offspring.push(
+          makeOffspring(
+            `child_${idx}`,
+            `女儿${idx}`,
+            this.hero.id,
+            this.hero.pregnancy?.fatherId ?? "sister",
+            this.time.day
+          )
+        );
+      }
+    }
+    return out;
+  }
+
+  /** 推进若干游戏内小时 */
+  advance(hours: number, activity: Activity = "idle"): TickOutput {
+    const out = tick(this.tickInput(activity), hours);
+    return this.apply(out);
+  }
+
+  /** 快进若干天（睡眠） */
+  sleep(days = 1): TickOutput {
+    const out = fastForward(this.tickInput("sleep"), days);
+    return this.apply(out);
+  }
+
+  /** 同伴的欲情按天累积（独立于主角） */
+  tickCompanionLust(days: number, perDay = 5): void {
+    for (const c of this.companions) {
+      if (!c.joined) continue;
+      const r = tickLust(c.lust, days, perDay);
+      c.lust = r.lust;
+    }
+  }
+
+  // ---------- 科技 ----------
+
+  beginResearch(nodeId: string): { ok: boolean; reason?: string } {
+    const av = this.availability(nodeId);
+    if (!av.ok) return { ok: false, reason: av.reason };
+    const node = findNode(nodeId);
+    if (!node) return { ok: false, reason: "unknown-node" };
+    // 扣除资源
+    for (const [res, need] of Object.entries(node.cost)) {
+      this.resources[res] = (this.resources[res] ?? 0) - need;
+      if (this.resources[res] <= 0) delete this.resources[res];
+    }
+    this.tech = startResearch(this.tech, nodeId);
+    return { ok: true };
+  }
+
+  /** 立即完成研究（作弊器 / 测试） */
+  forceComplete(nodeId: string): void {
+    this.tech = unlock(this.tech, nodeId);
+  }
+
+  unlockEverything(): void {
+    this.tech = unlockAll(this.tech);
+  }
+
+  resetTech(): void {
+    this.tech = resetTechState(this.tech);
+  }
+
+  has(nodeId: string): boolean {
+    return isUnlocked(this.tech, nodeId);
+  }
+
+  // ---------- 岗位 ----------
+
+  setJob(entityId: string, jobId: JobId | null, bonus = 0.1): void {
+    const c = this.companion(entityId);
+    if (!c) return;
+    c.job = reassign({ ...c.job, bonus }, jobId);
+  }
+
+  jobAssignments(): JobAssignment[] {
+    return this.joined()
+      .filter((c) => c.job.id !== null)
+      .map((c) => ({ entityId: c.id, job: c.job.id as JobId }));
+  }
+
+  // ---------- 关系 ----------
+
+  /** 满足某位同伴：欲情清零，好感 +3，忠诚 +2 */
+  satisfyCompanion(id: string, kind: "accept" | "raid" | "active" | "multi" = "active"): boolean {
+    const c = this.companion(id);
+    if (!c) return false;
+    const out = satisfy(c.relationship, c.lust, kind);
+    c.relationship = out.relationship;
+    c.lust = out.lust;
+    if (c.physiology.virgin) c.physiology = { ...c.physiology, virgin: false };
+    if (this.hero.physiology.virgin) {
+      this.hero.physiology = { ...this.hero.physiology, virgin: false };
+    }
+    return true;
+  }
+
+  /** 拒绝主动邀约：好感不变，欲情 +10 */
+  refuseCompanion(id: string): boolean {
+    const c = this.companion(id);
+    if (!c) return false;
+    c.lust = refuse(c.lust);
+    return true;
+  }
+
+  /** 夜袭（无拒绝选项）：直接完成 */
+  nightRaid(id: string): boolean {
+    return this.satisfyCompanion(id, "raid");
+  }
+
+  gainAffection(id: string, affection = 0, loyalty = 0): void {
+    const c = this.companion(id);
+    if (!c) return;
+    c.relationship = gain(c.relationship, affection, loyalty);
+  }
+
+  /** 当前处于夜袭阈值的同伴 */
+  pendingNightRaids(): CompanionRuntime[] {
+    return this.joined().filter((c) => c.lust.value >= 90 && c.lust.daysSinceIntimacy >= 10);
+  }
+
+  lustStageOf(id: string): LustStage {
+    const c = this.companion(id);
+    if (!c) return "none";
+    return tickLust(c.lust, 0, 0).stage;
+  }
+
+  // ---------- 怀孕 ----------
+
+  conceiveCompanion(id: string, fatherId = "hero"): boolean {
+    const c = this.companion(id);
+    if (!c || c.physiology.pregnant) return false;
+    c.physiology = { ...c.physiology, pregnant: true, pregnancyProgress: 0 };
+    return true;
+  }
+
+  startHeroPregnancy(fatherId: string, multiple = 1): Pregnancy {
+    const p = startPregnancy(this.hero.id, fatherId, this.time.day, multiple);
+    this.hero.pregnancy = p;
+    this.hero.physiology = { ...this.hero.physiology, pregnant: true };
+    return p;
+  }
+
+  // ---------- 场景 ----------
+
+  loadScript(src: string): number {
+    return this.registry.load(src);
+  }
+
+  /** 批量载入剧本源 */
+  loadScripts(sources: string[]): number {
+    return this.registry.loadAll(sources);
+  }
+
+  /**
+   * 当前可触发的全部场景。
+   *
+   * 剧本里的裸变量名（affection / bond / lust / virgin / days_since）指
+   * 「当前对话对象」。因此需要分别用全局变量与每位同伴的上下文求值，
+   * 任一上下文满足即视为可触发。返回的场景已用其对应上下文实体化
+   * （即差分文本正确注入）。
+   */
+  availableScenes(): Scene[] {
+    const seen = new Map<string, Scene>();
+
+    // 1) 全局上下文：用于主线剧本（条件只依赖标志位）
+    for (const sc of this.registry.available(this.vars())) {
+      seen.set(sc.id, sc);
+    }
+
+    // 2) 每位同伴的上下文：用于关系剧本（条件依赖 affection 等裸变量）
+    for (const c of this.companions) {
+      if (!c.joined) continue;
+      const vars = this.varsFor(c.id);
+      for (const scriptScene of this.registry.all()) {
+        const involves =
+          scriptScene.participants.includes(c.identity.name) ||
+          scriptScene.participants.includes(c.id);
+        if (!involves) continue;
+        const m = this.registry.materialize(scriptScene.id, vars);
+        if (m) seen.set(m.id, m);
+      }
+    }
+
+    return [...seen.values()];
+  }
+
+  /** 某位同伴相关的可触发场景（接受 id 或显示名） */
+  scenesFor(nameOrId: string): Scene[] {
+    const c = this.findCompanion(nameOrId);
+    if (!c) return [];
+    const vars = this.varsFor(c.id);
+    const out: Scene[] = [];
+    for (const sc of this.registry.all()) {
+      if (!sc.participants.includes(c.identity.name) && !sc.participants.includes(c.id)) continue;
+      const m = this.registry.materialize(sc.id, vars);
+      if (m) out.push(m);
+    }
+    return out;
+  }
+
+  /** 用指定同伴的上下文实体化一个场景 */
+  sceneFor(companionId: string, sceneId: string): Scene | null {
+    return this.registry.materialize(sceneId, this.varsFor(companionId));
+  }
+
+  /** 实体化指定场景；条件不满足返回 null */
+  scene(id: string): Scene | null {
+    return this.registry.materialize(id, this.vars());
+  }
+
+  /** 标记某个剧本条件已达成（供主线推进） */
+  setFlag(key: string, value: number | boolean | string): void {
+    this.flags[key] = value;
+  }
+
+  getFlag(key: string): number | boolean | string | undefined {
+    const v = this.flags[key];
+    return typeof v === "number" || typeof v === "boolean" || typeof v === "string" ? v : undefined;
+  }
+
+  // ---------- 存档 ----------
+
+  toSave(slot = "auto"): SaveData {
+    const data = newSave(VERSION, this.time);
+    data.flags = { ...this.flags, slot };
+
+    data.entities.push({
+      id: this.hero.id,
+      kind: "hero",
+      identity: this.hero.identity,
+      physiology: this.hero.physiology,
+      survival: this.hero.survival
+    });
+
+    for (const c of this.companions) {
+      const e: SavedEntity = {
+        id: c.id,
+        kind: c.id === "ai" ? "ai" : "companion",
+        identity: c.identity,
+        physiology: c.physiology,
+        survival: DEFAULT_SURVIVAL
+      };
+      if (c.id === "ai") {
+        e.ai = { level: 2, hasBody: false, hasProjection: false, possessesRobot: null };
+      }
+      data.entities.push(e);
+
+      const rel: SavedRelation = {
+        fromId: this.hero.id,
+        toId: c.id,
+        affection: c.relationship.affection,
+        loyalty: c.relationship.loyalty,
+        bond: c.relationship.bond,
+        intimacy: 0,
+        lust: c.lust.value,
+        daysSinceIntimacy: c.lust.daysSinceIntimacy
+      };
+      data.relations.push(rel);
+
+      const job: SavedJob = {
+        entityId: c.id,
+        jobId: c.job.id,
+        bonus: c.job.bonus,
+        daysOnJob: c.job.daysOnJob
+      };
+      data.jobs.push(job);
+    }
+
+    for (const id of this.tech.unlocked) {
+      const node = findNode(id);
+      if (!node) continue;
+      const t: SavedTech = {
+        branch: id.split("_")[0],
+        nodeId: id,
+        tier: node.tier,
+        unlocked: true,
+        progress: 0
+      };
+      data.tech.push(t);
+    }
+    if (this.tech.researching) {
+      const node = findNode(this.tech.researching.nodeId);
+      if (node) {
+        data.tech.push({
+          branch: this.tech.researching.nodeId.split("_")[0],
+          nodeId: this.tech.researching.nodeId,
+          tier: node.tier,
+          unlocked: false,
+          progress: this.tech.researching.hours
+        });
+      }
+    }
+
+    data.flags["resources"] = this.resources;
+    data.flags["offspring"] = this.offspring;
+    return data;
+  }
+
+  static fromSave(data: SaveData): GameSession {
+    const s = new GameSession({ time: data.time });
+    const hero = data.entities.find((e) => e.kind === "hero");
+    if (hero) {
+      s.hero.identity = hero.identity;
+      s.hero.physiology = hero.physiology;
+      s.hero.survival = hero.survival;
+    }
+    for (const r of data.relations) {
+      const c = s.companion(r.toId);
+      if (!c) continue;
+      c.relationship = { ...c.relationship, affection: r.affection, loyalty: r.loyalty, bond: r.bond as Relationship["bond"] };
+      c.lust = { ...c.lust, value: r.lust, daysSinceIntimacy: r.daysSinceIntimacy };
+    }
+    for (const j of data.jobs) {
+      const c = s.companion(j.entityId);
+      if (!c) continue;
+      c.job = { id: j.jobId as JobId | null, bonus: j.bonus, daysOnJob: j.daysOnJob };
+    }
+    for (const t of data.tech) {
+      if (t.unlocked) {
+        s.tech = unlock(s.tech, t.nodeId);
+      } else {
+        // 未完成但已有进度 → 恢复为研究中
+        s.tech = startResearch(s.tech, t.nodeId);
+        s.tech = { ...s.tech, researching: { nodeId: t.nodeId, hours: t.progress } };
+      }
+    }
+    const res = data.flags["resources"];
+    if (res && typeof res === "object") s.resources = res as Record<string, number>;
+    const off = data.flags["offspring"];
+    if (Array.isArray(off)) s.offspring = off as Offspring[];
+    const flags: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(data.flags)) {
+      if (k === "resources" || k === "offspring" || k === "slot") continue;
+      flags[k] = v;
+    }
+    s.flags = flags;
+    return s;
+  }
+
+  /** 状态摘要（调试与 UI 概览用） */
+  summary(): {
+    time: string; day: number; slot: TimeSlot; hero: Survival;
+    companions: number; techUnlocked: number; techTotal: number; offspring: number;
+    pendingRaids: string[]; researching: string | null;
+  } {
+    const total = branchProgress(this.tech).reduce((s, b) => s + b.total, 0);
+    const h = Math.floor(this.time.minute / 60);
+    const m = this.time.minute % 60;
+    return {
+      time: `第${this.time.day}天 ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
+      day: this.time.day,
+      slot: this.slot,
+      hero: this.hero.survival,
+      companions: this.joined().length,
+      techUnlocked: this.tech.unlocked.size,
+      techTotal: total,
+      offspring: this.offspring.length,
+      pendingRaids: this.pendingNightRaids().map((c) => c.id),
+      researching: this.tech.researching?.nodeId ?? null
+    };
+  }
+}

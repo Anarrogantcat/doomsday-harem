@@ -1,7 +1,7 @@
 {
   "name": "doomsday-harem",
   "private": true,
-  "version": "0.6.2",
+  "version": "0.7.0",
   "type": "module",
   "workspaces": [
     "packages/*",
@@ -18,7 +18,11 @@
     "dev": "pnpm --filter @doomsday/desktop dev",
     "build": "pnpm --filter @doomsday/desktop build",
     "tauri": "pnpm --filter @doomsday/desktop tauri",
-    "smoke:ollama": "node scripts/ollama-smoke.mjs"
+    "smoke:ollama": "node scripts/ollama-smoke.mjs",
+    "gen": "node scripts/gen-scripts.mjs",
+    "prebuild": "node scripts/gen-scripts.mjs",
+    "predev": "node scripts/gen-scripts.mjs",
+    "demo:session": "node packages/core/demo-session.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

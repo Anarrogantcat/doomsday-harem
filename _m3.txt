@@ -1,0 +1,44 @@
+feat: GameSession 打通 UI 与主循环，游戏首次真正可玩 v0.7.0
+
+核心变更
+- 新增 runtime/session.ts：GameSession 把全部系统串成可操作的整体
+  - 持有时间/主角/同伴/科技/资源/怀孕/后代/标志位
+  - 玩家操作：推进时间、研究、调岗、亲密、拒绝、夜袭、怀孕
+  - 存档往返（toSave / fromSave）
+  - 条件驱动的场景筛选（availableScenes / scenesFor / sceneFor）
+- 新增 varsFor(companionId)：把剧本里的裸变量名（affection/bond/lust/
+  virgin/days_since）绑定到当前对话对象
+- availableScenes() 改为多上下文求值：全局 + 每位同伴各一次，
+  任一满足即可触发，并用对应上下文实体化（差分正确注入）
+
+UI 从硬编码假数据改为真实会话驱动
+- StatusBar：真实生存数值、时间推进按钮、科技加成、事件日志
+- HaremPanel：真实好感/忠诚/羁绊/欲情/冷落天数、欲情阶段、夜袭触发
+- JobBoard：真实岗位分配、加成累加、下拉调岗
+- TechTreePanel：八分支 127 节点、前置与资源校验、研究进度、资源池
+- ScenePlayer：实时筛选可触发场景、按参与人构造模型提示词
+
+修复
+- gain() 允许负增量导致好感可下降 —— 违反 INV-1，现忽略负增量
+- scenesFor 不识别显示名（"姐姐" vs "sister"）
+- fromSave 未恢复「研究中」状态
+- core 包 exports 补 data/* 通配
+
+构建
+- scripts/gen-scripts.mjs：构建前把 20 个 DSL 内联为 TS 模块
+  （Vite 的 import.meta.glob 无法解析裸包名）
+- prebuild/predev 钩子自动执行
+
+验证
+- 测试 176 项全部通过（core 138 + llm 38）
+- tsc 零错误
+- 前端构建 79 模块 / 232KB
+- Tauri cargo check 通过
+- demo:session 端到端演示全流程
+
+端到端实测
+- 场景解锁随条件实时变化：开局 2 个 → 破处后 1 个 → 母亲好感达标 2 个
+  → 妹妹好感达标 3 个 → 姐姐冷落 12 天触发夜袭 4 个
+- 差分生效：欲情 92 时 b2 节拍 5 行，欲情 40 时 4 行
+- 羁绊差分：Lv5 时 b4 节拍追加「这次……换你来。」
+- 怀孕 30 天分娩产出女性后代，存档往返一致

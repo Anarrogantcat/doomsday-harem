@@ -14,12 +14,17 @@ export const DEFAULT_LUST: Lust = {
   forced: false
 };
 
-/** 好感/忠诚只升不降 —— 所有增益走这里 */
+/**
+ * 好感/忠诚只升不降（INV-1）。
+ * 负增量一律忽略 —— 任何行为都不得扣减关系数值。
+ */
 export function gain(r: Relationship, affection = 0, loyalty = 0): Relationship {
+  const dAff = Math.max(0, affection);
+  const dLoy = Math.max(0, loyalty);
   return {
     ...r,
-    affection: clamp100(r.affection + affection),
-    loyalty: clamp100(r.loyalty + loyalty)
+    affection: clamp100(r.affection + dAff),
+    loyalty: clamp100(r.loyalty + dLoy)
   };
 }
 
