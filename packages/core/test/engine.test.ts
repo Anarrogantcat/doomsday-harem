@@ -40,6 +40,11 @@ import {
   unlockBranchToTier, unlockAll, reset, tickResearch, startResearch,
   aggregateBonuses, branchProgress, branchView
 } from "../src/tech/tree.ts";
+import {
+  newCombatant, startCombat, attack, playerAttack, charmEnemy,
+  enemyTurn, advanceRound, playerFromBonuses, mulberry32
+} from "../src/systems/combat.ts";
+import { tick, fastForward } from "../src/runtime/loop.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const scenePath = join(__dirname, "..", "data", "scenes", "sister_first.json");
@@ -859,4 +864,236 @@ test("tech: 重置清空全部状态", () => {
   s = reset(s);
   assert.equal(s.unlocked.size, 0);
   assert.equal(s.researching, null);
+});
+
+
+
+// ============ 战斗系统 ============
+const rng = () => mulberry32(42);
+
+test("combat: 初始化与单位构造", () => {
+  const hero = newCombatant({ id: "hero", name: "主角", attack: 12, hp: 60, hpMax: 60 });
+  const zombie = newCombatant({ id: "z1", name: "丧尸", hp: 30, hpMax: 30 });
+  const s = startCombat(hero, [zombie]);
+  assert.equal(s.round, 1);
+  assert.equal(s.turn, "player");
+  assert.equal(s.over, false);
+  assert.match(s.log[0], /遭遇 丧尸/);
+});
+
+test("combat: 攻击造成伤害且不超过敌方血量", () => {
+  const hero = newCombatant({ id: "hero", name: "主角", attack: 50, critRate: 0 });
+  const zombie = newCombatant({ id: "z1", name: "丧尸", hp: 10, hpMax: 10, defense: 0, dodge: 0 });
+  let s = startCombat(hero, [zombie]);
+  s = playerAttack(s, "z1", rng());
+  assert.equal(s.enemies[0].hp, 0);
+  assert.equal(s.over, true);
+  assert.equal(s.victory, true);
+  assert.match(s.log[s.log.length - 1], /战斗胜利/);
+});
+
+test("combat: 闪避时伤害为 0", () => {
+  const hero = newCombatant({ id: "hero", name: "主角", attack: 50 });
+  const ninja = newCombatant({ id: "n1", name: "忍者", hp: 30, hpMax: 30, dodge: 1 });
+  let s = startCombat(hero, [ninja]);
+  s = playerAttack(s, "n1", rng());
+  assert.equal(s.enemies[0].hp, 30);
+  assert.match(s.log[s.log.length - 1], /被闪避/);
+});
+
+test("combat: 暴击提升伤害", () => {
+  const a = newCombatant({ id: "a", name: "A", attack: 20, critRate: 0 });
+  const b = newCombatant({ id: "b", name: "B", attack: 20, critRate: 1, critDmg: 2 });
+  const target = () => newCombatant({ id: "t", name: "T", defense: 0, dodge: 0, hp: 100, hpMax: 100 });
+  const normal = attack(a, target(), rng());
+  const crit = attack(b, target(), rng());
+  assert.equal(normal.crit, false);
+  assert.equal(crit.crit, true);
+  assert.ok(crit.damage > normal.damage);
+});
+
+test("combat: 魅惑仅对人形生效", () => {
+  const hero = newCombatant({ id: "hero", name: "主角" });
+  const human = newCombatant({ id: "h1", name: "掠夺者", humanoid: true });
+  const beast = newCombatant({ id: "b1", name: "变异兽", humanoid: false });
+
+  let s = startCombat(hero, [human, beast]);
+  s = charmEnemy(s, "b1", () => 0.1);
+  assert.match(s.log[s.log.length - 1], /不是人形/);
+
+  s = charmEnemy(s, "h1", () => 0.1);
+  assert.equal(s.enemies.find((e) => e.id === "h1")!.status.length, 1);
+  assert.match(s.log[s.log.length - 1], /停滞 1 回合/);
+});
+
+test("combat: 被魅惑的敌人跳过回合", () => {
+  const hero = newCombatant({ id: "hero", name: "主角", hp: 100, hpMax: 100 });
+  const human = newCombatant({ id: "h1", name: "掠夺者", humanoid: true, attack: 20 });
+  let s = startCombat(hero, [human]);
+  s = charmEnemy(s, "h1", () => 0.1);
+  const before = s.player.hp;
+  s = enemyTurn(s, rng());
+  assert.equal(s.player.hp, before, "被魅惑的敌人不应造成伤害");
+  assert.match(s.log[s.log.length - 1], /无法行动/);
+});
+
+test("combat: 敌人回合造成伤害并可致败", () => {
+  const hero = newCombatant({ id: "hero", name: "主角", hp: 5, hpMax: 50, dodge: 0, defense: 0 });
+  const brute = newCombatant({ id: "b1", name: "暴徒", attack: 30, critRate: 0 });
+  let s = startCombat(hero, [brute]);
+  s = enemyTurn(s, rng());
+  assert.equal(s.player.hp, 0);
+  assert.equal(s.over, true);
+  assert.equal(s.victory, false);
+  assert.match(s.log[s.log.length - 1], /战斗失败/);
+});
+
+test("combat: 回合推进递减状态并清理过期效果", () => {
+  const hero = newCombatant({ id: "hero", name: "主角" });
+  const human = newCombatant({ id: "h1", name: "掠夺者", humanoid: true });
+  let s = startCombat(hero, [human]);
+  s = charmEnemy(s, "h1", () => 0.1);
+  assert.equal(s.enemies[0].status.length, 1);
+  s = advanceRound(s);
+  assert.equal(s.enemies[0].status.length, 0, "1 回合后魅惑应失效");
+  assert.equal(s.round, 2);
+  assert.equal(s.turn, "player");
+});
+
+test("combat: 科技加成正确折算到主角数值", () => {
+  const c = playerFromBonuses({ hp: 80, hpMax: 80 }, { meleeDmg: 0.25, dodge: 0.2, critRate: 0.3, critDmg: 2 });
+  assert.equal(c.attack, 13);          // 10 × 1.25 = 12.5 → 13
+  assert.ok(Math.abs(c.dodge - 0.25) < 1e-9);
+  assert.ok(Math.abs(c.critRate - 0.35) < 1e-9);
+  assert.equal(c.critDmg, 2);
+  assert.equal(c.hp, 80);
+});
+
+test("combat: 扶她特性不参与战斗数值（INV-6）", () => {
+  const c = playerFromBonuses({}, {});
+  // 构造时不接受任何 futanari / 性征相关参数
+  assert.equal("futanari" in c, false);
+  assert.equal("sex" in c, false);
+  assert.equal(Object.keys(c).some((k) => /sex|futanari|hormone/i.test(k)), false);
+});
+
+test("combat: 确定性随机可复现", () => {
+  const a = mulberry32(123);
+  const b = mulberry32(123);
+  const seqA = Array.from({ length: 5 }, () => a());
+  const seqB = Array.from({ length: 5 }, () => b());
+  assert.deepEqual(seqA, seqB);
+  assert.notDeepEqual(seqA, Array.from({ length: 5 }, () => mulberry32(999)()));
+});
+
+test("combat: 多敌人逐个行动", () => {
+  const hero = newCombatant({ id: "hero", name: "主角", hp: 200, hpMax: 200, dodge: 0, defense: 0 });
+  const e1 = newCombatant({ id: "e1", name: "丧尸A", attack: 10, critRate: 0 });
+  const e2 = newCombatant({ id: "e2", name: "丧尸B", attack: 10, critRate: 0 });
+  let s = startCombat(hero, [e1, e2]);
+  s = enemyTurn(s, rng());
+  assert.equal(s.player.hp, 180, "两个敌人各造成 10 点伤害");
+});
+
+
+
+// ============ 运行时主循环 ============
+const baseTick = () => ({
+  time: { day: 1, minute: 8 * 60 },
+  survival: { hunger: 90, thirst: 90, stamina: 100, energy: 100, mood: 70 },
+  activity: "idle" as const,
+  lust: { value: 0, daysSinceIntimacy: 0, forced: false },
+  job: null,
+  tech: newTechState(),
+  pregnancy: null,
+  researchRate: 1,
+  lustDailyGain: 5
+});
+
+test("loop: 时间推进与时段计算", () => {
+  const out = tick(baseTick(), 8);
+  assert.equal(out.time.day, 1);
+  assert.equal(out.time.minute, 16 * 60);
+  assert.equal(out.slot, "evening");
+});
+
+test("loop: 冻结时间不推进", () => {
+  const out = tick({ ...baseTick(), freezeTime: true }, 12);
+  assert.equal(out.time.minute, 8 * 60);
+});
+
+test("loop: 生存随时间下降", () => {
+  const out = tick(baseTick(), 24);
+  assert.ok(out.survival.hunger < 90);
+  assert.ok(out.survival.thirst < 90);
+  assert.ok(out.survival.hunger >= 0);
+});
+
+test("loop: 睡眠恢复体力", () => {
+  const out = tick({ ...baseTick(), survival: { ...baseTick().survival, stamina: 20 }, activity: "sleep" }, 8);
+  assert.ok(out.survival.stamina > 20, "睡眠应恢复体力");
+});
+
+test("loop: 欲情累积并触发夜袭警告", () => {
+  // 85 + 2 天 × 5 = 95，冷落 12 天 → 夜袭阈值（未溢出到 100）
+  const input = { ...baseTick(), lust: { value: 85, daysSinceIntimacy: 10, forced: false } };
+  const out = tick(input, 24 * 2);
+  assert.equal(out.lustStage, "nightRaid");
+  assert.ok(out.warnings.some((w) => /夜袭/.test(w)));
+});
+
+test("loop: 欲情溢出到 100 转为强制触发", () => {
+  const input = { ...baseTick(), lust: { value: 85, daysSinceIntimacy: 10, forced: false } };
+  const out = tick(input, 24 * 3); // 85 + 15 = 100
+  assert.equal(out.lustStage, "forced");
+  assert.ok(out.warnings.some((w) => /强制触发/.test(w)));
+});
+
+test("loop: 科技研究在循环内推进并完成", () => {
+  let tech = newTechState();
+  tech = startResearch(tech, "shelter_power");
+  const node = findNode("shelter_power")!;
+  const out = tick({ ...baseTick(), tech }, node.hours + 1);
+  assert.equal(out.completedTech, "shelter_power");
+  assert.ok(isUnlocked(out.tech, "shelter_power"));
+  assert.ok(out.warnings.some((w) => /科技完成/.test(w)));
+});
+
+test("loop: 作弊秒完成研究", () => {
+  let tech = newTechState();
+  tech = startResearch(tech, "shelter_clone");
+  const out = tick({ ...baseTick(), tech, instantResearch: true }, 0);
+  assert.equal(out.completedTech, "shelter_clone");
+});
+
+test("loop: 岗位疲劳随时间累积", () => {
+  const out = tick({ ...baseTick(), job: { id: "lab", bonus: 0.35, daysOnJob: 0 } }, 24 * 5);
+  assert.equal(out.job!.daysOnJob, 5);
+});
+
+test("loop: 孕晚期禁止战斗并改为待命", () => {
+  const preg = { motherId: "hero", fatherId: "sister", conceivedDay: 0, progress: 25, multiple: 1 };
+  const out = tick({ ...baseTick(), pregnancy: preg, activity: "combat" }, 1);
+  assert.ok(out.warnings.some((w) => /无法参与战斗/.test(w)));
+});
+
+test("loop: 怀孕推进至分娩产出女性后代", () => {
+  const preg = { motherId: "hero", fatherId: "sister", conceivedDay: 0, progress: 25, multiple: 2 };
+  const out = tick({ ...baseTick(), pregnancy: preg }, 24 * 10);
+  assert.equal(out.delivered, 2);
+  assert.equal(out.pregnancy, null);
+  assert.ok(out.warnings.some((w) => /分娩完成/.test(w)));
+});
+
+test("loop: 快进多天用于跳过夜晚", () => {
+  const out = fastForward(baseTick(), 3);
+  assert.equal(out.time.day, 4);
+  assert.ok(out.survival.stamina >= 0);
+});
+
+test("loop: 科技加成影响体力上限", () => {
+  let tech = newTechState();
+  tech = unlock(tech, "self_cardio"); // staminaMax +20%
+  const out = tick({ ...baseTick(), tech, survival: { ...baseTick().survival, stamina: 50 } }, 1);
+  assert.ok(out.survival.stamina > 50, "心肺强化应提升体力");
 });
