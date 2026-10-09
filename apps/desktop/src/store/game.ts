@@ -3,7 +3,7 @@ import {
   GameSession, effectsFor, saveBadge, DEFAULT_CHEAT, allScriptTexts,
   type CheatOptions, type CheatEffects,
   type CompanionRuntime, type Activity, type JobId,
-  type Weather, type ClothingSlot, type BodyZone,
+  type Weather, type ClothingSlot, type BodyZone, type ViewConfig, DEFAULT_VIEW_CONFIG,
 } from "@doomsday/core";
 import {
   DEFAULT_LLM_SETTINGS, createNarrator, ensureAvailable,
@@ -22,6 +22,7 @@ export interface GameState {
   cheat: CheatOptions;
   llm: LlmSettings;
   narrator: Narrator | null;
+  pixelConfig: ViewConfig;
   log: string[];
 
   // 操作
@@ -71,6 +72,8 @@ export interface GameState {
   rollRaid: () => void;
   repairClothing: (who: string) => void;
 
+  setPixelConfig: (cfg: ViewConfig) => void;
+
   setCheat: (patch: Partial<CheatOptions>) => void;
   cheatEffects: () => CheatEffects | null;
   cheatBadge: () => string | null;
@@ -93,6 +96,7 @@ export const useGame = create<GameState>((set, get) => ({
   cheat: { ...DEFAULT_CHEAT },
   llm: { ...DEFAULT_LLM_SETTINGS },
   narrator: null,
+  pixelConfig: { ...DEFAULT_VIEW_CONFIG },
   log: [],
 
   refresh: () => set((s) => ({ version: s.version + 1 })),
@@ -430,6 +434,8 @@ export const useGame = create<GameState>((set, get) => ({
     pushLog("衣物已修补");
     refresh();
   },
+
+  setPixelConfig: (cfg) => set({ pixelConfig: cfg }),
 
   setCheat: (patch) => {
     set((s) => ({ cheat: { ...s.cheat, ...patch } }));

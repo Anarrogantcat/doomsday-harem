@@ -1,0 +1,39 @@
+feat: 画面渲染层 v0.16.0
+
+新增 apps/desktop/src/render/CanvasSceneRenderer.ts
+- 实现 core 的 View 接口（onBeat / onSceneEnd），可替换后端
+- 三种绘制模式：
+  - 世界地图：节点按危险度着色、光晕、连线带距离标注、
+    未发现区域显示问号、已访问标记、当前位置高亮、图例
+  - 战斗布阵：上下对阵布局、单位三角形朝向、血条按比例变色、
+    回合数与日志面板
+  - 场景像素：精灵帧解析、节拍信息、参与角色、暴露度条
+- 高清屏支持（devicePixelRatio）
+- 布局算法：区域按网格 + id 哈希抖动，避免完全对齐
+- 主题色与危险度配色集中管理
+
+新增 apps/desktop/src/panels/CanvasView.tsx
+- React 画布组件，requestAnimationFrame 绘制循环
+- 从 GameSession 实时构建渲染状态（地图探索度、同伴、场景节拍）
+- 像素配置切换（关闭 / 关键帧 / 全程）
+- 可注册示例精灵表验证帧解析
+
+为什么不用 Phaser
+- 本项目 90% 呈现是文字（核心成人内容层），视觉是可选增强
+- Phaser 压缩后约 1MB，当前整包才 378KB
+- 原生 Canvas 足以实现像素精灵、地图节点、战斗布阵
+- 保留 View 接口一致性：未来换 Phaser 或 Live2D 只需替换组件，
+  上层逻辑与存档不变
+
+接入
+- store 新增 pixelConfig（ViewConfig）
+- App 新增「画面」标签页，含三种模式切换
+- 像素层可完全关闭，文字照常输出（与设计一致）
+
+测试
+- 总数 540 项全部通过（渲染层为纯视觉，不引入引擎测试）
+
+构建
+- tsc 零错误
+- 前端 91 模块 / 378KB
+- Tauri cargo check 通过

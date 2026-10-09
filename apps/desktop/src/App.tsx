@@ -11,16 +11,18 @@ import { VehiclePanel } from "./panels/VehiclePanel.tsx";
 import { QuestPanel } from "./panels/QuestPanel.tsx";
 import { DefensePanel } from "./panels/DefensePanel.tsx";
 import { CompanionDataPanel } from "./panels/CompanionDataPanel.tsx";
+import { CanvasView } from "./panels/CanvasView.tsx";
 import { ScenePlayer } from "./panels/ScenePlayer.tsx";
 import { CheatPanel } from "./panels/CheatPanel.tsx";
 import { LlmPanel } from "./panels/LlmPanel.tsx";
 import { useGame } from "./store/game.ts";
 
-type Tab = "status" | "map" | "vehicle" | "quests" | "defense" | "harem" | "roster" | "jobs" | "tech" | "base" | "wardrobe" | "items" | "scenes" | "llm" | "cheats";
+type Tab = "status" | "map" | "canvas" | "vehicle" | "quests" | "defense" | "harem" | "roster" | "jobs" | "tech" | "base" | "wardrobe" | "items" | "scenes" | "llm" | "cheats";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "status", label: "状态" },
   { id: "map", label: "地图" },
+  { id: "canvas", label: "画面" },
   { id: "vehicle", label: "房车" },
   { id: "quests", label: "主线" },
   { id: "defense", label: "防御" },
@@ -35,6 +37,26 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "llm", label: "模型" },
   { id: "cheats", label: "设置" }
 ];
+
+function CanvasPlayground() {
+  const [mode, setMode] = useState<"map" | "battle" | "scene">("map");
+  return (
+    <section className="panel">
+      <h2>画面　<span className="sub">Canvas 渲染后端</span></h2>
+      <div className="controls">
+        <button className={mode === "map" ? "tab active" : "tab"} onClick={() => setMode("map")}>世界地图</button>
+        <button className={mode === "battle" ? "tab active" : "tab"} onClick={() => setMode("battle")}>战斗布阵</button>
+        <button className={mode === "scene" ? "tab active" : "tab"} onClick={() => setMode("scene")}>场景像素</button>
+      </div>
+      <CanvasView mode={mode} />
+      <p className="hint">
+        渲染后端实现 core 的 View 接口，订阅同一场景状态机。
+        切换画风（像素/插画/Live2D）或换用 Phaser 只需替换此组件，上层逻辑不变。
+        像素层可完全关闭，文字照常输出。
+      </p>
+    </section>
+  );
+}
 
 export function App() {
   const [tab, setTab] = useState<Tab>("world");
@@ -66,6 +88,7 @@ export function App() {
       <main className="content">
         {tab === "status" && <StatusBar />}
         {tab === "map" && <WorldPanel />}
+        {tab === "canvas" && <CanvasPlayground />}
         {tab === "vehicle" && <VehiclePanel />}
         {tab === "quests" && <QuestPanel />}
         {tab === "defense" && <DefensePanel />}
