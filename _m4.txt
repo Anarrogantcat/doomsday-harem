@@ -1,0 +1,40 @@
+feat: 服装系统 v0.8.0
+
+新增 systems/clothing.ts（565 行，纯函数式）
+- 11 个装备槽位、14 个身体区域、4 个穿着层级
+- 46 件衣物目录：日常/工装/医疗/实验室/厨房/修女/礼服/女仆/兔女郎/
+  校服/内衣/配饰/束具/雨衣/保暖内衣/泳装/丝袜
+- 覆盖度按区域累加并封顶，暴露度 = 敏感区域未覆盖的平均值
+- 派生数值：保暖 / 防护 / 魅力 / 隐蔽 / 重量 / 耐久状况
+- 脱衣由外到内：配饰 → 头面手 → 外套 → 下身 → 上身 → 内衣 → 束具
+  - undressStep 单步、undressTo 到指定暴露度、undressAll 脱光
+- 天气适配：严寒需保暖、酷热需轻薄、雨天需防水层
+- 岗位制服判定：job:lab / job:medical / job:kitchen / job:faith
+- 耐久磨损与修补，破损自动移除
+- 预设着装：hero / mother / sister / sister2 / ai / nude
+- JSON 序列化，忽略未知衣物
+
+接入 GameSession
+- 主角与四位同伴各持衣橱，开局按预设着装
+- 新增天气字段（clear/rain/snow/heat/cold/storm）
+- 服装操作：equipClothing / unequipClothing / wearFromStorage /
+  undress / undressTo / stripAll / wearClothing / repairClothing
+- 查询：outfitOf / zoneCoverageOf / weatherFitness / uniformReady
+- 着装数值进入剧本变量集（hero_exposure / sister_charm / weather 等）
+- 衣橱与天气随存档往返
+
+UI
+- 新增服装面板：目标切换、天气切换、着装概览、暴露/保暖/防护/魅力
+  计量条、身体覆盖度、衣物目录按槽位筛选、穿脱与修补
+- App 加入「服装」标签页
+- 场景播放器把着装描述与暴露度注入模型提示词
+
+测试
+- clothing.test.ts 36 项（目录/穿脱/派生/脱衣/耐久/天气/预设/序列化）
+- clothing-session.test.ts 14 项（会话集成/存档/变量集）
+- 总数 226 项全部通过
+
+构建
+- tsc 零错误
+- 前端 81 模块 / 250KB
+- Tauri cargo check 通过

@@ -6,6 +6,7 @@ export * from "./time.ts";
 export * from "./systems/survival.ts";
 export * from "./systems/relationship.ts";
 export * from "./systems/jobs.ts";
+export * from "./systems/clothing.ts";
 export * from "./systems/cheat.ts";
 export * from "./systems/pregnancy.ts";
 export * from "./systems/harem.ts";

@@ -24,6 +24,16 @@ import { SceneRegistry } from "../registry/scene.ts";
 import type { Vars } from "../script/condition.ts";
 import type { Scene } from "../text/engine.ts";
 import { startPregnancy, advancePregnancy, type Pregnancy, type Offspring, makeOffspring } from "../systems/pregnancy.ts";
+import {
+  type Wardrobe, type Weather, type WardrobePreset,
+  presetWardrobe, wardrobeToJSON, wardrobeFromJSON,
+  equip, unequip, wearFromStorage, equippedGarments,
+  coverage, zoneCoverage, exposure, insulation, armor as armorOf, charm as charmOf,
+  stealth as stealthOf, totalWeight, hasTag, uniformOk,
+  undressStep, undressTo, undressAll, damage as damageCloth, conditionOf, repairAll, pruneBroken,
+  suitability, describe as describeWardrobe, SLOT_LABEL,
+  type ClothingSlot, type BodyZone, type ClothingItem, type Suitability
+} from "../systems/clothing.ts";
 import { newSave, type SaveData, type SavedEntity, type SavedRelation, type SavedJob, type SavedTech } from "../save/serialize.ts";
 import { VERSION } from "../version.ts";
 
@@ -35,6 +45,8 @@ export interface CompanionRuntime {
   relationship: Relationship;
   lust: Lust;
   job: Job;
+  /** 当前着装 */
+  wardrobe: Wardrobe;
   /** 是否已在队伍中（未加入的只存在于主线数据里） */
   joined: boolean;
 }
@@ -47,6 +59,7 @@ export interface HeroRuntime {
   survival: Survival;
   lust: Lust;
   pregnancy: Pregnancy | null;
+  wardrobe: Wardrobe;
 }
 
 export interface SessionOptions {
@@ -73,7 +86,7 @@ function defaultCompanions(): CompanionRuntime[] {
   const mk = (
     id: string, name: string, title: string, age: number, heightCm: number,
     rel: Partial<Relationship>, lustValue: number, jobId: JobId | null, bonus: number,
-    tags: string[] = []
+    preset: WardrobePreset, tags: string[] = []
   ): CompanionRuntime => ({
     id,
     identity: { name, title, age, heightCm, tags },
@@ -87,18 +100,19 @@ function defaultCompanions(): CompanionRuntime[] {
     relationship: { ...DEFAULT_RELATIONSHIP, role: "family", ...rel },
     lust: { ...DEFAULT_LUST, value: lustValue },
     job: { id: jobId, bonus, daysOnJob: 0 },
+    wardrobe: presetWardrobe(preset),
     joined: true
   });
 
   return [
     mk("mother", "母亲", "单亲母亲", 45, 172,
-       { affection: 50, loyalty: 40, bond: 3 }, 40, "kitchen", 0.20),
+       { affection: 50, loyalty: 40, bond: 3 }, 40, "kitchen", 0.20, "mother"),
     mk("sister", "姐姐", "项目经理", 26, 174,
-       { affection: 60, loyalty: 50, bond: 3 }, 92, "logistics", 0.15),
+       { affection: 60, loyalty: 50, bond: 3 }, 92, "logistics", 0.15, "sister"),
     mk("sister2", "妹妹", "大学生", 19, 162,
-       { affection: 40, loyalty: 30, bond: 2 }, 85, "greenhouse", 0.10),
+       { affection: 40, loyalty: 30, bond: 2 }, 85, "greenhouse", 0.10, "sister2"),
     mk("ai", "特殊AI", "基地核心", 1, 0,
-       { affection: 85, loyalty: 80, bond: 4, role: "ai" }, 30, "archive", 0.20, ["ai", "no-body"])
+       { affection: 85, loyalty: 80, bond: 4, role: "ai" }, 30, "archive", 0.20, "ai", ["ai", "no-body"])
   ];
 }
 
@@ -111,6 +125,8 @@ export class GameSession {
   flags: Record<string, unknown>;
   registry: SceneRegistry;
   offspring: Offspring[];
+  /** 当前天气，影响保暖判定 */
+  weather: Weather;
 
   private opts: Required<Omit<SessionOptions, "time" | "heroName" | "resources">> & { heroName: string };
 
@@ -142,7 +158,8 @@ export class GameSession {
       },
       survival: { ...DEFAULT_SURVIVAL },
       lust: { ...DEFAULT_LUST, value: 20 },
-      pregnancy: null
+      pregnancy: null,
+      wardrobe: presetWardrobe("hero")
     };
 
     this.companions = defaultCompanions();
@@ -151,6 +168,7 @@ export class GameSession {
     this.flags = {};
     this.registry = new SceneRegistry();
     this.offspring = [];
+    this.weather = "clear";
   }
 
   // ---------- 查询 ----------
@@ -186,7 +204,12 @@ export class GameSession {
       virgin: this.hero.physiology.virgin,
       pregnant: this.hero.physiology.pregnant,
       companionCount: this.joined().length,
-      offspringCount: this.offspring.length
+      offspringCount: this.offspring.length,
+      weather: this.weather,
+      hero_exposure: exposure(this.hero.wardrobe),
+      hero_insulation: insulation(this.hero.wardrobe),
+      hero_armor: armorOf(this.hero.wardrobe),
+      hero_charm: charmOf(this.hero.wardrobe)
     };
     // 每位同伴的关键数值以 <id>_<field> 暴露
     for (const c of this.companions) {
@@ -196,6 +219,8 @@ export class GameSession {
       v[`${c.id}_lust`] = c.lust.value;
       v[`${c.id}_joined`] = c.joined;
       v[`${c.id}_virgin`] = c.physiology.virgin;
+      v[`${c.id}_exposure`] = exposure(c.wardrobe);
+      v[`${c.id}_charm`] = charmOf(c.wardrobe);
     }
     for (const [k, val] of Object.entries(this.flags)) {
       if (typeof val === "number" || typeof val === "boolean" || typeof val === "string") {
@@ -427,6 +452,126 @@ export class GameSession {
     return p;
   }
 
+  // ---------- 服装 ----------
+
+  setWeather(weather: Weather): void {
+    this.weather = weather;
+  }
+
+  /** 换装：穿上一件（同槽位自动替换） */
+  equipClothing(who: string, itemId: string, variant?: string): void {
+    const target = who === "hero" ? this.hero : this.companion(who);
+    if (!target) return;
+    target.wardrobe = equip(target.wardrobe, itemId, variant);
+  }
+
+  /** 脱下某槽位 */
+  unequipClothing(who: string, slot: ClothingSlot): void {
+    const target = who === "hero" ? this.hero : this.companion(who);
+    if (!target) return;
+    target.wardrobe = unequip(target.wardrobe, slot);
+  }
+
+  /** 从储物中取出穿上 */
+  wearFromStorage(who: string, itemId: string): void {
+    const target = who === "hero" ? this.hero : this.companion(who);
+    if (!target) return;
+    target.wardrobe = wearFromStorage(target.wardrobe, itemId);
+  }
+
+  /** 脱掉最外一层，返回该层信息 */
+  undress(who: string): { slot: ClothingSlot | null; item: ClothingItem | null; exposure: number } {
+    const target = who === "hero" ? this.hero : this.companion(who);
+    if (!target) return { slot: null, item: null, exposure: 0 };
+    const step = undressStep(target.wardrobe);
+    target.wardrobe = step.wardrobe;
+    return { slot: step.slot, item: step.item, exposure: step.exposure };
+  }
+
+  /** 脱到指定暴露度 */
+  undressTo(who: string, targetExposure: number): ClothingItem[] {
+    const target = who === "hero" ? this.hero : this.companion(who);
+    if (!target) return [];
+    const r = undressTo(target.wardrobe, targetExposure);
+    target.wardrobe = r.wardrobe;
+    return r.removed;
+  }
+
+  /** 脱光 */
+  stripAll(who: string): ClothingItem[] {
+    return this.undressTo(who, 100);
+  }
+
+  /** 着装派生数值 */
+  outfitOf(who: string): {
+    exposure: number;
+    insulation: number;
+    armor: number;
+    charm: number;
+    stealth: number;
+    weight: number;
+    condition: number;
+    coverage: Record<BodyZone, number>;
+    describe: string;
+    items: Array<{ slot: ClothingSlot; name: string; itemId: string; durability: number }>;
+  } | null {
+    const target = who === "hero" ? this.hero : this.companion(who);
+    if (!target) return null;
+    const w = target.wardrobe;
+    return {
+      exposure: exposure(w),
+      insulation: insulation(w),
+      armor: armorOf(w),
+      charm: charmOf(w),
+      stealth: stealthOf(w),
+      weight: totalWeight(w),
+      condition: conditionOf(w),
+      coverage: coverage(w),
+      describe: describeWardrobe(w),
+      items: equippedGarments(w).map((x) => ({
+        slot: x.slot,
+        name: x.item.name,
+        itemId: x.item.id,
+        durability: x.garment.durability
+      }))
+    };
+  }
+
+  /** 某区域覆盖度 */
+  zoneCoverageOf(who: string, zone: BodyZone): number {
+    const target = who === "hero" ? this.hero : this.companion(who);
+    if (!target) return 0;
+    return zoneCoverage(target.wardrobe, zone);
+  }
+
+  /** 天气适配判定 */
+  weatherFitness(who: string): Suitability | null {
+    const target = who === "hero" ? this.hero : this.companion(who);
+    if (!target) return null;
+    return suitability(target.wardrobe, this.weather);
+  }
+
+  /** 岗位制服是否齐备 */
+  uniformReady(who: string, jobTag: string): boolean {
+    const target = who === "hero" ? this.hero : this.companion(who);
+    if (!target) return false;
+    return uniformOk(target.wardrobe, jobTag);
+  }
+
+  /** 衣物磨损（战斗 / 劳作后调用） */
+  wearClothing(who: string, amount: number): void {
+    const target = who === "hero" ? this.hero : this.companion(who);
+    if (!target) return;
+    target.wardrobe = pruneBroken(damageCloth(target.wardrobe, amount));
+  }
+
+  /** 修补全部衣物 */
+  repairClothing(who: string): void {
+    const target = who === "hero" ? this.hero : this.companion(who);
+    if (!target) return;
+    target.wardrobe = repairAll(target.wardrobe);
+  }
+
   // ---------- 场景 ----------
 
   loadScript(src: string): number {
@@ -580,6 +725,11 @@ export class GameSession {
 
     data.flags["resources"] = this.resources;
     data.flags["offspring"] = this.offspring;
+    data.flags["weather"] = this.weather;
+    data.flags["wardrobe_hero"] = wardrobeToJSON(this.hero.wardrobe);
+    const wardrobes: Record<string, unknown> = {};
+    for (const c of this.companions) wardrobes[c.id] = wardrobeToJSON(c.wardrobe);
+    data.flags["wardrobes"] = wardrobes;
     return data;
   }
 
@@ -615,9 +765,21 @@ export class GameSession {
     if (res && typeof res === "object") s.resources = res as Record<string, number>;
     const off = data.flags["offspring"];
     if (Array.isArray(off)) s.offspring = off as Offspring[];
+    s.hero.wardrobe = wardrobeFromJSON(data.flags["wardrobe_hero"] as never);
+    const ws = data.flags["wardrobes"];
+    if (ws && typeof ws === "object") {
+      for (const [id, j] of Object.entries(ws as Record<string, unknown>)) {
+        const c = s.companion(id);
+        if (c) c.wardrobe = wardrobeFromJSON(j as never);
+      }
+    }
+    const weather = data.flags["weather"];
+    if (typeof weather === "string") s.weather = weather as Weather;
+
     const flags: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(data.flags)) {
-      if (k === "resources" || k === "offspring" || k === "slot") continue;
+      if (k === "resources" || k === "offspring" || k === "slot" ||
+          k === "weather" || k === "wardrobe_hero" || k === "wardrobes") continue;
       flags[k] = v;
     }
     s.flags = flags;
@@ -629,6 +791,7 @@ export class GameSession {
     time: string; day: number; slot: TimeSlot; hero: Survival;
     companions: number; techUnlocked: number; techTotal: number; offspring: number;
     pendingRaids: string[]; researching: string | null;
+    weather: Weather; heroExposure: number; heroInsulation: number;
   } {
     const total = branchProgress(this.tech).reduce((s, b) => s + b.total, 0);
     const h = Math.floor(this.time.minute / 60);
@@ -643,7 +806,10 @@ export class GameSession {
       techTotal: total,
       offspring: this.offspring.length,
       pendingRaids: this.pendingNightRaids().map((c) => c.id),
-      researching: this.tech.researching?.nodeId ?? null
+      researching: this.tech.researching?.nodeId ?? null,
+      weather: this.weather,
+      heroExposure: exposure(this.hero.wardrobe),
+      heroInsulation: insulation(this.hero.wardrobe)
     };
   }
 }

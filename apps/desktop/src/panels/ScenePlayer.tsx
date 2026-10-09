@@ -74,7 +74,14 @@ export function ScenePlayer() {
                 }
               : { name: partnerName }
           ],
-          props: ["双头龙", "娱乐型扶她药"],
+          props: (() => {
+            const p = ["双头龙", "娱乐型扶她药"];
+            if (partner) {
+              const o = session.outfitOf(partner.id);
+              if (o) p.push(`着装：${o.describe}（暴露度 ${o.exposure}）`);
+            }
+            return p;
+          })(),
           direction: scene.tone,
           priorBeats: scene.beats.slice(0, 2).map((b) => b.lines[0]?.text ?? ""),
           time: `第${session.time.day}天`,

@@ -3,6 +3,7 @@ import {
   GameSession, effectsFor, saveBadge, DEFAULT_CHEAT, allScriptTexts,
   type CheatOptions, type CheatEffects,
   type CompanionRuntime, type Activity, type JobId,
+  type Weather, type ClothingSlot, type BodyZone,
 } from "@doomsday/core";
 import {
   DEFAULT_LLM_SETTINGS, createNarrator, ensureAvailable,
@@ -36,6 +37,13 @@ export interface GameState {
   beginResearch: (nodeId: string) => void;
   forceComplete: (nodeId: string) => void;
   addResources: (res: Record<string, number>) => void;
+
+  equipClothing: (who: string, itemId: string) => void;
+  unequipClothing: (who: string, slot: ClothingSlot) => void;
+  undress: (who: string) => void;
+  stripAll: (who: string) => void;
+  setWeather: (weather: Weather) => void;
+  repairClothing: (who: string) => void;
 
   setCheat: (patch: Partial<CheatOptions>) => void;
   cheatEffects: () => CheatEffects | null;
@@ -141,6 +149,52 @@ export const useGame = create<GameState>((set, get) => ({
     }
     pushLog(`获得物资：${Object.entries(res).map(([k, v]) => `${k}×${v}`).join("、")}`);
     get().refresh();
+  },
+
+  equipClothing: (who, itemId) => {
+    const { session, pushLog, refresh } = get();
+    session.equipClothing(who, itemId);
+    const name = who === "hero" ? "主角" : session.companion(who)?.identity.name ?? who;
+    pushLog(`${name} 换上了 ${itemId}`);
+    refresh();
+  },
+
+  unequipClothing: (who, slot) => {
+    const { session, pushLog, refresh } = get();
+    session.unequipClothing(who, slot);
+    const name = who === "hero" ? "主角" : session.companion(who)?.identity.name ?? who;
+    pushLog(`${name} 脱下了 ${slot}`);
+    refresh();
+  },
+
+  undress: (who) => {
+    const { session, pushLog, refresh } = get();
+    const r = session.undress(who);
+    const name = who === "hero" ? "主角" : session.companion(who)?.identity.name ?? who;
+    pushLog(r.item ? `${name} 脱掉 ${r.item.name}（暴露度 ${r.exposure}）` : `${name} 已无可脱`);
+    refresh();
+  },
+
+  stripAll: (who) => {
+    const { session, pushLog, refresh } = get();
+    const removed = session.stripAll(who);
+    const name = who === "hero" ? "主角" : session.companion(who)?.identity.name ?? who;
+    pushLog(`${name} 脱光（${removed.length} 件）`);
+    refresh();
+  },
+
+  setWeather: (weather) => {
+    const { session, pushLog, refresh } = get();
+    session.setWeather(weather);
+    pushLog(`天气变为 ${weather}`);
+    refresh();
+  },
+
+  repairClothing: (who) => {
+    const { session, pushLog, refresh } = get();
+    session.repairClothing(who);
+    pushLog("衣物已修补");
+    refresh();
   },
 
   setCheat: (patch) => {
