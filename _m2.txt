@@ -1,0 +1,27 @@
+fix(llm): 修复流式响应体解析与四层分类器，真实模型实测通过
+
+真实模型测试暴露并修复两个问题：
+
+1. res.body 形态不兼容
+   Node 原生 fetch 的 Response.body 是属性（ReadableStream），
+   而测试 mock 写成方法。新增 bodyOf() 统一兼容两种形态。
+
+2. 四层分类器对单行整段失效
+   模型通常把整段写成一行，旧实现遇到「」就整段判为 speech。
+   重写 splitSentences：
+   - 引号块作为独立段切出，引号内句末标点不切句
+   - 引号外按 。！？；… 切句
+   - 关键词启发式归类动作/感官/心理
+
+新增
+- scripts/ollama-smoke.mjs：真实模型冒烟测试（可选，不进入 CI）
+  pnpm smoke:ollama --model qwen3:14b
+- 分类器测试 5 项（单行切分、引号块独立、真实模型输出形态）
+
+实测（Ollama qwen3:14b）
+- 流式 334 块，4 个节拍
+- 四层分类正确：action/sense/speech/mind 均出现
+- 第二次相同输入命中缓存
+
+测试：141 项全部通过（core 103 + llm 38）
+Tauri 客户端：release 构建成功，5.99 MB

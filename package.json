@@ -8,9 +8,17 @@
     "apps/*"
   ],
   "scripts": {
-    "test": "node --test packages/core/test/*.test.ts",
+    "test": "node --test packages/core/test/*.test.ts packages/llm/test/*.test.ts",
+    "test:core": "node --test packages/core/test/*.test.ts",
+    "test:llm": "node --test packages/llm/test/*.test.ts",
     "demo": "node packages/core/demo.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json",
+    "version": "node scripts/version.mjs",
+    "version:check": "node scripts/version.mjs --check",
+    "dev": "pnpm --filter @doomsday/desktop dev",
+    "build": "pnpm --filter @doomsday/desktop build",
+    "tauri": "pnpm --filter @doomsday/desktop tauri",
+    "smoke:ollama": "node scripts/ollama-smoke.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

@@ -116,21 +116,113 @@ export function parseBeats(text: string): string[] {
     .filter((s) => s.length > 0);
 }
 
-/** 把模型输出的段落拆成四层（启发式，尽力而为） */
+/**
+ * 把模型输出的段落拆成四层。
+ *
+ * 模型通常把整段写成一行（无换行），因此必须：
+ *   1. 先按换行切
+ *   2. 再按句末标点切（。！？；…）
+ *   3. 把对白「」内的内容整体归为 speech
+ *   4. 剩余句子按关键词启发式归类
+ *
+ * 这是尽力而为的启发式：分类不完美不影响可读性，
+ * 文本引擎按行输出，四层只是语义标注。
+ */
 export function classifyLines(paragraph: string): Array<{ layer: string; text: string }> {
   const out: Array<{ layer: string; text: string }> = [];
-  for (const raw of paragraph.split(/\n+/)) {
-    const line = raw.trim();
-    if (!line) continue;
-    if (/^[「『"].*[」』"]$/.test(line) || /[「『"]/.test(line)) {
-      out.push({ layer: "speech", text: line });
-    } else if (/^(你|她|他|主角)/.test(line) && /(手|身体|腰|腿|唇|动作|节奏|按|抱|压|坐)/.test(line)) {
-      out.push({ layer: "action", text: line });
-    } else if (/(温度|气味|声音|触|湿|热|汗|呼吸|颤抖|紧|麻)/.test(line)) {
-      out.push({ layer: "sense", text: line });
-    } else {
-      out.push({ layer: "mind", text: line });
+
+  // 1) 先按换行切
+  const rawLines = paragraph.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+
+  for (const rawLine of rawLines) {
+    // 2) 逐句切分：保留对白「」整体
+    const segments = splitSentences(rawLine);
+    for (const seg of segments) {
+      const s = seg.trim();
+      if (!s) continue;
+      out.push({ layer: classifyOne(s), text: s });
     }
   }
+
+  return out.length > 0 ? out : [{ layer: "mind", text: paragraph.trim() }];
+}
+
+const OPEN_QUOTES = "「『“‘";
+const CLOSE_QUOTES = "」』”’";
+const SENTENCE_END = "。！？；…";
+
+/**
+ * 按句末标点切句，并把引号块作为独立段切出。
+ *
+ * 例：「你以前不是这样的。」她低下头。
+ *   → ["「你以前不是这样的。」", "她低下头。"]
+ * 引号内的句末标点不切句。
+ */
+function splitSentences(line: string): string[] {
+  const out: string[] = [];
+  let buf = "";
+  let depth = 0;
+
+  const flush = () => {
+    if (buf.trim()) out.push(buf.trim());
+    buf = "";
+  };
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+
+    if (OPEN_QUOTES.includes(ch) && depth === 0) {
+      // 引号开始：先结算引号前的内容
+      flush();
+      depth = 1;
+      buf = ch;
+      continue;
+    }
+
+    if (CLOSE_QUOTES.includes(ch) && depth === 1) {
+      // 引号结束：整个引号块独立成段
+      buf += ch;
+      depth = 0;
+      flush();
+      continue;
+    }
+
+    buf += ch;
+
+    // 引号外的句末标点 → 切句
+    if (depth === 0 && SENTENCE_END.includes(ch)) {
+      while (i + 1 < line.length && SENTENCE_END.includes(line[i + 1])) {
+        buf += line[++i];
+      }
+      flush();
+    }
+  }
+
+  flush();
   return out;
+}
+
+const ACTION_RE = /(手|指|腰|腿|脚|唇|舌|肩|背|胸|颈|臂|膝盖|身体|动作|节奏|按|抱|压|坐|推|拉|抬|翻|缠|扣|解|脱|握|插|抽|顶|撞|磨|抚|揉|掐|舔|咬|亲|贴|夹|跪|趴|躺|跨|骑|扭|挺|送|迎|退)/;
+const SENSE_RE = /(温度|气味|味道|声音|响|触感|湿|热|烫|凉|冷|汗|呼吸|喘|颤抖|抖|紧|麻|酥|酸|痛|胀|黏|滑|腥|香|心跳|脉搏|耳鸣|晕)/;
+const MIND_RE = /(想|觉得|知道|意识|记忆|羞|耻|愧|怕|惧|渴望|欲|忍|克制|克制|心|情绪|感受|以为|明白|恍惚|空白|十年|一直|从来|第一次|最后一次)/;
+
+function classifyOne(s: string): string {
+  // 以引号开头/结尾 → 对白
+  if (/^[「『“‘"]/.test(s) || /[」』”’"]$/.test(s)) return "speech";
+  // 含引号且引号占比高 → 对白
+  const quoted = s.match(/[「『“‘"][^」』”’"]*[」』”’"]/g);
+  if (quoted) {
+    const quotedLen = quoted.join("").length;
+    if (quotedLen / s.length > 0.5) return "speech";
+  }
+
+  const action = (s.match(new RegExp(ACTION_RE.source, "g")) ?? []).length;
+  const sense = (s.match(new RegExp(SENSE_RE.source, "g")) ?? []).length;
+  const mind = (s.match(new RegExp(MIND_RE.source, "g")) ?? []).length;
+
+  const max = Math.max(action, sense, mind);
+  if (max === 0) return "mind";
+  if (action === max) return "action";
+  if (sense === max) return "sense";
+  return "mind";
 }

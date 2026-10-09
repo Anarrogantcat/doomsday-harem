@@ -291,6 +291,53 @@ test("prompt: classifyLines 区分四层", () => {
   assert.ok(layers.includes("mind"));
 });
 
+test("prompt: 整段单行时按句末标点切分", () => {
+  const oneLine = "她跨坐上来，扶住你的肩。温热的紧致吞上来，湿滑的阻力卡在中段。「别动。」她想了很久。";
+  const out = classifyLines(oneLine);
+  assert.equal(out.length, 4, `应为 4 段（动作/感官/对白/心理），实际 ${out.length}`);
+  const layers = out.map((l) => l.layer);
+  assert.ok(layers.includes("action"), "应有动作句");
+  assert.ok(layers.includes("sense"), "应有感官句");
+  assert.ok(layers.includes("speech"), "应有对白句");
+  assert.ok(layers.includes("mind"), "应有心理句");
+});
+
+test("prompt: 对白引号内的句号不切句，引号块独立成段", () => {
+  const s = "「你以前不是这样的。但我还是想要你。」她低下头。";
+  const out = classifyLines(s);
+  assert.equal(out.length, 2, "应为：引号块 + 后续叙述");
+  assert.equal(out[0].layer, "speech");
+  assert.match(out[0].text, /你以前不是这样的。但我还是想要你。/);
+  assert.equal(out[1].layer, "mind");
+  assert.match(out[1].text, /她低下头。/);
+});
+
+test("prompt: 纯对白整段归为 speech", () => {
+  const out = classifyLines("「别动，让我自己来。」");
+  assert.equal(out.length, 1);
+  assert.equal(out[0].layer, "speech");
+});
+
+test("prompt: 引号占比高时整段归为 speech", () => {
+  const out = classifyLines("「我等你这个……等了快十年。」");
+  assert.equal(out[0].layer, "speech");
+});
+
+test("prompt: 空段落不丢内容", () => {
+  const out = classifyLines("   ");
+  assert.equal(out.length, 1);
+  assert.equal(out[0].layer, "mind");
+});
+
+test("prompt: 真实模型输出形态可被分类", () => {
+  // 取自实际 qwen3:14b 输出片段
+  const real = "你跪在橡木床沿，指尖抵住姐姐被金属扣环锁住的脚踝。她将双头龙项链绕过你脖颈时，银质蛇首擦过喉结的震颤让你吞咽下慌乱的喘息「别...」话音被她猛然拽向膝盖的动作掐断，温热的呼吸拂过你耳后汗湿的皮肤。";
+  const out = classifyLines(real);
+  assert.ok(out.length >= 2, `应至少切出 2 句，实际 ${out.length}`);
+  const layers = new Set(out.map((l) => l.layer));
+  assert.ok(layers.size >= 2, "应识别出不止一种层次");
+});
+
 /** ---------- Narrator ---------- */
 
 const scriptedScene = {

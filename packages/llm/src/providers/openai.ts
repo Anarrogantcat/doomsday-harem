@@ -13,7 +13,7 @@ import {
   type ProviderKind,
   type StreamChunk
 } from "../types.ts";
-import { getFetch, getJson, postJson, readLines } from "../transport.ts";
+import { bodyOf, getFetch, getJson, postJson, readLines } from "../transport.ts";
 
 interface OaiChoice {
   message?: { role: string; content: string };
@@ -137,7 +137,7 @@ export class OpenAiCompatProvider implements LlmProvider {
       const t = await res.text();
       throw new LlmError(this.kind, `HTTP ${res.status}: ${t.slice(0, 300)}`, res.status);
     }
-    const body = res.body();
+    const body = bodyOf(res);
     if (!body) {
       const r = await this.generate(req);
       yield { delta: r.text, done: true };

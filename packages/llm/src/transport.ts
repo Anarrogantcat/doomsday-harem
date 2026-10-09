@@ -6,8 +6,12 @@ export interface HttpResponse {
   ok: boolean;
   status: number;
   text(): Promise<string>;
-  /** 流式响应体；无流式能力时为 null */
-  body(): ReadableStream<Uint8Array> | null;
+  /**
+   * 流式响应体；无流式能力时为 null。
+   * 注意：原生 fetch 的 Response.body 是属性（ReadableStream），
+   * 而测试用的 mock 常写成方法。两种形态都要兼容。
+   */
+  body: ReadableStream<Uint8Array> | null | (() => ReadableStream<Uint8Array> | null);
 }
 
 export type FetchLike = (
@@ -37,6 +41,14 @@ export function setFetch(f: FetchLike): void {
 
 export function getFetch(): FetchLike {
   return current ?? defaultFetch();
+}
+
+/** 统一取出响应体，兼容属性与方法两种写法 */
+export function bodyOf(res: HttpResponse): ReadableStream<Uint8Array> | null {
+  const b = res.body;
+  if (b === null || b === undefined) return null;
+  if (typeof b === "function") return b();
+  return b;
 }
 
 /** 带超时的 JSON 请求 */

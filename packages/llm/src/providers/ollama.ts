@@ -14,7 +14,7 @@ import {
   type ProviderKind,
   type StreamChunk
 } from "../types.ts";
-import { getFetch, getJson, postJson, readLines } from "../transport.ts";
+import { bodyOf, getFetch, getJson, postJson, readLines } from "../transport.ts";
 
 interface OllamaChatResponse {
   model: string;
@@ -145,7 +145,7 @@ export class OllamaProvider implements LlmProvider {
       const t = await res.text();
       throw new LlmError(this.kind, `HTTP ${res.status}: ${t.slice(0, 300)}`, res.status);
     }
-    const body = res.body();
+    const body = bodyOf(res);
     if (!body) {
       // 无流式能力，退化为一次性
       const r = await this.generate(req);
