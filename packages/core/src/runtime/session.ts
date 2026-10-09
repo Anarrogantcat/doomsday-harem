@@ -34,6 +34,13 @@ import {
   suitability, describe as describeWardrobe, SLOT_LABEL,
   type ClothingSlot, type BodyZone, type ClothingItem, type Suitability
 } from "../systems/clothing.ts";
+import {
+  type Container, type Quality,
+  newContainer, newStorage, add, addMany, remove, countOf, totalCount, weightOf,
+  canAfford, transfer, prune, use as useItem, rollLoot, lootTable,
+  recipeById, canCraft, craft as craftRecipe,
+  containerToJSON, containerFromJSON, describeContainer, itemDef, resolveItemId, normalizeCost
+} from "../systems/inventory.ts";
 import { newSave, type SaveData, type SavedEntity, type SavedRelation, type SavedJob, type SavedTech } from "../save/serialize.ts";
 import { VERSION } from "../version.ts";
 
@@ -71,8 +78,12 @@ export interface SessionOptions {
   lustDailyGain?: number;
   /** 实验室研究效率倍率 */
   researchRate?: number;
-  /** 初始资源 */
+  /** 初始资源（进仓库） */
   resources?: Record<string, number>;
+  /** 背包重量上限 */
+  backpackWeight?: number;
+  /** 背包槽位上限 */
+  backpackSlots?: number;
   /** 作弊器：秒完成研究 */
   instantResearch?: boolean;
   /** 作弊器：冻结时间 */
@@ -121,14 +132,23 @@ export class GameSession {
   hero: HeroRuntime;
   companions: CompanionRuntime[];
   tech: TechState;
-  resources: Record<string, number>;
+  /** 主角随身背包（有容量限制） */
+  backpack: Container;
+  /** 据点仓库（无上限） */
+  storage: Container;
   flags: Record<string, unknown>;
   registry: SceneRegistry;
   offspring: Offspring[];
   /** 当前天气，影响保暖判定 */
   weather: Weather;
 
-  private opts: Required<Omit<SessionOptions, "time" | "heroName" | "resources">> & { heroName: string };
+  private opts: {
+    heroName: string;
+    lustDailyGain: number;
+    researchRate: number;
+    instantResearch: boolean;
+    freezeTime: boolean;
+  };
 
   constructor(options: SessionOptions = {}) {
     this.time = options.time ?? makeTime(1, 8 * 60);
@@ -164,11 +184,175 @@ export class GameSession {
 
     this.companions = defaultCompanions();
     this.tech = newTechState();
-    this.resources = { ...(options.resources ?? {}) };
+    this.backpack = newContainer(options.backpackWeight ?? 40, options.backpackSlots ?? 30);
+    this.storage = newStorage();
+    if (options.resources) {
+      this.storage = addMany(this.storage, Object.entries(options.resources).map(([id, n]) => ({ id, n }))).container;
+    }
     this.flags = {};
     this.registry = new SceneRegistry();
     this.offspring = [];
     this.weather = "clear";
+  }
+
+  /**
+   * 兼容旧接口的只读资源视图（聚合背包 + 仓库）。
+   * 科技树与旧测试按 { 名称: 数量 } 访问，这里保持可用。
+   */
+  get resources(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const s of [...this.backpack.stacks, ...this.storage.stacks]) {
+      const def = itemDef(s.itemId);
+      const key = def?.name ?? s.itemId;
+      out[key] = (out[key] ?? 0) + s.count;
+      // 同时暴露 id 键，便于新代码访问
+      out[s.itemId] = (out[s.itemId] ?? 0) + s.count;
+    }
+    return out;
+  }
+
+  // ---------- 物品 ----------
+
+  /** 加物品到仓库 */
+  addToStorage(itemId: string, n = 1, quality: Quality = "common"): number {
+    const r = add(this.storage, itemId, n, quality);
+    this.storage = r.container;
+    return r.added;
+  }
+
+  /** 加物品到背包 */
+  addToBackpack(itemId: string, n = 1, quality: Quality = "common"): number {
+    const r = add(this.backpack, itemId, n, quality);
+    this.backpack = r.container;
+    return r.added;
+  }
+
+  /** 从仓库取到背包 */
+  takeFromStorage(itemId: string, n = 1): number {
+    const r = transfer(this.storage, this.backpack, itemId, n);
+    this.storage = r.from;
+    this.backpack = r.to;
+    return r.moved;
+  }
+
+  /** 背包放回仓库 */
+  putToStorage(itemId: string, n = 1): number {
+    const r = transfer(this.backpack, this.storage, itemId, n);
+    this.backpack = r.from;
+    this.storage = r.to;
+    return r.moved;
+  }
+
+  /** 丢弃 */
+  dropItem(itemId: string, n = 1, from: "backpack" | "storage" = "backpack"): number {
+    const target = from === "backpack" ? this.backpack : this.storage;
+    const r = remove(target, itemId, n);
+    if (from === "backpack") this.backpack = prune(r.container);
+    else this.storage = prune(r.container);
+    return r.removed;
+  }
+
+  /** 使用一件（应用效果） */
+  useItem(itemId: string, from: "backpack" | "storage" = "backpack"): Record<string, number> | null {
+    const target = from === "backpack" ? this.backpack : this.storage;
+    const r = useItem(target, itemId);
+    if (!r) return null;
+    if (from === "backpack") this.backpack = prune(r.container);
+    else this.storage = prune(r.container);
+
+    // 应用效果到主角
+    const s = { ...this.hero.survival };
+    for (const [k, v] of Object.entries(r.effects)) {
+      if (k in s) {
+        const key = k as keyof typeof s;
+        s[key] = Math.max(0, Math.min(100, s[key] + v));
+      }
+    }
+    this.hero.survival = s;
+    if (r.effects["lust"]) {
+      this.hero.lust = { ...this.hero.lust, value: Math.max(0, Math.min(100, this.hero.lust.value + r.effects["lust"])) };
+    }
+    return r.effects;
+  }
+
+  /** 采集：按掉落表产出到背包（放不下的留在仓库待取） */
+  loot(tableId: string, seed: number): { got: Array<{ id: string; n: number; quality: Quality }>; overflow: Record<string, number> } {
+    const table = lootTable(tableId);
+    if (!table) return { got: [], overflow: {} };
+    const got = rollLoot(table, seed);
+    const overflow: Record<string, number> = {};
+    for (const g of got) {
+      const r = add(this.backpack, g.id, g.n, g.quality);
+      this.backpack = r.container;
+      if (r.overflow > 0) {
+        const st = add(this.storage, g.id, r.overflow, g.quality);
+        this.storage = st.container;
+        overflow[g.id] = (overflow[g.id] ?? 0) + r.overflow;
+      }
+    }
+    return { got, overflow };
+  }
+
+  /** 合成 */
+  craft(recipeId: string): { ok: boolean; missing: Record<string, number>; missingTech: string[] } {
+    const recipe = recipeById(recipeId);
+    if (!recipe) return { ok: false, missing: {}, missingTech: [] };
+    const merged = this.mergedStorage();
+    const r = craftRecipe(merged, recipe, [...this.tech.unlocked]);
+    if (!r.ok) return { ok: false, missing: r.missing, missingTech: r.missingTech };
+    this.storage = r.container;
+    return { ok: true, missing: {}, missingTech: [] };
+  }
+
+  /** 合成可用性检查（合并背包与仓库） */
+  craftCheck(recipeId: string): { ok: boolean; missing: Record<string, number>; missingTech: string[] } {
+    const recipe = recipeById(recipeId);
+    if (!recipe) return { ok: false, missing: {}, missingTech: [] };
+    return canCraft(this.mergedStorage(), recipe, [...this.tech.unlocked]);
+  }
+
+  /** 背包 + 仓库的合并视图（只读，用于消耗判定） */
+  private mergedStorage(): Container {
+    return {
+      stacks: [...this.storage.stacks, ...this.backpack.stacks],
+      maxWeight: Infinity,
+      maxSlots: Infinity
+    };
+  }
+
+  /** 从合并视图扣除（优先扣仓库） */
+  private spendMerged(cost: Record<string, number>): boolean {
+    if (!canAfford(this.mergedStorage(), cost)) return false;
+    for (const [id, n] of Object.entries(cost)) {
+      const fromStore = Math.min(n, countOf(this.storage, id));
+      if (fromStore > 0) this.storage = remove(this.storage, id, fromStore).container;
+      const rest = n - fromStore;
+      if (rest > 0) this.backpack = remove(this.backpack, id, rest).container;
+    }
+    this.storage = prune(this.storage);
+    this.backpack = prune(this.backpack);
+    return true;
+  }
+
+  /** 库存概览 */
+  inventorySummary(): {
+    backpack: { used: number; max: number; slots: number; maxSlots: number; describe: string };
+    storage: { items: number; kinds: number; describe: string };
+  } {
+    return {
+      backpack: {
+        used: weightOf(this.backpack),
+        max: this.backpack.maxWeight === Infinity ? -1 : this.backpack.maxWeight,
+        slots: this.backpack.stacks.length,
+        maxSlots: this.backpack.maxSlots === Infinity ? -1 : this.backpack.maxSlots,
+        describe: describeContainer(this.backpack)
+      },
+      storage: {
+        items: totalCount(this.storage),
+        kinds: this.storage.stacks.length,
+        describe: describeContainer(this.storage)
+      }
+    };
   }
 
   // ---------- 查询 ----------
@@ -350,10 +534,9 @@ export class GameSession {
     if (!av.ok) return { ok: false, reason: av.reason };
     const node = findNode(nodeId);
     if (!node) return { ok: false, reason: "unknown-node" };
-    // 扣除资源
-    for (const [res, need] of Object.entries(node.cost)) {
-      this.resources[res] = (this.resources[res] ?? 0) - need;
-      if (this.resources[res] <= 0) delete this.resources[res];
+    // 扣除资源（仓库优先，不足再从背包补）
+    if (!this.spendMerged(node.cost)) {
+      return { ok: false, reason: "missing-resource" };
     }
     this.tech = startResearch(this.tech, nodeId);
     return { ok: true };
@@ -723,7 +906,8 @@ export class GameSession {
       }
     }
 
-    data.flags["resources"] = this.resources;
+    data.flags["backpack"] = containerToJSON(this.backpack);
+    data.flags["storage"] = containerToJSON(this.storage);
     data.flags["offspring"] = this.offspring;
     data.flags["weather"] = this.weather;
     data.flags["wardrobe_hero"] = wardrobeToJSON(this.hero.wardrobe);
@@ -761,8 +945,15 @@ export class GameSession {
         s.tech = { ...s.tech, researching: { nodeId: t.nodeId, hours: t.progress } };
       }
     }
-    const res = data.flags["resources"];
-    if (res && typeof res === "object") s.resources = res as Record<string, number>;
+    s.backpack = containerFromJSON(data.flags["backpack"] as never, 40, 30);
+    s.storage = containerFromJSON(data.flags["storage"] as never);
+    // 兼容旧存档：resources 字典迁入仓库
+    const legacyRes = data.flags["resources"];
+    if (legacyRes && typeof legacyRes === "object") {
+      for (const [id, n] of Object.entries(legacyRes as Record<string, number>)) {
+        s.storage = add(s.storage, id, n).container;
+      }
+    }
     const off = data.flags["offspring"];
     if (Array.isArray(off)) s.offspring = off as Offspring[];
     s.hero.wardrobe = wardrobeFromJSON(data.flags["wardrobe_hero"] as never);
@@ -779,7 +970,8 @@ export class GameSession {
     const flags: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(data.flags)) {
       if (k === "resources" || k === "offspring" || k === "slot" ||
-          k === "weather" || k === "wardrobe_hero" || k === "wardrobes") continue;
+          k === "weather" || k === "wardrobe_hero" || k === "wardrobes" ||
+          k === "backpack" || k === "storage") continue;
       flags[k] = v;
     }
     s.flags = flags;

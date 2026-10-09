@@ -4,12 +4,13 @@ import { HaremPanel } from "./panels/HaremPanel.tsx";
 import { JobBoard } from "./panels/JobBoard.tsx";
 import { TechTreePanel } from "./panels/TechTreePanel.tsx";
 import { WardrobePanel } from "./panels/WardrobePanel.tsx";
+import { InventoryPanel } from "./panels/InventoryPanel.tsx";
 import { ScenePlayer } from "./panels/ScenePlayer.tsx";
 import { CheatPanel } from "./panels/CheatPanel.tsx";
 import { LlmPanel } from "./panels/LlmPanel.tsx";
 import { useGame } from "./store/game.ts";
 
-type Tab = "world" | "harem" | "jobs" | "tech" | "wardrobe" | "scenes" | "llm" | "cheats";
+type Tab = "world" | "harem" | "jobs" | "tech" | "wardrobe" | "items" | "scenes" | "llm" | "cheats";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "world", label: "世界" },
@@ -17,6 +18,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "jobs", label: "岗位" },
   { id: "tech", label: "科技" },
   { id: "wardrobe", label: "服装" },
+  { id: "items", label: "物品" },
   { id: "scenes", label: "场景" },
   { id: "llm", label: "模型" },
   { id: "cheats", label: "设置" }
@@ -55,6 +57,7 @@ export function App() {
         {tab === "jobs" && <JobBoard />}
         {tab === "tech" && <TechTreePanel />}
         {tab === "wardrobe" && <WardrobePanel />}
+        {tab === "items" && <InventoryPanel />}
         {tab === "scenes" && <ScenePlayer />}
         {tab === "llm" && <LlmPanel />}
         {tab === "cheats" && <CheatPanel />}

@@ -43,6 +43,11 @@ export interface GameState {
   undress: (who: string) => void;
   stripAll: (who: string) => void;
   setWeather: (weather: Weather) => void;
+  loot: (tableId: string) => void;
+  useItem: (itemId: string) => void;
+  takeFromStorage: (itemId: string, n?: number) => void;
+  putToStorage: (itemId: string, n?: number) => void;
+  craftItem: (recipeId: string) => void;
   repairClothing: (who: string) => void;
 
   setCheat: (patch: Partial<CheatOptions>) => void;
@@ -180,6 +185,45 @@ export const useGame = create<GameState>((set, get) => ({
     const removed = session.stripAll(who);
     const name = who === "hero" ? "主角" : session.companion(who)?.identity.name ?? who;
     pushLog(`${name} 脱光（${removed.length} 件）`);
+    refresh();
+  },
+
+  loot: (tableId) => {
+    const { session, pushLog, refresh } = get();
+    const seed = session.time.day * 1000 + session.time.minute;
+    const r = session.loot(tableId, seed);
+    if (r.got.length === 0) pushLog(`搜刮 ${tableId}：一无所获`);
+    else pushLog(`搜刮 ${tableId}：${r.got.map((g) => `${g.id}×${g.n}`).join("、")}`);
+    refresh();
+  },
+
+  useItem: (itemId) => {
+    const { session, pushLog, refresh } = get();
+    const fx = session.useItem(itemId);
+    if (!fx) pushLog(`没有 ${itemId} 可用`);
+    else pushLog(`使用 ${itemId}：${Object.entries(fx).map(([k, v]) => `${k}+${v}`).join(" ")}`);
+    refresh();
+  },
+
+  takeFromStorage: (itemId, n = 1) => {
+    const { session, pushLog, refresh } = get();
+    const moved = session.takeFromStorage(itemId, n);
+    pushLog(moved > 0 ? `取出 ${itemId}×${moved}` : `取出失败（背包已满）`);
+    refresh();
+  },
+
+  putToStorage: (itemId, n = 1) => {
+    const { session, pushLog, refresh } = get();
+    const moved = session.putToStorage(itemId, n);
+    pushLog(moved > 0 ? `存入 ${itemId}×${moved}` : "存入失败");
+    refresh();
+  },
+
+  craftItem: (recipeId) => {
+    const { session, pushLog, refresh } = get();
+    const r = session.craft(recipeId);
+    if (r.ok) pushLog(`合成完成：${recipeId}`);
+    else pushLog(`合成失败：${r.missingTech.length ? "缺科技 " + r.missingTech.join("、") : "缺材料"}`);
     refresh();
   },
 
