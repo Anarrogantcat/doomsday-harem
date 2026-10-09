@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -19,6 +19,18 @@ import {
   checkInvariants, checkRuntimeInvariants
 } from "../src/save/serialize.ts";
 import { VERSION, SCHEMA_VERSION, buildInfo, isSaveCompatible } from "../src/version.ts";
+import {
+  conceptionChance, tryConceive, startPregnancy, advancePregnancy,
+  pregnancyStage, pregnancyPenalty, makeOffspring, isMature, GESTATION_DAYS
+} from "../src/systems/pregnancy.ts";
+import {
+  decideReaction, applyPlayerChoice, haremIntimacy, proactiveAction,
+  PARTICIPATION_LABEL, PROACTIVE_DESCRIPTION
+} from "../src/systems/harem.ts";
+import { PixelRenderer, sisterSheet } from "../src/render/pixel.ts";
+import { SceneRegistry } from "../src/registry/scene.ts";
+import { toRows, fromRows, rowSummary } from "../src/save/store.ts";
+import { DEFAULT_VIEW_CONFIG } from "../src/text/view.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const scenePath = join(__dirname, "..", "data", "scenes", "sister_first.json");
@@ -414,4 +426,255 @@ test("version: 构建信息与存档兼容性", () => {
   assert.equal(info.schemaVersion, SCHEMA_VERSION);
   assert.equal(isSaveCompatible(SCHEMA_VERSION), true);
   assert.equal(isSaveCompatible(SCHEMA_VERSION + 1), false);
+});
+
+
+
+// ============ 怀孕系统 ============
+test("pregnancy: 娱乐型扶她药绝不受孕", () => {
+  const base = { affection: 100, lust: 100, fertileWindow: true, techBonus: 1, roll: 0 };
+  assert.equal(conceptionChance({ ...base, medType: "recreational" }), 0);
+  assert.equal(tryConceive({ ...base, medType: "recreational" }), false);
+});
+
+test("pregnancy: 各修正项提高受孕率", () => {
+  const low = conceptionChance({ affection: 0, lust: 0, fertileWindow: false, medType: "none", techBonus: 0, roll: 0 });
+  const high = conceptionChance({ affection: 100, lust: 100, fertileWindow: true, medType: "pregnant", techBonus: 0.15, roll: 0 });
+  assert.ok(high > low);
+  assert.ok(high <= 0.95);
+});
+
+test("pregnancy: 怀孕推进与分娩", () => {
+  const p = startPregnancy("sister", "hero", 10, 2);
+  assert.equal(pregnancyStage(p), "none");
+  const a = advancePregnancy(p, 5);
+  assert.equal(pregnancyStage(a.pregnancy), "early");
+  const b = advancePregnancy(a.pregnancy, 10);
+  assert.equal(pregnancyStage(b.pregnancy), "mid");
+  const c = advancePregnancy(b.pregnancy, 10);
+  assert.equal(pregnancyStage(c.pregnancy), "late");
+  const d = advancePregnancy(c.pregnancy, 10);
+  assert.equal(d.delivered, true);
+  assert.equal(d.offspringCount, 2);
+});
+
+test("pregnancy: 后期限制战斗并提高欲情增长", () => {
+  assert.equal(pregnancyPenalty("early").canCombat, true);
+  assert.equal(pregnancyPenalty("late").canCombat, false);
+  assert.ok(pregnancyPenalty("due").lustGain > pregnancyPenalty("early").lustGain);
+});
+
+test("pregnancy: 后代恒为女性（INV-4）", () => {
+  const o = makeOffspring("kid1", "女儿", "sister", "hero", 100);
+  assert.equal(o.sex, "female");
+  assert.equal(o.physiology.sex, "female");
+  assert.equal(isMature(o, 100), false);
+  assert.equal(isMature(o, o.maturityDay), true);
+});
+
+// ============ 后宫互交与多人场景 ============
+test("harem: 后宫之间禁用怀孕型扶她药（INV-2）", () => {
+  const i = { with: {} as Record<string, number> };
+  const blocked = haremIntimacy(i, "sister", "mother", "pregnant" as never);
+  assert.equal(blocked.blocked, true);
+  assert.match(blocked.reason!, /INV-2/);
+
+  const ok = haremIntimacy(i, "sister", "mother", "recreational");
+  assert.equal(ok.blocked, false);
+  assert.equal(ok.intimacy.with["mother"], 5);
+  assert.equal(ok.intimacy.with["sister"], 5);
+});
+
+test("harem: 参与方式按性格与道具判定", () => {
+  const bold = decideReaction(
+    { entityId: "sister", name: "姐姐", lust: 95, affection: 90, personality: "bold", hasToy: true, medStock: 2 },
+    { othersPresent: 1, roll: 0.5 }
+  );
+  assert.ok(Object.keys(PARTICIPATION_LABEL).includes(bold.kind));
+
+  const shyNoToy = decideReaction(
+    { entityId: "sister2", name: "妹妹", lust: 20, affection: 30, personality: "shy", hasToy: false, medStock: 0 },
+    { othersPresent: 0, roll: 0.5 }
+  );
+  assert.ok(["selfMasturbate", "verbalTease"].includes(shyNoToy.kind));
+});
+
+test("harem: 拒绝永不扣好感（核心铁律）", () => {
+  for (const kind of Object.keys(PARTICIPATION_LABEL) as Array<keyof typeof PARTICIPATION_LABEL>) {
+    const out = applyPlayerChoice("refuse", kind);
+    assert.equal(out.affectionDelta, 0, `拒绝 ${kind} 时好感必须为 0`);
+    assert.ok(out.lustDelta > 0, "欲情应继续累积");
+  }
+});
+
+test("harem: 接受升级为多人，拒绝转为旁观", () => {
+  const accept = applyPlayerChoice("accept", "useToy");
+  assert.equal(accept.affectionDelta, 3);
+  assert.equal(accept.becomesMulti, true);
+  assert.equal(accept.lustDelta, -100);
+
+  const refuse = applyPlayerChoice("refuse", "useToy");
+  assert.equal(refuse.becomesObserver, true);
+  assert.equal(refuse.becomesMulti, false);
+});
+
+test("harem: 欲情阶段映射到主动行为", () => {
+  assert.equal(proactiveAction("nightRaid"), "nightRaid");
+  assert.equal(proactiveAction("invite"), "invite");
+  assert.match(PROACTIVE_DESCRIPTION["nightRaid"], /无拒绝/);
+});
+
+// ============ 像素渲染器（可选视图） ============
+test("pixel: 关闭时不接收任何节拍", () => {
+  const r = new PixelRenderer({ ...DEFAULT_VIEW_CONFIG, pixel: "off" });
+  r.registerSheet(sisterSheet());
+  r.setActiveSheet("sister_32");
+  r.onBeat({ sceneId: "s", beatIndex: 0, beatId: "b1", poseKey: "push_down", participants: [], tags: ["keyframe"] });
+  assert.equal(r.frameCount(), 0);
+});
+
+test("pixel: 关键帧模式只接收标记节拍", () => {
+  const r = new PixelRenderer({ ...DEFAULT_VIEW_CONFIG, pixel: "keyframe" });
+  r.onBeat({ sceneId: "s", beatIndex: 0, beatId: "b1", poseKey: "push_down", participants: [], tags: ["keyframe"] });
+  r.onBeat({ sceneId: "s", beatIndex: 1, beatId: "b2", poseKey: "straddle", participants: [], tags: [] });
+  assert.equal(r.frameCount(), 1);
+});
+
+test("pixel: 全程模式接收全部节拍", () => {
+  const r = new PixelRenderer({ ...DEFAULT_VIEW_CONFIG, pixel: "full" });
+  for (let i = 0; i < 5; i++) {
+    r.onBeat({ sceneId: "s", beatIndex: i, beatId: `b${i}`, poseKey: "slow", participants: [], tags: [] });
+  }
+  assert.equal(r.frameCount(), 5);
+});
+
+test("pixel: poseKey 解析为精灵表坐标", () => {
+  const r = new PixelRenderer();
+  r.registerSheet(sisterSheet());
+  r.setActiveSheet("sister_32");
+  const f = r.currentFrame("sink")!;
+  assert.equal(f.index, 2);
+  assert.equal(f.x, 2 * 32);
+  assert.equal(f.y, 0);
+  assert.equal(f.size, 32);
+});
+
+test("pixel: 未知 poseKey 回退到 fallback", () => {
+  const r = new PixelRenderer();
+  r.registerSheet(sisterSheet());
+  r.setActiveSheet("sister_32");
+  assert.equal(r.currentFrame("不存在的姿势")!.index, 0);
+});
+
+test("pixel: 未注册精灵表抛错", () => {
+  const r = new PixelRenderer();
+  assert.throws(() => r.setActiveSheet("nope"), /未注册的精灵表/);
+});
+
+// ============ 场景注册表 ============
+const DSL_DIR = join(__dirname, "..", "data", "scripts");
+const allDsl = readdirSync(DSL_DIR)
+  .filter((f) => f.endsWith(".dsl"))
+  .map((f) => readFileSync(join(DSL_DIR, f), "utf8"));
+
+test("registry: 载入全部剧本并去重", () => {
+  const reg = new SceneRegistry();
+  const n1 = reg.loadAll(allDsl);
+  assert.equal(n1, 20, `应载入 20 个场景（15 主线 + 家庭 3 + AI 1 + 夜袭 1），实际 ${n1}`);
+  const n2 = reg.loadAll(allDsl);
+  assert.equal(n2, 0, "重复载入不应新增");
+  assert.equal(reg.size(), n1);
+});
+
+test("registry: 每个剧本都有四层齐全的节拍", () => {
+  const reg = new SceneRegistry();
+  reg.loadAll(allDsl);
+  for (const s of reg.all()) {
+    assert.ok(s.beats.length >= 4, `${s.id} 节拍过少`);
+    for (const b of s.beats) {
+      const layers = new Set(b.lines.map((l) => l.layer));
+      assert.ok(layers.has("action"), `${s.id}/${b.id} 缺 action`);
+      assert.ok(layers.has("mind"), `${s.id}/${b.id} 缺 mind`);
+    }
+  }
+});
+
+test("registry: 按条件过滤可触发场景", () => {
+  const reg = new SceneRegistry();
+  reg.loadAll(allDsl);
+  const none = reg.available({});
+  const some = reg.available({ virgin: true, affection: 90, ai_awakened: false, mainline_teacher_stage: 0 });
+  assert.ok(some.length > none.length);
+});
+
+test("registry: 按角色过滤", () => {
+  const reg = new SceneRegistry();
+  reg.loadAll(allDsl);
+  const forMother = reg.availableFor("母亲", { affection: 90, sister_first_done: true });
+  assert.ok(forMother.length >= 1);
+  assert.ok(forMother.every((s) => s.participants.includes("母亲")));
+});
+
+test("registry: 夜袭场景在欲情不足时不可触发", () => {
+  const reg = new SceneRegistry();
+  reg.loadAll(allDsl);
+  assert.equal(reg.materialize("night_raid_sister", { lust: 50, days_since: 2 }), null);
+  assert.ok(reg.materialize("night_raid_sister", { lust: 95, days_since: 12 }));
+});
+
+// ============ 存档 ↔ SQL 行映射 ============
+test("store: SaveData 摊平为 SQL 行", () => {
+  const data = newSave(VERSION, { day: 3, minute: 600 });
+  data.entities.push({
+    id: "hero", kind: "hero",
+    identity: { name: "主角", title: "扶她御姐", age: 28, heightCm: 178, tags: [] },
+    physiology: { sex: "futanari", virgin: true, pregnant: false, pregnancyProgress: 0, fertileWindow: false },
+    survival: { hunger: 80, thirst: 70, stamina: 90, energy: 85, mood: 60 }
+  });
+  data.relations.push({ fromId: "hero", toId: "sister", affection: 60, loyalty: 50, bond: 3, intimacy: 20, lust: 92, daysSinceIntimacy: 11 });
+  data.jobs.push({ entityId: "sister", jobId: "logistics", bonus: 0.15, daysOnJob: 4 });
+  data.tech.push({ branch: "pharma", nodeId: "med_recreational", tier: 3, unlocked: true, progress: 1 });
+
+  const rows = toRows(1, data);
+  const sum = rowSummary(rows);
+  assert.equal(sum["save"], 1);
+  assert.equal(sum["world"], 1);
+  assert.equal(sum["entity"], 1);
+  assert.equal(sum["relationship"], 1);
+  assert.equal(sum["job"], 1);
+  assert.equal(sum["tech"], 1);
+});
+
+test("store: SQL 行还原回 SaveData", () => {
+  const data = newSave(VERSION, { day: 7, minute: 480 });
+  data.entities.push({
+    id: "hero", kind: "hero",
+    identity: { name: "主角", title: "扶她御姐", age: 28, heightCm: 178, tags: ["futanari"] },
+    physiology: { sex: "futanari", virgin: true, pregnant: false, pregnancyProgress: 0, fertileWindow: false },
+    survival: { hunger: 80, thirst: 70, stamina: 90, energy: 85, mood: 60 }
+  });
+  data.relations.push({ fromId: "hero", toId: "mother", affection: 75, loyalty: 60, bond: 4, intimacy: 0, lust: 30, daysSinceIntimacy: 2 });
+  data.flags = { slot: "auto", weather: "rain", season: "autumn" };
+
+  const rows = toRows(1, data);
+  const back = fromRows(rows, VERSION, SCHEMA_VERSION);
+  assert.equal(back.time.day, 7);
+  assert.equal(back.entities.length, 1);
+  assert.equal(back.entities[0].identity.name, "主角");
+  assert.equal(back.relations[0].affection, 75);
+  assert.equal(back.relations[0].bond, 4);
+  assert.equal(back.flags["weather"], "rain");
+});
+
+test("store: 往返后不变式仍成立", () => {
+  const data = newSave(VERSION, { day: 1, minute: 0 });
+  data.entities.push({
+    id: "hero", kind: "hero",
+    identity: { name: "主角", title: "扶她御姐", age: 28, heightCm: 178, tags: [] },
+    physiology: { sex: "futanari", virgin: true, pregnant: false, pregnancyProgress: 0, fertileWindow: false },
+    survival: { hunger: 50, thirst: 50, stamina: 50, energy: 50, mood: 50 }
+  });
+  data.relations.push({ fromId: "hero", toId: "x", affection: 50, loyalty: 50, bond: 2, intimacy: 0, lust: 0, daysSinceIntimacy: 0 });
+  const back = fromRows(toRows(1, data), VERSION, SCHEMA_VERSION);
+  assert.equal(checkInvariants(back).length, 0);
 });
