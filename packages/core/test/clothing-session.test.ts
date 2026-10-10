@@ -171,6 +171,9 @@ test("session/clothing: 脱光后天气判定失败", () => {
 test("session/clothing: 暴露度影响 H 场景提示词道具列表", () => {
   const s = new GameSession();
   s.loadScripts(scripts());
+  // sister_first 现在需要序章推进到「安顿」阶段
+  s.setFlag("prologue_stage", "settled");
+  s.companion("sister")!.relationship = { ...s.companion("sister")!.relationship, affection: 60 };
   const scene = s.sceneFor("sister", "sister_first");
   assert.ok(scene);
   const o = s.outfitOf("sister")!;

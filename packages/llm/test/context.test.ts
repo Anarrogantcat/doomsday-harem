@@ -38,7 +38,8 @@ test("context: 同伴上下文含全部关键字段", () => {
   assert.equal(p.personality, "主动强势");
   assert.match(p.tone ?? "", /直接/);
   assert.match(p.voiceSample ?? "", /回房间/);
-  assert.match(p.relation ?? "", /好感 60/);
+  // 序章期间好感为亲情基准 50
+  assert.match(p.relation ?? "", /好感 50/);
   assert.match(p.outfit ?? "", /围巾/);
   assert.ok((p.exposure ?? 100) < 20, "姐姐着装完整，暴露度应低");
 });
@@ -84,7 +85,7 @@ test("context: 完整场景上下文", () => {
   assert.equal(ctx.beatCount, 2);
   assert.equal(ctx.participants.length, 3);
   assert.deepEqual(ctx.props, ["双头龙"]);
-  assert.match(ctx.time ?? "", /第1天/);
+  assert.match(ctx.time ?? "", /第30天/);
   assert.ok(ctx.location);
 
   const sister = ctx.participants.find((p) => p.name === "姐姐")!;
@@ -130,7 +131,7 @@ test("context: 生成的提示词包含全部约束", () => {
   assert.match(user, /姐姐/);
   assert.match(user, /主动强势/);
   assert.match(user, /围巾/);
-  assert.match(user, /好感 60/);
+  assert.match(user, /好感 50/);
   assert.match(user, /旁观者/);
   assert.match(user, /双头龙/);
   assert.match(user, /床沿坐姿/);
@@ -165,10 +166,11 @@ test("context: 着装随实际状态变化", () => {
 test("context: 关系数值随会话变化", () => {
   const s = makeSession();
   const before = buildParticipant(s, "姐姐");
+  // 序章基准 50，加 30 → 80
   s.gainAffection("sister", 30, 20);
   const after = buildParticipant(s, "姐姐");
   assert.notEqual(before.relation, after.relation);
-  assert.match(after.relation ?? "", /好感 90/);
+  assert.match(after.relation ?? "", /好感 80/);
 });
 
 test("context: 怀孕状态写入生理字段", () => {

@@ -275,15 +275,23 @@ test("dsl: speech 说话人解析正确", () => {
 
 test("dsl: 场景级 when 不满足则不可实体化", () => {
   const r = parseScript(dslSrc);
-  assert.equal(materializeAll(r, { virgin: false, affection: 90 }).length, 0);
-  assert.equal(materializeAll(r, { virgin: true, affection: 30 }).length, 0);
-  assert.equal(materializeAll(r, { virgin: true, affection: 60 }).length, 1);
+  const P = { prologue_stage: "settled" };
+
+  // virgin 不满足
+  assert.equal(materializeAll(r, { ...P, virgin: false, affection: 90 }).length, 0);
+  // 好感不足
+  assert.equal(materializeAll(r, { ...P, virgin: true, affection: 30 }).length, 0);
+  // 序章未到安顿阶段
+  assert.equal(materializeAll(r, { virgin: true, affection: 90, prologue_stage: "normal" }).length, 0);
+  // 全部满足
+  assert.equal(materializeAll(r, { ...P, virgin: true, affection: 60 }).length, 1);
 });
 
 test("dsl: 差分文本按条件注入同一节拍", () => {
   const r = parseScript(dslSrc);
-  const base = materializeScene(r.scenes[0], { virgin: true, affection: 60, lust: 0, bond: 1 })!;
-  const withLust = materializeScene(r.scenes[0], { virgin: true, affection: 60, lust: 90, bond: 1 })!;
+  const P = { virgin: true, affection: 60, prologue_stage: "settled" };
+  const base = materializeScene(r.scenes[0], { ...P, lust: 0, bond: 1 })!;
+  const withLust = materializeScene(r.scenes[0], { ...P, lust: 90, bond: 1 })!;
 
   const b2base = base.beats.find((b) => b.id === "b2")!;
   const b2lust = withLust.beats.find((b) => b.id === "b2")!;
@@ -294,7 +302,7 @@ test("dsl: 差分文本按条件注入同一节拍", () => {
 
 test("dsl: 差分可叠加", () => {
   const r = parseScript(dslSrc);
-  const both = materializeScene(r.scenes[0], { virgin: true, affection: 60, lust: 90, bond: 5 })!;
+  const both = materializeScene(r.scenes[0], { virgin: true, affection: 60, prologue_stage: "settled", lust: 90, bond: 5 })!;
   const b4 = both.beats.find((b) => b.id === "b4")!;
   assert.equal(b4.lines.length, 5);
   assert.match(b4.lines[4].text, /换你来/);
@@ -302,7 +310,7 @@ test("dsl: 差分可叠加", () => {
 
 test("dsl: 实体化后可被文本引擎渲染", () => {
   const r = parseScript(dslSrc);
-  const scene = materializeScene(r.scenes[0], { virgin: true, affection: 60, lust: 0, bond: 1 })!;
+  const scene = materializeScene(r.scenes[0], { virgin: true, affection: 60, prologue_stage: "settled", lust: 0, bond: 1 })!;
   const text = renderScene(scene, { detail: "detailed", showLayerTags: false });
   assert.match(text, /互相破处/);
   assert.match(text, /「我等你这个……等了快十年。」/);
@@ -618,7 +626,10 @@ test("registry: 按条件过滤可触发场景", () => {
   const reg = new SceneRegistry();
   reg.loadAll(allDsl);
   const none = reg.available({});
-  const some = reg.available({ virgin: true, affection: 90, ai_awakened: false, mainline_teacher_stage: 0 });
+  const some = reg.available({
+    virgin: true, affection: 90, ai_awakened: false,
+    mainline_teacher_stage: 0, prologue_stage: "settled"
+  });
   assert.ok(some.length > none.length);
 });
 
@@ -963,7 +974,7 @@ test("combat: 回合推进递减状态并清理过期效果", () => {
 
 test("combat: 科技加成正确折算到主角数值", () => {
   const c = playerFromBonuses({ hp: 80, hpMax: 80 }, { meleeDmg: 0.25, dodge: 0.2, critRate: 0.3, critDmg: 2 });
-  assert.equal(c.attack, 13);          // 10 × 1.25 = 12.5 → 13
+  assert.equal(c.attack, 23);          // 基准 18 × 1.25 = 22.5 → 23
   assert.ok(Math.abs(c.dodge - 0.25) < 1e-9);
   assert.ok(Math.abs(c.critRate - 0.35) < 1e-9);
   assert.equal(c.critDmg, 2);

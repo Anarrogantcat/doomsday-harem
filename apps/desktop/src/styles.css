@@ -1182,21 +1182,82 @@ legend { color: var(--sub); font-size: 0.78em; padding: 0 0.4em; }
 
 
 
-/* ============ 文生图立绘 ============ */
-.gen-portrait { border-radius: var(--radius); display: block; }
-.gen-portrait-loading,
-.gen-portrait-error {
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 0.4em;
-  background: var(--panel2); border: 1px dashed var(--line);
-  border-radius: var(--radius); color: var(--dim);
+
+/* ============ 序章面板 ============ */
+.prologue-panel { display: flex; flex-direction: column; gap: 0.8em; }
+.prog-countdown {
+  text-align: center; padding: 1em;
+  background: linear-gradient(180deg, var(--panel2), var(--panel));
+  border: 1px solid var(--accent); border-radius: var(--radius);
 }
-.gen-portrait-error { border-color: var(--warn); }
-.gp-spinner {
-  width: 1.6em; height: 1.6em; border-radius: 50%;
-  border: 2px solid var(--line); border-top-color: var(--accent-lt);
-  animation: gpSpin 0.9s linear infinite;
+.prog-days {
+  font-size: 1.6em; font-weight: 700; color: var(--accent-lt);
+  font-variant-numeric: tabular-nums; letter-spacing: 0.05em;
 }
-@keyframes gpSpin { to { transform: rotate(360deg); } }
-.gp-text { font-size: 0.75em; color: var(--sub); }
-.gp-sub { font-size: 0.65em; color: var(--dim); text-align: center; padding: 0 0.4em; }
+.prog-sub { font-size: 0.75em; color: var(--dim); margin-top: 0.2em; }
+.prog-done { font-size: 1.1em; color: var(--ok); font-weight: 600; }
+.prog-bar-wrap { display: flex; align-items: center; gap: 0.6em; }
+.prog-bar {
+  flex: 1; height: 0.5em; background: #1e2532;
+  border-radius: 0.25em; overflow: hidden;
+}
+.prog-fill {
+  height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-lt));
+  transition: width .3s;
+}
+.prog-pct {
+  font-size: 0.8em; color: var(--accent-lt); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.prog-current {
+  padding: 0.7em; background: #2a3444;
+  border: 1px solid var(--accent); border-left: 3px solid var(--accent-lt);
+  border-radius: var(--radius);
+}
+.prog-cur-head { display: flex; align-items: baseline; gap: 0.5em; margin-bottom: 0.3em; }
+.prog-cur-tag {
+  font-size: 0.68em; color: #fff; background: var(--accent);
+  border-radius: 0.2em; padding: 0.1em 0.45em;
+}
+.prog-cur-title { font-size: 0.95em; font-weight: 600; }
+.prog-cur-desc { font-size: 0.8em; color: var(--sub); line-height: 1.6; }
+.prog-cur-meta { font-size: 0.72em; color: var(--dim); margin-top: 0.3em; }
+.prog-stages { display: flex; flex-direction: column; gap: 0.15em; }
+.prog-stage {
+  display: flex; align-items: flex-start; gap: 0.5em;
+  padding: 0.4em 0.6em; border-radius: 0.25em;
+  border-left: 2px solid var(--line);
+}
+.prog-stage.past { opacity: .5; border-left-color: var(--ok); }
+.prog-stage.current { background: #2a3444; border-left-color: var(--accent-lt); }
+.prog-stage.future { opacity: .35; }
+.prog-stage-dot { font-size: 0.85em; color: var(--accent-lt); width: 1em; }
+.prog-stage.past .prog-stage-dot { color: var(--ok); }
+.prog-stage-body { flex: 1; }
+.prog-stage-name { font-size: 0.85em; font-weight: 600; }
+.prog-stage-desc { font-size: 0.72em; color: var(--sub); line-height: 1.5; }
+.prog-stage-day { font-size: 0.66em; color: var(--dim); margin-top: 0.1em; }
+.tut-list { display: flex; flex-direction: column; gap: 0.15em; }
+.tut-item {
+  display: flex; align-items: flex-start; gap: 0.5em;
+  padding: 0.4em 0.6em; border-radius: 0.25em;
+  cursor: pointer; border-left: 2px solid var(--line);
+  transition: background-color .12s;
+}
+.tut-item:hover { background: var(--panel2); }
+.tut-item.done { opacity: .5; border-left-color: var(--ok); }
+.tut-item.next { background: #2a3444; border-left-color: var(--accent-lt); }
+.tut-num {
+  font-size: 0.75em; color: var(--accent-lt);
+  width: 1.2em; text-align: center; flex-shrink: 0;
+}
+.tut-item.done .tut-num { color: var(--ok); }
+.tut-body { flex: 1; }
+.tut-title { font-size: 0.85em; }
+.tut-text {
+  font-size: 0.75em; color: var(--sub); line-height: 1.7;
+  margin-top: 0.35em; white-space: pre-wrap;
+}
+.tut-action {
+  font-size: 0.72em; color: var(--info); margin-top: 0.3em;
+}

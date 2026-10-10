@@ -57,7 +57,8 @@ export function HeroDetail() {
             {h.identity.name}
             <span className="hero-tag">主角</span>
           </div>
-          <div className="detail-title">{h.identity.title}</div>
+          {/* 主角不显示「扶她御姐」这类身份标签，避免冗余 */}
+          {false && <div className="detail-title">{h.identity.title}</div>}
           <div className="detail-tags">
             <span className="tag">扶她</span>
             <span className="tag">{h.identity.heightCm}cm</span>

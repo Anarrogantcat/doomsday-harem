@@ -11,6 +11,13 @@ import type { GameTime, TimeSlot } from "../types.ts";
 import { makeTime, slot as slotOfTime } from "../time.ts";
 import type { Survival, Lust, Relationship, Job, Physiology, Identity, JobId } from "../components.ts";
 import { DEFAULT_LUST, DEFAULT_RELATIONSHIP, gain, satisfy, refuse, tickLust, type LustStage } from "../systems/relationship.ts";
+import {
+  type PrologueStage, type PrologueScene, type TutorialStep,
+  PROLOGUE_ORDER, PROLOGUE_LABEL, PROLOGUE_DESC, PROLOGUE_DAYS,
+  PROLOGUE_SCENES, TUTORIAL_STEPS, STARTING_VEHICLE,
+  nextPrologueStage, prologueFinished, prologueProgress,
+  prologueScene, prologueScenesForStage, prologueStats
+} from "../systems/prologue.ts";
 import { tickSurvival, type Activity } from "../systems/survival.ts";
 import { reassign, type JobAssignment } from "../systems/jobs.ts";
 import { tick, fastForward, type TickInput, type TickOutput } from "./loop.ts";
@@ -277,9 +284,34 @@ export function makeCompanion(def: CompanionDef, joined = true): CompanionRuntim
   };
 }
 
-/** 开局同伴（末日降临前已在安全屋的四位：母亲 / 姐姐 / 妹妹 / 特殊AI） */
+/**
+ * 开局同伴。
+ *
+ * 序章开始时，主角和家人住在城里，过普通生活：
+ *  - 母亲 / 姐姐 / 妹妹 同住（本来就是一家人，不是「后宫」）
+ *  - 特殊AI **尚未诞生** —— 序章第 3 阶段才由主角写下
+ *  - 安全屋 / 避难所 **尚不存在**
+ *
+ * 家人以 joined=true 存在，但 relationship.role 为 "family"，
+ * 且好感从亲情基准起步，序章中逐步发展为后宫关系。
+ */
 function defaultCompanions(): CompanionRuntime[] {
-  return startingCompanions().map((def) => makeCompanion(def, true));
+  const FAMILY_IDS = ["mother", "sister", "sister2"];
+
+  return startingCompanions()
+    .filter((def) => FAMILY_IDS.includes(def.id))
+    .map((def) => {
+      const c = makeCompanion(def, true);
+      // 序章期间：亲情关系，好感基准而非满值
+      c.relationship = {
+        ...c.relationship,
+        role: "family",
+        affection: Math.min(c.relationship.affection, 50),
+        loyalty: Math.min(c.relationship.loyalty, 40),
+        bond: 1
+      };
+      return c;
+    });
 }
 
 export class GameSession {
@@ -328,7 +360,8 @@ export class GameSession {
   };
 
   constructor(options: SessionOptions = {}) {
-    this.time = options.time ?? makeTime(1, 8 * 60);
+    // 序章从「末日前 30 天」开始，不是第 1 天
+    this.time = options.time ?? makeTime(PROLOGUE_DAYS.normal, 8 * 60);
     this.opts = {
       heroName: options.heroName ?? "主角",
       lustDailyGain: options.lustDailyGain ?? 5,
@@ -369,6 +402,13 @@ export class GameSession {
       this.storage = addMany(this.storage, Object.entries(options.resources).map(([id, n]) => ({ id, n }))).container;
     }
     this.flags = {};
+    // 序章起始状态：末日前 30 天，尚未觉醒
+    this.flags["prologue_stage"] = "normal";
+    this.flags["prologue_days_left"] = PROLOGUE_DAYS.normal;
+    this.flags["prologue_fired"] = [];
+    this.flags["ai_awakened"] = false;
+    this.flags["shelter_built"] = false;
+    this.flags["outbreak_happened"] = false;
     this.registry = new SceneRegistry();
     this.offspring = [];
     this.weather = "clear";
@@ -1661,6 +1701,145 @@ export class GameSession {
     return PREGNANCY_EVENTS;
   }
 
+  // ---------- 序章与教程 ----------
+
+  /** 当前序章阶段 */
+  prologueStage(): PrologueStage {
+    const v = this.flags["prologue_stage"];
+    return typeof v === "string" ? (v as PrologueStage) : "normal";
+  }
+
+  /** 设置序章阶段 */
+  setPrologueStage(s: PrologueStage): void {
+    this.flags["prologue_stage"] = s;
+    this.flags["prologue_days_left"] = PROLOGUE_DAYS[s];
+    // 末日倒计时：序章期间时间是负数（末日前）
+    if (!prologueFinished(s) && s !== "outbreak" && s !== "settled") {
+      this.time = { ...this.time, day: PROLOGUE_DAYS[s] };
+    }
+  }
+
+  /** 序章是否已结束 */
+  prologueDone(): boolean {
+    return prologueFinished(this.prologueStage());
+  }
+
+  /** 序章进度 0-1 */
+  prologueProgressValue(): number {
+    return prologueProgress(this.prologueStage());
+  }
+
+  /** 当前应触发的序章场景 */
+  currentPrologueScene(): PrologueScene | null {
+    if (this.prologueDone()) return null;
+    const stage = this.prologueStage();
+    const list = prologueScenesForStage(stage);
+    if (list.length === 0) return null;
+    const fired = (this.flags["prologue_fired"] as string[] | undefined) ?? [];
+    return list.find((s) => !fired.includes(s.id)) ?? null;
+  }
+
+  /** 推进序章（当前场景完成后调用） */
+  advancePrologue(): PrologueStage {
+    const cur = this.currentPrologueScene();
+    if (cur) {
+      const fired = (this.flags["prologue_fired"] as string[] | undefined) ?? [];
+      if (!fired.includes(cur.id)) {
+        this.flags["prologue_fired"] = [...fired, cur.id];
+      }
+      // 场景自身效果
+      if (cur.stage === "outbreak") {
+        this.flags["outbreak_happened"] = true;
+        this.flags["shelter_built"] = true;
+      }
+      if (cur.stage === "ai_birth") {
+        this.flags["ai_awakened"] = true;
+      }
+      if (cur.stage === "shelter") {
+        this.flags["shelter_built"] = true;
+      }
+      if (cur.stage === "settled") {
+        this.flags["shelter_built"] = true;
+        this.flags["sister_knows"] = true;
+      }
+    }
+
+    const next = nextPrologueStage(this.prologueStage());
+    this.setPrologueStage(next);
+
+    // 进入主游戏时归零时间
+    if (next === "done") {
+      this.time = { ...this.time, day: 1 };
+      this.flags["game_started"] = true;
+    }
+
+    return next;
+  }
+
+  /** 序章阶段信息（供 UI） */
+  prologueInfo(): {
+    stage: PrologueStage;
+    label: string;
+    desc: string;
+    daysLeft: number;
+    progress: number;
+    scene: PrologueScene | null;
+    done: boolean;
+  } {
+    const stage = this.prologueStage();
+    const days = PROLOGUE_DAYS[stage];
+    return {
+      stage,
+      label: PROLOGUE_LABEL[stage],
+      desc: PROLOGUE_DESC[stage],
+      daysLeft: days,
+      progress: prologueProgress(stage),
+      scene: this.currentPrologueScene(),
+      done: prologueFinished(stage)
+    };
+  }
+
+  /** 全部序章场景（供 UI 浏览） */
+  allPrologueScenes(): PrologueScene[] {
+    return PROLOGUE_SCENES;
+  }
+
+  // ---------- 教程 ----------
+
+  /** 已完成的教程步骤 */
+  tutorialDone(): string[] {
+    return (this.flags["tutorial_done"] as string[] | undefined) ?? [];
+  }
+
+  /** 当前应显示的教程步骤 */
+  currentTutorial(): TutorialStep | null {
+    const done = this.tutorialDone();
+    return TUTORIAL_STEPS.find((t) => !done.includes(t.id)) ?? null;
+  }
+
+  /** 标记教程步骤完成 */
+  completeTutorial(id: string): void {
+    const done = this.tutorialDone();
+    if (!done.includes(id)) {
+      this.flags["tutorial_done"] = [...done, id];
+    }
+  }
+
+  /** 教程进度 */
+  tutorialProgressValue(): number {
+    return this.tutorialDone().length / TUTORIAL_STEPS.length;
+  }
+
+  /** 房车来历 */
+  vehicleOrigin() {
+    return STARTING_VEHICLE;
+  }
+
+  /** 序章统计 */
+  prologueStat() {
+    return prologueStats();
+  }
+
   // ---------- 作弊执行器 ----------
 
   /** 构建作弊宿主（把 session 能力暴露给 cheatRunner） */
@@ -2069,24 +2248,47 @@ export class GameSession {
   // ---------- 战斗 ----------
 
   /** 从科技加成与装备构造主角战斗数值 */
+  /**
+   * 由主角当前状态构造战斗单位。
+   *
+   * 注意：不能把 attack / hp 硬编码 —— 那会让等级、属性、武器、护甲
+   * 全部失效（早期版本攻击恒为 10，打不动带防御的敌人）。
+   * 这里只提供「加成」，基准值与缩放交给 playerFromBonuses。
+   */
   heroCombatant(): Combatant {
     const b = this.baseBonuses();
-    const bonus: CombatBonus = {
-      meleeDmg: (b["meleeDmg"] ?? 0) + (b["trainingRate"] ?? 0) * 0.3,
-      dodge: (b["cover"] ?? 0) / 200,
-      critRate: (b["critRate"] ?? 0) + (b["precisionStrike"] ?? 0) * 0.1,
-      critDmg: (b["critDmg"] ?? 0) > 0 ? 2 : 1.5
-    };
+    const g = this.hero.growth;
+
+    // 属性加成（力量影响攻击，耐力影响 HP）
+    const strength = g.attributes.strength ?? 10;
+    const endurance = g.attributes.endurance ?? 10;
+
     const weapon = countOf(this.storage, "rifle") > 0 || countOf(this.backpack, "rifle") > 0;
     const armor = countOf(this.storage, "armor_plate") > 0 || this.tierOf("armory") > 0;
-    return playerFromBonuses({
-      hp: Math.round(this.hero.survival.stamina),
-      hpMax: 100,
-      stamina: Math.round(this.hero.survival.stamina),
-      staminaMax: 100,
-      defense: armor ? 6 : 3,
-      attack: 10 + (weapon ? 6 : 0)
-    }, bonus);
+
+    const bonus: CombatBonus = {
+      // 近战伤害加成：科技 + 训练 + 武器 + 力量属性
+      meleeDmg:
+        (b["meleeDmg"] ?? 0) +
+        (b["trainingRate"] ?? 0) * 0.3 +
+        (weapon ? 0.35 : 0) +
+        (strength - 10) * 0.02,
+      dodge: (b["cover"] ?? 0) / 200 + (g.attributes.agility ?? 10) * 0.004,
+      critRate: (b["critRate"] ?? 0) + (b["precisionStrike"] ?? 0) * 0.1 +
+        (g.attributes.perception ?? 10) * 0.003,
+      critDmg: (b["critDmg"] ?? 0) > 0 ? 2 : 1.5
+    };
+
+    return playerFromBonuses(
+      {
+        // 护甲提升防御；体力影响战斗中的耐力储备
+        defense: armor ? 10 : 5,
+        stamina: Math.round(this.hero.survival.stamina),
+        staminaMax: 100
+      },
+      bonus,
+      { level: g.level, strength, endurance }
+    );
   }
 
   /** 从同伴构造战斗单位（仅忠诚 ≥ 30 且未怀孕晚期者参战） */
@@ -2132,12 +2334,13 @@ export class GameSession {
           : kind === "mutant" ? `变异兽 ${i + 1}`
           : kind === "wildlife" ? `野兽 ${i + 1}`
           : `敌人 ${i + 1}`,
-        hp: Math.round(30 + strong * 70),
-        hpMax: Math.round(30 + strong * 70),
+        // 数值基准：普通遭遇（strength≈0.3）应能被 1 级主角在 4-5 回合内解决
+        hp: Math.round(22 + strong * 45),
+        hpMax: Math.round(22 + strong * 45),
         stamina: 30,
         staminaMax: 30,
-        attack: Math.round(8 + strong * 18),
-        defense: Math.round(2 + strong * 8),
+        attack: Math.round(5 + strong * 12),
+        defense: Math.round(1 + strong * 4),
         dodge: 0.03 + strong * 0.08,
         critRate: 0.05 + strong * 0.1,
         critDmg: 1.5,
@@ -2224,11 +2427,28 @@ export class GameSession {
     const c = this.combat;
     if (!c || !c.over) return;
 
-    // 主角体力同步
-    this.hero.survival = {
-      ...this.hero.survival,
-      stamina: Math.max(0, Math.min(100, c.player.hp))
-    };
+    // 战斗结束后的体力处理。
+    //
+    // 注意：不能直接把体力设为剩余 HP —— 那会导致「打赢了体力也只剩一点，
+    // 且永不恢复」。正确做法是按胜负分别结算：
+    //   胜利：脱战休整，体力恢复到 70%（至少保留战斗中的剩余量）
+    //   失败：按战败分支处理，体力由分支决定
+    const hpRatio = c.player.hpMax > 0 ? c.player.hp / c.player.hpMax : 0;
+
+    if (c.victory) {
+      // 胜利后脱战休整：恢复体力
+      const recovered = Math.max(c.player.hp, c.player.hpMax * 0.7);
+      this.hero.survival = {
+        ...this.hero.survival,
+        stamina: Math.min(100, Math.round(recovered))
+      };
+    } else {
+      // 失败：体力保留剩余值（战败分支会进一步扣减）
+      this.hero.survival = {
+        ...this.hero.survival,
+        stamina: Math.max(5, Math.round(hpRatio * 40))
+      };
+    }
 
     if (c.victory) {
       // 战利品

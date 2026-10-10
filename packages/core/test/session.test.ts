@@ -19,32 +19,89 @@ function allScripts(): string[] {
 
 // ============ 初始化 ============
 
-test("session: 开局状态符合设计", () => {
+test("session: 开局状态符合设计（序章从末日前开始）", () => {
   const s = new GameSession();
-  assert.equal(s.time.day, 1);
+  // 序章从「末日前 30 天」开始，不是第 1 天
+  assert.equal(s.time.day, 30, "序章起始为末日前 30 天");
   assert.equal(s.time.minute, 8 * 60);
   assert.equal(s.hero.identity.heightCm, 178);
   assert.equal(s.hero.identity.tags.includes("futanari"), true);
   assert.equal(s.hero.physiology.virgin, true);
   assert.equal(s.hero.physiology.sex, "futanari");
-  assert.equal(s.joined().length, 4, "开局四位同伴：母亲/姐姐/妹妹/特殊AI");
   assert.equal(s.offspring.length, 0);
+
+  // 开局只有家人；AI 尚未诞生
+  assert.equal(s.joined().length, 3, "开局三位家人：母亲/姐姐/妹妹");
+  assert.equal(s.companion("ai"), undefined, "AI 在序章第 3 阶段才诞生");
+  assert.equal(s.flags["ai_awakened"], false);
+  assert.equal(s.flags["shelter_built"], false);
+  assert.equal(s.prologueStage(), "normal");
+  assert.equal(s.prologueDone(), false);
 });
 
 test("session: 开局同伴数值与设计一致", () => {
   const s = new GameSession();
   const sister = s.companion("sister")!;
   assert.equal(sister.identity.heightCm, 174);
-  assert.equal(sister.relationship.affection, 60);
-  assert.equal(sister.lust.value, 92);
-  assert.equal(sister.lust.daysSinceIntimacy, 0);
-
-  const ai = s.companion("ai")!;
-  assert.equal(ai.relationship.affection, 85, "特殊AI 初始好感 85");
-  assert.equal(ai.relationship.role, "ai");
+  // 序章期间是亲情关系，好感从基准起步
+  assert.equal(sister.relationship.role, "family");
+  assert.ok(sister.relationship.affection <= 50, "序章初期好感不应是满值");
 
   const mother = s.companion("mother")!;
   assert.equal(mother.identity.heightCm, 172);
+  assert.equal(mother.relationship.role, "family");
+});
+
+test("session: 序章可推进至主游戏", () => {
+  const s = new GameSession();
+  assert.equal(s.prologueStage(), "normal");
+
+  // 依次推进全部序章阶段
+  const stages: string[] = [];
+  for (let i = 0; i < 10; i++) {
+    if (s.prologueDone()) break;
+    const next = s.advancePrologue();
+    stages.push(next);
+  }
+
+  assert.ok(s.prologueDone(), "推进后序章应结束");
+  assert.equal(s.time.day, 1, "进入主游戏后时间归零");
+  assert.equal(s.flags["game_started"], true);
+  assert.equal(s.flags["shelter_built"], true, "序章结束后安全屋已建");
+  assert.equal(s.flags["ai_awakened"], true, "序章结束后 AI 已诞生");
+  assert.ok(stages.length >= 8);
+});
+
+test("session: 序章场景按阶段触发", () => {
+  const s = new GameSession();
+  const cur = s.currentPrologueScene();
+  assert.ok(cur, "开局应有序章场景");
+  assert.equal(cur!.stage, "normal");
+
+  // 完成当前场景后，不应再返回同一场景
+  s.advancePrologue();
+  const after = s.currentPrologueScene();
+  assert.notEqual(after?.id, cur!.id);
+});
+
+test("session: 教程步骤依次解锁", () => {
+  const s = new GameSession();
+  const first = s.currentTutorial();
+  assert.ok(first, "应有首个教程步骤");
+  assert.equal(first!.id, "tut_welcome");
+
+  s.completeTutorial("tut_welcome");
+  const second = s.currentTutorial();
+  assert.notEqual(second?.id, "tut_welcome");
+  assert.ok(s.tutorialProgressValue() > 0);
+});
+
+test("session: 房车来历符合设定", () => {
+  const s = new GameSession();
+  const v = s.vehicleOrigin();
+  assert.ok(v.model.includes("房车"));
+  assert.equal(v.pricePaid, 128000, "存钱买的二手车，十二万八");
+  assert.ok(v.issues.length > 0);
 });
 
 // ============ 时间推进 ============
@@ -61,8 +118,9 @@ test("session: advance 推进时间并消耗生存属性", () => {
 test("session: sleep 快进整天并恢复体力", () => {
   const s = new GameSession();
   s.hero.survival = { ...s.hero.survival, stamina: 20, energy: 20 };
+  const startDay = s.time.day;
   const out = s.sleep(1);
-  assert.equal(out.time.day, 2);
+  assert.equal(out.time.day, startDay + 1, "睡眠推进一天");
   assert.ok(s.hero.survival.stamina > 20, "睡眠应恢复体力");
 });
 
@@ -122,13 +180,12 @@ test("session: 科技加成影响数值（体力上限）", () => {
 
 test("session: 实验室岗位加速研究", () => {
   const s = new GameSession({ resources: { "铜线": 50, "磁铁": 20 } });
-  // 药剂师类角色（这里用 AI 占位）分配到实验室
-  s.setJob("ai", "lab", 0.35);
+  // 序章开局 AI 尚未诞生，用姐姐担任实验室岗位
+  s.setJob("sister", "lab", 0.35);
   s.beginResearch("shelter_power");
   const node = findNode("shelter_power")!;
   // 若加速生效，所需实际时间应少于基准
-  const hoursNeeded = node.hours;
-  s.advance(hoursNeeded * 0.8, "work");
+  s.advance(node.hours * 0.8, "work");
   assert.equal(s.has("shelter_power"), true, "实验室加成应使其提前完成");
 });
 
@@ -266,12 +323,14 @@ test("session: 变量集包含同伴数值与标志位", () => {
   const s = new GameSession();
   s.setFlag("mainline_teacher_stage", 1);
   const v = s.vars();
-  assert.equal(v["sister_affection"], 60);
-  assert.equal(v["sister_bond"], 3);
-  assert.equal(v["ai_affection"], 85);
+  // 序章期间好感为亲情基准，不是满值
+  assert.ok((v["sister_affection"] as number) <= 50);
+  assert.equal(v["sister_bond"], 1);
   assert.equal(v["mainline_teacher_stage"], 1);
-  assert.equal(v["day"], 1);
-  assert.equal(v["companionCount"], 4);
+  assert.equal(v["day"], 30, "序章从末日前 30 天开始");
+  assert.equal(v["companionCount"], 3, "开局三位家人");
+  // AI 尚未诞生，无相关变量
+  assert.equal(v["ai_affection"], undefined);
 });
 
 test("session: 剧本条件决定可触发场景", () => {
@@ -292,14 +351,17 @@ test("session: 姐妹破处剧本需要 virgin 与好感条件", () => {
   const s = new GameSession();
   s.loadScripts(allScripts());
 
-  // 姐姐好感 60 且 virgin → 用姐姐上下文可触发
+  // 满足条件：virgin + 好感 60 + 序章已到安顿阶段
+  s.setFlag("prologue_stage", "settled");
+  s.companion("sister")!.relationship = { ...s.companion("sister")!.relationship, affection: 60 };
   const scene = s.sceneFor("sister", "sister_first");
   assert.ok(scene, "sister_first 应可触发");
   assert.ok(scene!.beats.length >= 5);
 
-  // 姐姐好感降到 30 → 不满足 affection >= 60
+  // 好感降到 30 → 不满足 affection >= 60
   const s2 = new GameSession();
   s2.loadScripts(allScripts());
+  s2.setFlag("prologue_stage", "settled");
   s2.companion("sister")!.relationship = { ...s2.companion("sister")!.relationship, affection: 30 };
   assert.equal(s2.sceneFor("sister", "sister_first"), null, "好感不足不应触发");
 });
@@ -308,15 +370,20 @@ test("session: 按同伴过滤相关场景", () => {
   const s = new GameSession();
   s.loadScripts(allScripts());
 
-  // 姐姐：破处场景（virgin && affection 60）+ 夜袭（lust 92 但冷落 0 天，不满足）
+  // 姐姐：序章阶段 + 好感满足后，破处场景可触发
+  s.setFlag("prologue_stage", "settled");
+  s.companion("sister")!.relationship = { ...s.companion("sister")!.relationship, affection: 60 };
   const sisterScenes = s.scenesFor("姐姐");
   assert.ok(sisterScenes.length > 0, "应能找到姐姐相关场景");
   assert.ok(sisterScenes.every((x) => x.participants.includes("姐姐")));
   assert.ok(sisterScenes.some((x) => x.id === "sister_first"));
 
-  // 母亲：好感 50 < 75 且 sister_first_done 未设 → 不可触发
+  // 母亲：主线破处场景需好感 75 且 sister_first_done
   const motherScenes = s.scenesFor("母亲");
-  assert.equal(motherScenes.length, 0, "条件不满足时母亲无场景");
+  assert.ok(
+    !motherScenes.some((x) => x.id === "mother_first"),
+    "条件不满足时不应出现 mother_first"
+  );
 
   // 设置前置后母亲场景可触发
   s.companion("mother")!.relationship = { ...s.companion("mother")!.relationship, affection: 80 };
@@ -328,6 +395,8 @@ test("session: 剧本差分随数值变化", () => {
   const s = new GameSession();
   s.loadScripts(allScripts());
 
+  s.setFlag("prologue_stage", "settled");
+  s.companion("sister")!.relationship = { ...s.companion("sister")!.relationship, affection: 60 };
   // 姐姐欲情 92 > 80 → 已含差分
   const base = s.sceneFor("sister", "sister_first")!;
   const b2 = base.beats.find((b) => b.id === "b2")!;
@@ -381,9 +450,9 @@ test("session: 存档含科技与后代", () => {
 test("session: 摘要包含关键信息", () => {
   const s = new GameSession();
   const sum = s.summary();
-  assert.match(sum.time, /第1天 08:00/);
-  assert.equal(sum.day, 1);
-  assert.equal(sum.companions, 4);
+  assert.match(sum.time, /第30天 08:00/);
+  assert.equal(sum.day, 30);
+  assert.equal(sum.companions, 3, "开局三位家人");
   assert.ok(sum.techTotal > 100);
   assert.equal(sum.techUnlocked, 0);
   assert.equal(sum.offspring, 0);

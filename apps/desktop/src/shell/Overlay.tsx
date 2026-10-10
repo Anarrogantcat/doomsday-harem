@@ -16,6 +16,7 @@ import { SettingsPanel } from "./SettingsPanel.tsx";
 import { ModPanel } from "../panels/ModPanel.tsx";
 import { AchievementPanel } from "../panels/AchievementPanel.tsx";
 import { PluginPanel } from "../panels/PluginPanel.tsx";
+import { ProloguePanel } from "../panels/ProloguePanel.tsx";
 import { LlmPanel } from "../panels/LlmPanel.tsx";
 import { CanvasView } from "../panels/CanvasView.tsx";
 
@@ -38,7 +39,8 @@ export const OVERLAY_TITLES: Record<string, string> = {
   cheats: "设置",
   mods: "Mod",
   achievements: "成就",
-  plugins: "插件"
+  plugins: "插件",
+  prologue: "序章"
 };
 
 export function Overlay({ tab, onClose }: { tab: string | null; onClose: () => void }) {
@@ -75,6 +77,7 @@ export function Overlay({ tab, onClose }: { tab: string | null; onClose: () => v
       case "mods": return <ModPanel />;
       case "achievements": return <AchievementPanel />;
       case "plugins": return <PluginPanel />;
+      case "prologue": return <ProloguePanel />;
       default: return <p className="sub">（未知面板）</p>;
     }
   })();

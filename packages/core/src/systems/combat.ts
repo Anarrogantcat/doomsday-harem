@@ -218,11 +218,38 @@ export interface CombatBonus {
   charm?: number;
 }
 
-export function playerFromBonuses(base: Partial<Combatant>, b: CombatBonus): Combatant {
+/**
+ * 由科技加成与主角成长构建战斗单位。
+ *
+ * 数值基准（保证早期能打赢普通遭遇）：
+ *  - 基础攻击 18（而非 10，否则打不动带防御的敌人）
+ *  - 基础 HP 120（3 个普通敌人每回合约 18-24 伤害，可撑 5-6 回合）
+ *  - 基础防御 6
+ * 等级与力量属性按比例放大攻击与 HP。
+ */
+export function playerFromBonuses(
+  base: Partial<Combatant>,
+  b: CombatBonus,
+  growth?: { level: number; strength: number; endurance: number }
+): Combatant {
+  const level = growth?.level ?? 1;
+  const strength = growth?.strength ?? 10;
+  const endurance = growth?.endurance ?? 10;
+
+  // 等级与属性缩放（1 级时为 1.0，之后线性增长）
+  const atkScale = 1 + (level - 1) * 0.08 + (strength - 10) * 0.02;
+  const hpScale = 1 + (level - 1) * 0.06 + (endurance - 10) * 0.025;
+
+  const baseAtk = 18;
+  const baseHp = 120;
+
   return newCombatant({
     id: "hero",
     name: "主角",
-    attack: Math.round(10 * (1 + (b.meleeDmg ?? 0))),
+    attack: Math.round(baseAtk * atkScale * (1 + (b.meleeDmg ?? 0))),
+    hp: Math.round(baseHp * hpScale),
+    hpMax: Math.round(baseHp * hpScale),
+    defense: Math.round(6 * (1 + (level - 1) * 0.04)),
     dodge: 0.05 + (b.dodge ?? 0),
     critRate: 0.05 + (b.critRate ?? 0),
     // critDmg 为绝对倍率（科技表里 2 即 ×2）

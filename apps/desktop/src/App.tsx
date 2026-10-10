@@ -18,7 +18,7 @@ import { CheatOverlay } from "./shell/CheatOverlay.tsx";
 const KEY_MAP: Record<string, string> = {
   i: "items", n: "quests", t: "tech", b: "base", w: "wardrobe",
   h: "harem", j: "jobs", v: "vehicle", d: "defense", m: "llm",
-  s: "save", c: "cheats", r: "roster", k: "canvas", o: "status", l: "mods", g: "achievements", x: "plugins"
+  s: "save", c: "cheats", r: "roster", k: "canvas", o: "status", l: "mods", g: "achievements", x: "plugins", y: "prologue"
 };
 
 type CenterTab = "narration" | "fortress" | "combat";
@@ -51,8 +51,15 @@ export function App() {
     void useGame.getState().loadMods();
   }, []);
 
+  // 序章未完成时，自动打开序章面板作为引导
+  useEffect(() => {
+    const s = useGame.getState().session;
+    if (!s.prologueDone()) setOverlay("prologue");
+  }, []);
+
   // 日志 → 叙事条目（过滤系统噪音）
-  const NOISE = /文本库存|已载入|存档|设置已|自动存档|已保存|已读取/;
+  // 系统噪音：这些不进叙事流，避免覆盖剧情
+  const NOISE = /文本库存|已载入|存档|设置已|自动存档|已保存|已读取|交通方式|调岗为|换上了|脱下了|开始研究|秒完成|获得物资|睡了一觉/;
   useEffect(() => {
     if (log.length === 0) return;
     const latest = log[0];

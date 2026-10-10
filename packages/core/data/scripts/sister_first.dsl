@@ -5,7 +5,7 @@
   title: 互相破处
   participants: 主角, 姐姐
   tone: 压抑十年的释放 / 疼痛与满足
-  when: virgin == true && affection >= 60
+  when: virgin == true && affection >= 60 && prologue_stage == "settled"
 
   @beat b1 pose:push_down
     action: 姐姐把主角按在床沿，膝盖抵住她的腿，居高临下地看着她。

@@ -72,3 +72,4 @@ export * from "./systems/combatExt.ts";
 export * from "./systems/achievements.ts";
 export * from "./systems/branchEvents.ts";
 export * from "./systems/plugins.ts";
+export * from "./systems/prologue.ts";
