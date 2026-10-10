@@ -835,3 +835,71 @@ export function templateStats(): {
     avgBeats: H_TEMPLATES.length > 0 ? Math.round((totalBeats / H_TEMPLATES.length) * 10) / 10 : 0
   };
 }
+
+// ============ 模板 → Scene 转换 ============
+
+import type { Scene, Beat, Line } from "../text/engine.ts";
+
+/**
+ * 把模板转成引擎可渲染的 Scene。
+ *
+ * 说明：模板只提供「骨架」，因此生成的节拍里每个动作要点作为一条
+ * 提示性 action 行，情绪作为一条 mind 行。模型生成时会替换为完整文本；
+ * 未启用模型时玩家至少能看到这场戏的结构与走向。
+ */
+export function templateToScene(
+  t: HTemplate,
+  participants: string[],
+  locationLabel: string,
+  timeTone: string
+): Scene {
+  const beats: Beat[] = t.beats.map((b, i) => {
+    const lines: Line[] = [
+      { layer: "action", text: b.action },
+      { layer: "mind", text: b.mood }
+    ];
+    // 参与者的第一人在每个节拍给一句台词提示（真正的台词由模型填）
+    if (participants.length > 1) {
+      lines.push({
+        layer: "speech",
+        speaker: participants[1],
+        text: "（此处为台词占位，可用本地模型生成完整内容）"
+      });
+    }
+    return {
+      id: `${t.id}_b${i + 1}`,
+      poseKey: b.pose,
+      lines
+    };
+  });
+
+  return {
+    id: `h_${t.id}`,
+    title: `${t.name}（${locationLabel}·${timeTone}）`,
+    participants: ["主角", ...participants],
+    tone: t.tone,
+    beats
+  };
+}
+
+/** 判断模板是否匹配当前情境（硬条件） */
+export function templateFits(
+  t: HTemplate,
+  location: HLocation,
+  time: HTimeSlot,
+  participants: number
+): boolean {
+  if (!t.locations.includes(location)) return false;
+  if (!t.times.includes(time)) return false;
+  if (participants < t.minParticipants || participants > t.maxParticipants) return false;
+  return true;
+}
+
+/** 模板 id 前缀，用于与手写剧本区分 */
+export const H_TEMPLATE_PREFIX = "h_";
+
+/** 从场景 id 反查模板 */
+export function templateFromSceneId(sceneId: string): HTemplate | undefined {
+  if (!sceneId.startsWith(H_TEMPLATE_PREFIX)) return undefined;
+  return hTemplate(sceneId.slice(H_TEMPLATE_PREFIX.length));
+}

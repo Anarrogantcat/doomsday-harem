@@ -66,6 +66,19 @@ body {
   width: 44px; height: 44px; overflow: hidden; border-radius: 4px;
 }
 .portrait-svg { display: block; width: 100% !important; height: 100% !important; border-radius: 4px; }
+.portrait-sprite-wrap { position: relative; overflow: hidden; border-radius: 4px; background: #14101a; flex-shrink: 0; }
+.portrait-sprite {
+  display: block; object-fit: cover;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.portrait-sprite.active { filter: brightness(1.12); }
+.portrait-mark {
+  position: absolute; right: 1px; font-size: 8px; line-height: 11px;
+  padding: 0 3px; border-radius: 2px; font-weight: 700;
+}
+.portrait-mark.preg { bottom: 1px; background: var(--accent); color: #fff; }
+.portrait-mark.nude { top: 1px; background: var(--warn); color: #1a1400; }
 .rcard-bond {
   position: absolute; right: -2px; bottom: -2px; font-size: 9px;
   background: var(--accent); color: #fff; border-radius: 3px; padding: 0 3px;

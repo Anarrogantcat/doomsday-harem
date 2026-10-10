@@ -5,6 +5,19 @@
  * 其余布局不动。外观参数来自角色数据（身高、体型、性格、心情）。
  */
 
+/** 可用的像素头像数量（Kenney Roguelike Characters, CC0） */
+export const AVATAR_COUNT = 14;
+
+/** 像素头像路径 */
+export function avatarPath(index: number): string {
+  return `/assets/avatars/av${String((index % AVATAR_COUNT) + 1).padStart(2, "0")}.png`;
+}
+
+/** 按角色名稳定映射到某张头像 */
+export function avatarFor(name: string): string {
+  return avatarPath(hashHue(name) % AVATAR_COUNT);
+}
+
 export interface PortraitProps {
   name: string;
   /** 心情 0-100，影响表情 */
@@ -17,6 +30,8 @@ export interface PortraitProps {
   size?: number;
   /** 是否选中态 */
   active?: boolean;
+  /** 使用真实像素头像（默认 true，加载失败时回退 SVG） */
+  useSprite?: boolean;
 }
 
 /** 按名字散列出稳定色相 */
@@ -27,8 +42,29 @@ function hashHue(name: string): number {
 }
 
 export function Portrait({
-  name, mood = 60, pregnant = false, exposure = 10, size = 96, active = false
+  name, mood = 60, pregnant = false, exposure = 10, size = 96, active = false,
+  useSprite = true
 }: PortraitProps) {
+  // 优先使用像素头像
+  if (useSprite) {
+    return (
+      <div className="portrait-sprite-wrap" style={{ width: size, height: size }}>
+        <img
+          src={avatarFor(name)}
+          alt={name}
+          className={`portrait-sprite ${active ? "active" : ""}`}
+          style={{ width: size, height: size }}
+          onError={(e) => {
+            // 加载失败时隐藏图片，露出底下的 SVG 兜底
+            (e.target as HTMLImageElement).style.display = "none";
+          }}
+        />
+        {pregnant && <span className="portrait-mark preg" title="怀孕">孕</span>}
+        {exposure > 70 && <span className="portrait-mark nude" title="高暴露">裸</span>}
+      </div>
+    );
+  }
+
   const hue = hashHue(name);
   const skin = `hsl(${hue}, 24%, 74%)`;
   const hair = `hsl(${(hue + 200) % 360}, 32%, 26%)`;

@@ -95,6 +95,12 @@ import {
   PERSONALITY_LABEL, PERSONALITY_TRAITS
 } from "../systems/companions.ts";
 import {
+  type HLocation, type HTimeSlot, type HTemplate, type HTemplateContext, type TemplateMatch,
+  H_TEMPLATES, H_LOCATION_LABEL, H_TIME_TONE, hTemplate,
+  matchTemplates, pickTemplate, templateToPrompt, templateStats,
+  templateToScene, templateFits, templateFromSceneId, H_TEMPLATE_PREFIX
+} from "../systems/hTemplates.ts";
+import {
   type Combatant, type CombatState, type CombatBonus, type AttackResult,
   newCombatant, startCombat, mulberry32 as combatRng, attack as combatAttack,
   applyDamage, addLog, playerAttack, charmEnemy, enemyTurn, advanceRound,
@@ -644,12 +650,17 @@ export class GameSession {
   sleep(days = 1): TickOutput {
     const out = fastForward(this.tickInput("sleep"), days);
     const result = this.apply(out, days * 24);
-    // 睡觉期间逐夜判定遇袭
+    // 睡觉期间逐夜判定遇袭（夜间遭遇自动转入战斗）
     for (let d = 0; d < days; d++) {
       const ev = this.rollTonightRaid();
       if (ev) {
-        const r = this.resolveRaidEvent(ev, ev.canNegotiate ? "negotiate" : "fight");
+        const r = this.resolveRaidEvent(ev, ev.canNegotiate ? "negotiate" : "fight", true);
         result.warnings.push(`夜袭：${RAID_LABEL[ev.kind]}（${OUTCOME_LABEL[r.outcome]}）`);
+        // 若转入战斗则中断睡眠，把控制权交给玩家
+        if (this.inCombat()) {
+          result.warnings.push("遭遇战已开始，请前往战斗界面");
+          break;
+        }
       }
     }
     return result;
@@ -1527,7 +1538,11 @@ export class GameSession {
       const rng = this.combatRandom();
       this.addToStorage("ammo_9mm", Math.round(rng() * 20) + 5);
       if (rng() < 0.4) this.addToStorage("steel_bar", Math.round(rng() * 3) + 1);
-      this.defense = { ...this.defense, reputation: Math.min(100, this.defense.reputation + 2) };
+      this.defense = {
+        ...this.defense,
+        reputation: Math.min(100, this.defense.reputation + 2),
+        wallDamage: Math.max(0, this.defense.wallDamage - 1)
+      };
     } else {
       // 失败：同伴受伤、物资损失
       this.defense = { ...this.defense, blood: Math.min(100, this.defense.blood + 10) };
@@ -1544,6 +1559,14 @@ export class GameSession {
   /** 结束战斗（放弃） */
   endCombat(): void {
     this.combat = null;
+  }
+
+  /** 战斗历史（供 UI 显示） */
+  combatHistory(): Array<{ day: number; kind: string; outcome: string }> {
+    return this.defense.history
+      .filter((h) => h.kind !== undefined)
+      .slice(-20)
+      .map((h) => ({ day: h.day, kind: h.kind, outcome: h.outcome }));
   }
 
   /** 是否在战斗中 */
@@ -1594,10 +1617,14 @@ export class GameSession {
     }, rng);
   }
 
-  /** 结算一次事件 */
+  /**
+   * 结算一次事件。
+   * autoCombat 为 true 时，突破类事件会自动转入回合制战斗。
+   */
   resolveRaidEvent(
     event: RaidEvent,
-    choice: "fight" | "negotiate" | "hold" = "fight"
+    choice: "fight" | "negotiate" | "hold" = "fight",
+    autoCombat = true
   ): RaidResult {
     const seed = this.time.day * 7919 + this.time.minute + event.count;
     const rng = mulberry32(seed);
@@ -1666,6 +1693,17 @@ export class GameSession {
       for (let i = 0; i < Math.min(result.casualties, alive.length); i++) {
         alive[i].relationship = gain(alive[i].relationship, 0, 0);
         alive[i].lust = { ...alive[i].lust };
+      }
+    }
+
+    // 突破或被威慑失败时转入回合制战斗
+    if (autoCombat && (result.outcome === "breached" || result.outcome === "repelled")) {
+      if (result.outcome === "breached") {
+        // 被突破：残余敌人进入据点，必须打一场
+        this.beginCombat(event.kind, Math.min(4, Math.max(2, Math.ceil(event.count / 8))));
+      } else {
+        // 击退：可选是否追击（这里自动开一场小规模收尾战）
+        this.beginCombat(event.kind, Math.min(3, Math.max(1, Math.ceil(event.count / 12))));
       }
     }
 
@@ -1875,7 +1913,101 @@ export class GameSession {
       }
     }
 
+    // 3) 日常 H 模板场景（按当前地点/时段/道具/好感动态生成）
+    for (const sc of this.templateScenes()) {
+      if (!seen.has(sc.id)) seen.set(sc.id, sc);
+    }
+
     return [...seen.values()];
+  }
+
+  /** 当前地点对应的 HLocation（用于模板匹配） */
+  currentHLocation(): HLocation {
+    // 据点按设施映射到房间；远征按车辆/帐篷
+    if (this.world.current !== "home") {
+      return this.vehiclePrivateRoom() ? "vehicle_private" : "camp_tent";
+    }
+    // 在据点时按设施建成情况挑最合适的房间
+    if (this.tierOf("private_room") > 0) return "private_room";
+    if (this.tierOf("bathhouse") > 0) return "bathhouse";
+    if (this.tierOf("bedroom") > 0) return "bedroom";
+    if (this.tierOf("lab") > 0) return "lab";
+    if (this.tierOf("greenhouse") > 0) return "greenhouse";
+    if (this.tierOf("kitchen") > 0) return "kitchen";
+    if (this.tierOf("living_room") > 0) return "living_room";
+    if (this.tierOf("training_room") > 0) return "training_room";
+    if (this.tierOf("workshop") > 0) return "workshop";
+    if (this.tierOf("garage") > 0) return "garage";
+    return "bedroom";
+  }
+
+  /** 当前时段对应的 HTimeSlot */
+  currentHTime(): HTimeSlot {
+    const s = this.slot;
+    if (s === "morning") return "morning";
+    if (s === "forenoon") return "forenoon";
+    if (s === "noon") return "noon";
+    if (s === "evening") return "evening";
+    if (s === "night") return "night";
+    return "lateNight";
+  }
+
+  /** 队伍中是否有性玩具 */
+  hasToy(): boolean {
+    const toys = ["dildo_double", "strap_on", "vibrator", "egg_vibe", "restraint_set"];
+    return toys.some((t) =>
+      countOf(this.storage, t) > 0 || countOf(this.backpack, t) > 0
+    );
+  }
+
+  /** 娱乐型扶她药存货 */
+  recreationalMedStock(): number {
+    return countOf(this.storage, "futa_recreational") + countOf(this.backpack, "futa_recreational");
+  }
+
+  /** 构建模板匹配上下文 */
+  hTemplateContext(): HTemplateContext {
+    const joined = this.joined().filter((c) => c.id !== "ai");
+    const minAff = joined.length > 0
+      ? Math.min(...joined.map((c) => c.relationship.affection))
+      : 0;
+    return {
+      location: this.currentHLocation(),
+      time: this.currentHTime(),
+      participants: Math.max(1, joined.length),
+      hasToy: this.hasToy(),
+      medStock: this.recreationalMedStock(),
+      hasPrivateRoom: this.tierOf("private_room") > 0,
+      minAffection: minAff
+    };
+  }
+
+  /** 当前可用的日常场景模板（按匹配度排序） */
+  availableTemplates(): TemplateMatch[] {
+    return matchTemplates(this.hTemplateContext());
+  }
+
+  /** 把当前可用的模板转成场景（供 availableScenes 合并） */
+  templateScenes(): Scene[] {
+    const ctx = this.hTemplateContext();
+    const locLabel = H_LOCATION_LABEL[ctx.location];
+    const timeTone = H_TIME_TONE[ctx.time];
+    const out: Scene[] = [];
+
+    for (const m of matchTemplates(ctx)) {
+      // 只展示无未满足项的模板（道具/好感都够）
+      if (m.unmet.length > 0) continue;
+      const joined = this.joined().filter((c) => c.id !== "ai");
+      const maxP = Math.min(m.template.maxParticipants, Math.max(1, joined.length));
+      const names = joined.slice(0, maxP).map((c) => c.identity.name);
+      out.push(templateToScene(m.template, names, locLabel, timeTone));
+    }
+    return out;
+  }
+
+  /** 模板统计（供 UI 显示） */
+  hTemplateStats() {
+    return templateStats();
   }
 
   /** 某位同伴相关的可触发场景（接受 id 或显示名） */

@@ -1,0 +1,47 @@
+feat: 模板接入场景 + 战斗接防御 + 像素头像 v0.23.0
+
+一、日常 H 模板接入场景筛选
+- 新增 templateToScene：把模板骨架转成引擎可渲染的 Scene
+  （节拍含姿势键、动作要点、情绪，模型生成时替换为完整文本）
+- 新增 templateFits / templateFromSceneId / H_TEMPLATE_PREFIX
+- GameSession 新增情境探测：
+  · currentHLocation：据点按已建设施推断房间，远征按车辆/帐篷
+  · currentHTime：由时段映射到六种 H 时段
+  · hasToy / recreationalMedStock / hTemplateContext
+  · availableTemplates：返回按匹配度排序的模板
+  · templateScenes：把无未满足项的模板转为场景
+- availableScenes 现在合并模板场景 —— 日常 H 场景从模板库动态产生
+
+二、战斗接入防御事件
+- resolveRaidEvent 增加 autoCombat 参数
+  · 被突破：残余敌人进入据点，强制开战（2-4 单位）
+  · 击退：开一场小规模收尾战（1-3 单位）
+- sleep 期间遇袭自动转入战斗，并中断睡眠把控制权交给玩家
+- 战斗胜利修复围墙损伤（wallDamage -1）
+- 新增 combatHistory 查询
+
+三、批量预生成脚本
+- 新增 scripts/pregenerate.mjs
+  · 计划 281 条组合（29 模板 × 各角色）
+  · 断点续跑：已存在的 key 跳过
+  · 逐条落盘，中断不丢进度
+  · 支持 --model / --limit / --template / --dry / --timeout
+  · 输出 packages/core/data/generated/h_scenes.json
+- package.json 新增 pregenerate / pregenerate:dry
+- 修复 Windows 动态 import 需要 file:// URL
+
+四、像素头像接入
+- 从 Kenney Roguelike Characters（CC0）解码图集并裁切
+- 新增 PNG 解码/编码器（支持调色板、灰度、RGB、RGBA）
+- 裁出 14 个 64×64 角色头像到 public/assets/avatars/
+- Portrait 组件优先使用像素头像，加载失败回退 SVG 剪影
+- 按角色名散列稳定映射，避免每次刷新换脸
+- 头像角标：怀孕（孕）、高暴露（裸）
+
+测试与构建
+- 总数 718 项全部通过
+- tsc 零错误
+- 前端 452KB + 素材（图集 + 头像）
+
+注：批量生成仍在进行（已产出 8 条 / 4225 字），
+    h_scenes.json 已加入 .gitignore（体积大，按需重建）

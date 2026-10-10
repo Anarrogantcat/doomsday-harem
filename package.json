@@ -1,7 +1,7 @@
 {
   "name": "doomsday-harem",
   "private": true,
-  "version": "0.22.0",
+  "version": "0.23.0",
   "type": "module",
   "workspaces": [
     "packages/*",
@@ -22,7 +22,9 @@
     "gen": "node scripts/gen-scripts.mjs",
     "prebuild": "node scripts/gen-scripts.mjs",
     "predev": "node scripts/gen-scripts.mjs",
-    "demo:session": "node packages/core/demo-session.ts"
+    "demo:session": "node packages/core/demo-session.ts",
+    "pregenerate": "node scripts/pregenerate.mjs",
+    "pregenerate:dry": "node scripts/pregenerate.mjs --dry"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

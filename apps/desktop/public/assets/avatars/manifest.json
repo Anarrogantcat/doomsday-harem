@@ -1,0 +1,77 @@
+{
+  "source": "Kenney Roguelike Characters (CC0)",
+  "grid": 16,
+  "scale": 4,
+  "avatars": [
+    {
+      "file": "av01.png",
+      "col": 0,
+      "row": 5
+    },
+    {
+      "file": "av02.png",
+      "col": 1,
+      "row": 5
+    },
+    {
+      "file": "av03.png",
+      "col": 0,
+      "row": 6
+    },
+    {
+      "file": "av04.png",
+      "col": 1,
+      "row": 6
+    },
+    {
+      "file": "av05.png",
+      "col": 0,
+      "row": 7
+    },
+    {
+      "file": "av06.png",
+      "col": 1,
+      "row": 7
+    },
+    {
+      "file": "av07.png",
+      "col": 0,
+      "row": 8
+    },
+    {
+      "file": "av08.png",
+      "col": 1,
+      "row": 8
+    },
+    {
+      "file": "av09.png",
+      "col": 0,
+      "row": 9
+    },
+    {
+      "file": "av10.png",
+      "col": 1,
+      "row": 9
+    },
+    {
+      "file": "av11.png",
+      "col": 0,
+      "row": 10
+    },
+    {
+      "file": "av12.png",
+      "col": 1,
+      "row": 10
+    },
+    {
+      "file": "av13.png",
+      "col": 0,
+      "row": 11
+    },
+    {
+      "file": "av14.png",
+      "col": 1,
+      "row": 11
+    }
+  ]
+}
