@@ -1,9 +1,93 @@
 import { useMemo, useState } from "react";
-import { COMPANIONS, companionDef, PERSONALITY_LABEL } from "@doomsday/core";
+import {
+  COMPANIONS, companionDef, PERSONALITY_LABEL, buildFromText,
+  type HeroRuntime, type CompanionRuntime
+} from "@doomsday/core";
 import { useGame } from "../store/game.ts";
 import { Portrait } from "./Portrait.tsx";
 
 type SortKey = "affection" | "lust" | "bond" | "name";
+
+/** 主角卡片（置顶，独立样式） */
+function HeroCard({ selected, onSelect }: { selected: boolean; onSelect: () => void }) {
+  const session = useGame((s) => s.session);
+  const version = useGame((s) => s.version);
+  void version;
+  const h = session.hero;
+  const s = h.survival;
+
+  return (
+    <button className={`rcard hero-card ${selected ? "active" : ""}`} onClick={onSelect}>
+      <div className="rcard-face hero-face">
+        <Portrait
+          name={h.identity.name}
+          mode="full"
+          mood={s.mood}
+          lust={h.lust.value}
+          pregnant={h.physiology.pregnant}
+          pregnancyProgress={h.pregnancy?.progress ?? 0}
+          wardrobe={h.wardrobe}
+          heightCm={h.identity.heightCm}
+          build={0.55}
+          cup={6}
+          personality="bold"
+          futanari
+          size={40}
+        />
+      </div>
+      <div className="rcard-info">
+        <div className="rcard-name">
+          {h.identity.name}
+          <span className="hero-tag">主角</span>
+        </div>
+        <div className="rbars">
+          <div className="rbar" title={`体力 ${Math.round(s.stamina)}`}>
+            <div className="rbar-fill stam" style={{ width: `${s.stamina}%` }} />
+          </div>
+          <div className="rbar" title={`欲情 ${Math.round(h.lust.value)}`}>
+            <div className="rbar-fill lust" style={{ width: `${h.lust.value}%` }} />
+          </div>
+        </div>
+        <div className="rcard-sub">
+          {h.identity.title}
+          {h.physiology.pregnant && `　孕 ${Math.floor(h.pregnancy?.progress ?? 0)}天`}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+/** AI 卡片（置顶，独立样式） */
+function AiCard({ selected, onSelect }: { selected: boolean; onSelect: () => void }) {
+  const session = useGame((s) => s.session);
+  const version = useGame((s) => s.version);
+  void version;
+  const ai = session.companion("ai");
+  if (!ai) return null;
+
+  const affinity = Math.round(ai.relationship.affection);
+
+  return (
+    <button className={`rcard ai-card ${selected ? "active" : ""}`} onClick={onSelect}>
+      <div className="rcard-face ai-face">AI</div>
+      <div className="rcard-info">
+        <div className="rcard-name">
+          特殊AI
+          <span className="ai-tag">核心</span>
+        </div>
+        <div className="rbars">
+          <div className="rbar" title={`好感 ${affinity}`}>
+            <div className="rbar-fill aff" style={{ width: `${affinity}%` }} />
+          </div>
+          <div className="rbar" title={`忠诚 ${Math.round(ai.relationship.loyalty)}`}>
+            <div className="rbar-fill loy" style={{ width: `${ai.relationship.loyalty}%` }} />
+          </div>
+        </div>
+        <div className="rcard-sub">基地核心 · 无实体</div>
+      </div>
+    </button>
+  );
+}
 
 export function HaremRoster({
   selected,
@@ -15,10 +99,11 @@ export function HaremRoster({
   const session = useGame((s) => s.session);
   const version = useGame((s) => s.version);
   const [sort, setSort] = useState<SortKey>("affection");
-  const [showLocked, setShowLocked] = useState(true);
+  const [showLocked, setShowLocked] = useState(false);
   void version;
 
-  const joined = session.joined();
+  // 排除主角与 AI（它们单独置顶）
+  const joined = session.joined().filter((c) => c.id !== "ai");
 
   const list = useMemo(() => {
     const arr = [...joined];
@@ -33,17 +118,21 @@ export function HaremRoster({
     return arr;
   }, [joined, sort]);
 
-  // 未解锁（21 位基础后宫里的其余部分）
-  const locked = COMPANIONS.filter((c) => !session.companion(c.id));
-
+  const locked = COMPANIONS.filter((c) => c.id !== "ai" && !session.companion(c.id));
   const raids = new Set(session.pendingNightRaids().map((c) => c.id));
 
   return (
     <aside className="roster">
       <header className="roster-head">
         <span className="roster-title">后宫</span>
-        <span className="roster-count">{joined.length} / {COMPANIONS.length}</span>
+        <span className="roster-count">{joined.length} / {COMPANIONS.length - 1}</span>
       </header>
+
+      {/* 主角与 AI 置顶 */}
+      <div className="roster-pinned">
+        <HeroCard selected={selected === "hero"} onSelect={() => onSelect("hero")} />
+        <AiCard selected={selected === "ai"} onSelect={() => onSelect("ai")} />
+      </div>
 
       <div className="roster-sort">
         {(["affection", "lust", "bond", "name"] as SortKey[]).map((k) => (
@@ -72,17 +161,21 @@ export function HaremRoster({
               title={def ? `${def.name}｜${PERSONALITY_LABEL[def.personality]}` : c.identity.name}
             >
               <div className="rcard-face">
-                {c.id === "ai" ? (
-                  <div className="ai-face">AI</div>
-                ) : (
-                  <Portrait
-                    name={c.identity.name}
-                    mood={session.hero.survival.mood}
-                    pregnant={c.physiology.pregnant}
-                    exposure={outfit?.exposure ?? 0}
-                    size={44}
-                  />
-                )}
+                <Portrait
+                  name={c.identity.name}
+                  mode="full"
+                  mood={session.hero.survival.mood}
+                  lust={c.lust.value}
+                  pregnant={c.physiology.pregnant}
+                  pregnancyProgress={c.physiology.pregnancyProgress}
+                  wardrobe={c.wardrobe}
+                  heightCm={c.identity.heightCm}
+                  build={def?.build ?? 0.5}
+                  cup={def?.cup ?? undefined}
+                  personality={def?.personality}
+                  exposure={outfit?.exposure ?? 0}
+                  size={40}
+                />
                 <span className="rcard-bond">Lv{c.relationship.bond}</span>
                 {raid && <span className="rcard-alert">!</span>}
               </div>
@@ -105,29 +198,22 @@ export function HaremRoster({
           );
         })}
 
-        {showLocked && locked.length > 0 && (
-          <>
-            <div className="roster-divider" onClick={() => setShowLocked(false)}>
-              未解锁 {locked.length} 位（点击收起）
-            </div>
-            {locked.map((c) => (
-              <div key={c.id} className="rcard locked" title={`${c.name}｜${c.title}`}>
-                <div className="rcard-face">
-                  <div className="locked-face">?</div>
-                </div>
-                <div className="rcard-info">
-                  <div className="rcard-name">{c.name}</div>
-                  <div className="rcard-sub">{c.title}</div>
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-        {!showLocked && locked.length > 0 && (
-          <div className="roster-divider" onClick={() => setShowLocked(true)}>
-            未解锁 {locked.length} 位（点击展开）
+        {locked.length > 0 && (
+          <div className="roster-divider" onClick={() => setShowLocked((v) => !v)}>
+            未解锁 {locked.length} 位（{showLocked ? "收起" : "展开"}）
           </div>
         )}
+        {showLocked && locked.map((c) => (
+          <div key={c.id} className="rcard locked" title={`${c.name}｜${c.title}`}>
+            <div className="rcard-face">
+              <div className="locked-face">?</div>
+            </div>
+            <div className="rcard-info">
+              <div className="rcard-name">{c.name}</div>
+              <div className="rcard-sub">{c.title}</div>
+            </div>
+          </div>
+        ))}
       </div>
     </aside>
   );

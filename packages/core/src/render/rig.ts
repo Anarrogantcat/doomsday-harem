@@ -29,6 +29,15 @@ export interface RigParams {
   heightCm: number;
   /** 体型 0-1（0 纤细 / 1 丰满） */
   build: number;
+  /**
+   * 罩杯 0-7（A=0 ... H=7），未提供时由 build 推导。
+   * 直接控制胸部体积，是女性特征的主要视觉来源。
+   */
+  cup?: number;
+  /**
+   * 腰臀比（默认 0.72）。数值越小腰越细、臀越宽，女性曲线越明显。
+   */
+  whr?: number;
   pregnant: boolean;
   pregnancyProgress: number;
   wardrobe: Wardrobe | null;
@@ -117,9 +126,9 @@ export function renderRig(p: RigParams): string {
   const NECK = bodyH * 0.025;
   const TORSO = bodyH * 0.175;   // 肩→腰
   const PELVIS = bodyH * 0.095;  // 腰→胯
-  const THIGH = bodyH * 0.255;   // 胯→膝
-  const SHIN = bodyH * 0.235;    // 膝→踝
-  const FOOT = bodyH * 0.040;
+  const THIGH = bodyH * 0.242;   // 胯→膝
+  const SHIN = bodyH * 0.222;    // 膝→踝
+  const FOOT = bodyH * 0.042;
 
   const yTop = top;
   const yHeadC = yTop + HEAD * 0.5;
@@ -135,12 +144,25 @@ export function renderRig(p: RigParams): string {
 
   // 宽度基准
   const build = p.build;
-  const shoulderW = bodyH * (0.150 + build * 0.030);
-  const waistW = bodyH * (0.098 + build * 0.020);
-  const hipW = bodyH * (0.150 + build * 0.038);
-  const headW = bodyH * 0.105;
+  const whr = p.whr ?? 0.72;
+
+  // 罩杯：0-7，未提供时由体型推导
+  const cup = p.cup ?? Math.max(0, Math.min(7, Math.round(build * 5 + 1)));
+
+  // 肩宽：女性肩窄，且随体型略微增加（上限受控，避免男性化）
+  const shoulderW = bodyH * (0.132 + build * 0.022);
+
+  // 腰宽：由腰臀比反推 —— 腰臀比越小腰越细
+  const hipBase = bodyH * (0.152 + build * 0.030);
+  const waistW = hipBase * whr;
+  const hipW = hipBase;
+
+  const headW = bodyH * 0.104;
   const headH = HEAD * 0.92;
-  const limbW = bodyH * (0.030 + build * 0.012);
+
+  // 四肢：女性四肢较细，但仍随体型变化（下限提高，避免火柴棍）
+  const limbW = bodyH * (0.033 + build * 0.012);
+  const thighW = limbW * (1.6 + build * 0.6);
 
   // 怀孕：孕肚宽度上限为胯宽的 0.9 倍，避免比例失真
   const pregT = p.pregnant ? Math.min(1, p.pregnancyProgress / 30) : 0;
@@ -186,9 +208,9 @@ export function renderRig(p: RigParams): string {
     fill="${hair}"/>`);
 
   // ---------- 腿 ----------
-  const thighTopW = hipW * 0.44;
-  const kneeW = limbW * 1.35;
-  const ankleW = limbW * 0.85;
+  const thighTopW = hipW * 0.52;
+  const kneeW = limbW * 1.45;
+  const ankleW = limbW * 0.95;
 
   for (const side of [-1, 1]) {
     const hx = cx + side * hipW * 0.26;
@@ -199,11 +221,11 @@ export function renderRig(p: RigParams): string {
     const calfCovered = cov(info, "calf") >= 0.5;
     const footCovered = cov(info, "foot") >= 0.5;
 
-    // 大腿
-    P.push(`<path d="M${hx - thighTopW * 0.5} ${yHip} L${hx + thighTopW * 0.5} ${yHip}
-      Q${kx + kneeW * 0.55} ${(yHip + yKnee) / 2} ${kx + kneeW * 0.5} ${yKnee}
-      L${kx - kneeW * 0.5} ${yKnee}
-      Q${kx - kneeW * 0.55} ${(yHip + yKnee) / 2} ${hx - thighTopW * 0.5} ${yHip} Z"
+    // 大腿（外侧饱满，内侧收窄）
+    P.push(`<path d="M${hx - thighTopW * 0.52} ${yHip - bodyH * 0.005} L${hx + thighTopW * 0.52} ${yHip - bodyH * 0.005}
+      Q${kx + side * kneeW * 0.62} ${yHip + THIGH * 0.35} ${kx + kneeW * 0.48} ${yKnee}
+      L${kx - kneeW * 0.48} ${yKnee}
+      Q${kx - side * kneeW * 0.30} ${yHip + THIGH * 0.55} ${hx - thighTopW * 0.42} ${yHip - bodyH * 0.005} Z"
       fill="${legCovered ? "url(#cl" + hue + ")" : "url(#sk" + hue + ")"}"/>`);
     // 小腿
     P.push(`<path d="M${kx - kneeW * 0.5} ${yKnee} L${kx + kneeW * 0.5} ${yKnee}
@@ -217,27 +239,69 @@ export function renderRig(p: RigParams): string {
       fill="${footCovered ? clothShoe : skinMid}"/>`);
   }
 
-  // ---------- 胯部 ----------
+  // ---------- 胯部与臀（女性特征） ----------
   const hipCovered = cov(info, "buttock") >= 0.5 || cov(info, "genital") >= 0.5;
-  P.push(`<path d="M${cx - waistW * 0.5} ${yWaist}
-    Q${cx - hipW * 0.56} ${yWaist + PELVIS * 0.5} ${cx - hipW * 0.5} ${yHip}
-    L${cx + hipW * 0.5} ${yHip}
-    Q${cx + hipW * 0.56} ${yWaist + PELVIS * 0.5} ${cx + waistW * 0.5} ${yWaist} Z"
-    fill="${hipCovered ? "url(#cl" + hue + ")" : "url(#sk" + hue + ")"}"/>`);
+  const hipFill = hipCovered ? "url(#cl" + hue + ")" : "url(#sk" + hue + ")";
 
-  // 扶她轮廓
-  if (p.futanari && cov(info, "genital") < 0.5) {
-    P.push(`<ellipse cx="${cx}" cy="${yHip + bodyH * 0.012}" rx="${bodyH * 0.012}" ry="${bodyH * 0.028}" fill="${skinDark}"/>`);
+  // 主胯部：从细腰向外扩
+  P.push(`<path d="M${cx - waistW * 0.50} ${yWaist}
+    Q${cx - hipW * 0.68} ${yWaist + PELVIS * 0.45} ${cx - hipW * 0.58} ${yHip}
+    L${cx + hipW * 0.58} ${yHip}
+    Q${cx + hipW * 0.68} ${yWaist + PELVIS * 0.45} ${cx + waistW * 0.50} ${yWaist} Z"
+    fill="${hipFill}"/>`);
+
+  // 臀线（两侧外扩的弧）
+  for (const side of [-1, 1]) {
+    P.push(`<path d="M${cx + side * hipW * 0.52} ${yWaist + PELVIS * 0.35}
+      Q${cx + side * hipW * 0.72} ${yHip - PELVIS * 0.15} ${cx + side * hipW * 0.50} ${yHip + PELVIS * 0.05}"
+      fill="${hipCovered ? "url(#cl" + hue + ")" : "url(#sk" + hue + ")"}"/>`);
+    // 臀沟阴影
+    P.push(`<path d="M${cx + side * hipW * 0.20} ${yHip - PELVIS * 0.15}
+      Q${cx + side * hipW * 0.34} ${yHip + PELVIS * 0.05} ${cx + side * hipW * 0.16} ${yHip + PELVIS * 0.15}"
+      stroke="${skinDark}" stroke-width="${bodyH * 0.009}" fill="none" opacity="0.22"/>`);
   }
 
-  // ---------- 躯干 ----------
+  // ---------- 扶她轮廓（明确可辨识） ----------
+  if (p.futanari && cov(info, "genital") < 0.5) {
+    const gx = cx;
+    const gy = yHip + bodyH * 0.008;
+    const gw = bodyH * 0.010;
+    const gh = bodyH * 0.032;
+    // 阴囊
+    P.push(`<ellipse cx="${gx}" cy="${gy + gh * 0.45}" rx="${gw * 1.5}" ry="${gh * 0.42}" fill="${skinMid}"/>`);
+    // 阴茎（略微前倾）
+    P.push(`<path d="M${gx - gw * 0.55} ${gy - gh * 0.15}
+      Q${gx - gw * 0.75} ${gy + gh * 0.55} ${gx} ${gy + gh * 0.62}
+      Q${gx + gw * 0.75} ${gy + gh * 0.55} ${gx + gw * 0.55} ${gy - gh * 0.15}
+      L${gx + gw * 0.30} ${gy - gh * 0.30}
+      L${gx - gw * 0.30} ${gy - gh * 0.30} Z"
+      fill="${skinMid}"/>`);
+    // 龟头
+    P.push(`<ellipse cx="${gx}" cy="${gy + gh * 0.58}" rx="${gw * 0.62}" ry="${gh * 0.22}" fill="${skin}"/>`);
+    // 高光
+    P.push(`<path d="M${gx - gw * 0.25} ${gy - gh * 0.1} L${gx - gw * 0.25} ${gy + gh * 0.45}"
+      stroke="#fff" stroke-width="${gw * 0.2}" stroke-linecap="round" opacity="0.18"/>`);
+  }
+
+  // ---------- 躯干（沙漏型曲线） ----------
   const chestCovered = cov(info, "chest") >= 0.5;
   const bellyCovered = cov(info, "belly") >= 0.5;
-  P.push(`<path d="M${cx - shoulderW * 0.5} ${yShoulder + 2}
-    Q${cx - shoulderW * 0.60} ${yShoulder + TORSO * 0.35} ${cx - waistW * 0.5} ${yWaist}
-    L${cx + waistW * 0.5} ${yWaist}
-    Q${cx + shoulderW * 0.60} ${yShoulder + TORSO * 0.35} ${cx + shoulderW * 0.5} ${yShoulder + 2} Z"
+  const ribW = shoulderW * 0.92;          // 肋部：介于肩与腰之间
+
+  P.push(`<path d="M${cx - shoulderW * 0.50} ${yShoulder + 2}
+    Q${cx - ribW * 0.62} ${yShoulder + TORSO * 0.30} ${cx - ribW * 0.56} ${yShoulder + TORSO * 0.55}
+    Q${cx - waistW * 0.54} ${yWaist - TORSO * 0.10} ${cx - waistW * 0.50} ${yWaist}
+    L${cx + waistW * 0.50} ${yWaist}
+    Q${cx + waistW * 0.54} ${yWaist - TORSO * 0.10} ${cx + ribW * 0.56} ${yShoulder + TORSO * 0.55}
+    Q${cx + ribW * 0.62} ${yShoulder + TORSO * 0.30} ${cx + shoulderW * 0.50} ${yShoulder + 2} Z"
     fill="${chestCovered || bellyCovered ? "url(#cl" + hue + ")" : "url(#sk" + hue + ")"}"/>`);
+
+  // 腰部内收阴影（强化曲线）
+  for (const side of [-1, 1]) {
+    P.push(`<path d="M${cx + side * waistW * 0.42} ${yWaist - TORSO * 0.22}
+      Q${cx + side * waistW * 0.50} ${yWaist - TORSO * 0.05} ${cx + side * waistW * 0.40} ${yWaist + PELVIS * 0.2}"
+      stroke="${skinDark}" stroke-width="${bodyH * 0.010}" fill="none" opacity="0.16"/>`);
+  }
 
   // 肩
   for (const side of [-1, 1]) {
@@ -246,18 +310,37 @@ export function renderRig(p: RigParams): string {
       fill="${chestCovered ? "url(#cl" + hue + ")" : "url(#sk" + hue + ")"}"/>`);
   }
 
-  // 胸部
-  const bust = 0.60 + build * 0.70;
-  const bustY = yShoulder + TORSO * 0.36;
-  const bustR = bodyH * 0.030 * bust;
+  // ---------- 胸部（女性特征的主要视觉来源） ----------
+  // 罩杯映射到半径：A≈0.028H，H≈0.058H
+  const bustR = bodyH * (0.026 + cup * 0.0046);
+  const bustY = yShoulder + TORSO * (0.34 + cup * 0.008);
+  // 罩杯越大，越向外下垂
+  const bustDrop = cup * bodyH * 0.004;
+  const bustSep = shoulderW * (0.20 + cup * 0.012);
+
+  // 是否可见：未穿衣，或只穿内衣（内衣会勾勒轮廓）
   const showBust = !chestCovered || info.hasUnderwearTop;
   if (showBust) {
     const bustFill = chestCovered ? "url(#cl" + hue + ")" : "url(#sk" + hue + ")";
-    P.push(`<ellipse cx="${cx - shoulderW * 0.20}" cy="${bustY}" rx="${bustR}" ry="${bustR * 0.92}" fill="${bustFill}"/>`);
-    P.push(`<ellipse cx="${cx + shoulderW * 0.20}" cy="${bustY}" rx="${bustR}" ry="${bustR * 0.92}" fill="${bustFill}"/>`);
-    if (!chestCovered) {
-      P.push(`<circle cx="${cx - shoulderW * 0.20}" cy="${bustY + bustR * 0.55}" r="${bustR * 0.20}" fill="${skinDark}"/>`);
-      P.push(`<circle cx="${cx + shoulderW * 0.20}" cy="${bustY + bustR * 0.55}" r="${bustR * 0.20}" fill="${skinDark}"/>`);
+    for (const side of [-1, 1]) {
+      const bx = cx + side * bustSep;
+      const by = bustY + bustDrop;
+      // 主体
+      P.push(`<ellipse cx="${bx}" cy="${by}" rx="${bustR * 1.05}" ry="${bustR * 0.98}" fill="${bustFill}"/>`);
+      // 下缘阴影（体现重量感）
+      P.push(`<path d="M${bx - bustR * 0.9} ${by + bustR * 0.15} Q${bx} ${by + bustR * 1.1} ${bx + bustR * 0.9} ${by + bustR * 0.15}"
+        fill="${skinDark}" opacity="0.18"/>`);
+      // 乳头（仅裸露时）
+      if (!chestCovered) {
+        P.push(`<ellipse cx="${bx + side * bustR * 0.35}" cy="${by + bustR * 0.42}" rx="${bustR * 0.22}" ry="${bustR * 0.19}"
+          fill="${skinDark}" opacity="0.75"/>`);
+      }
+    }
+    // 乳沟（罩杯较大时更明显）
+    if (cup >= 3) {
+      P.push(`<path d="M${cx} ${bustY - bustR * 0.4} L${cx} ${bustY + bustR * 1.15}"
+        stroke="${skinDark}" stroke-width="${bustR * 0.22}" stroke-linecap="round"
+        fill="none" opacity="0.28"/>`);
     }
   }
 

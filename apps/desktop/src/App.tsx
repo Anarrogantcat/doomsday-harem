@@ -3,10 +3,13 @@ import { renderScene, type Scene } from "@doomsday/core";
 import { buildSceneContext } from "@doomsday/llm";
 import { useGame } from "./store/game.ts";
 import { HaremRoster } from "./shell/HaremRoster.tsx";
+import { RightColumn } from "./shell/RightColumn.tsx";
+import { CompanionDetail } from "./shell/CompanionDetail.tsx";
+import { HeroDetail } from "./shell/HeroDetail.tsx";
+import { NarrationPanel, type NarrationEntry } from "./shell/NarrationPanel.tsx";
+import { PixelStrip } from "./shell/PixelStrip.tsx";
 import { FortressSection } from "./shell/FortressSection.tsx";
 import { CombatView } from "./shell/CombatView.tsx";
-import { CompanionDetail } from "./shell/CompanionDetail.tsx";
-import { NarrationPanel, type NarrationEntry } from "./shell/NarrationPanel.tsx";
 import { StatusStrip, MessageLog } from "./shell/StatusStrip.tsx";
 import { Overlay } from "./shell/Overlay.tsx";
 import { SettingsPanel } from "./shell/SettingsPanel.tsx";
@@ -26,9 +29,11 @@ export function App() {
   const pipeline = useGame((s) => s.pipeline);
   const narrator = useGame((s) => s.narrator);
 
+  const settings = useGame((s) => s.settings);
   const [overlay, setOverlay] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>("hero");
   const [centerTab, setCenterTab] = useState<CenterTab>("narration");
+  const [showStrip, setShowStrip] = useState(true);
   const [entries, setEntries] = useState<NarrationEntry[]>([]);
   const [index, setIndex] = useState(0);
   const [generating, setGenerating] = useState(false);
@@ -40,19 +45,12 @@ export function App() {
     void useGame.getState().loadStock();
   }, []);
 
-  // 默认选中好感最高的同伴
-  useEffect(() => {
-    if (selected) return;
-    const joined = session.joined();
-    if (joined.length === 0) return;
-    const top = [...joined].sort((a, b) => b.relationship.affection - a.relationship.affection)[0];
-    setSelected(top.id);
-  }, [session, selected, version]);
-
-  // 日志 → 叙事条目
+  // 日志 → 叙事条目（过滤系统噪音）
+  const NOISE = /文本库存|已载入|存档|设置已|自动存档|已保存|已读取/;
   useEffect(() => {
     if (log.length === 0) return;
     const latest = log[0];
+    if (NOISE.test(latest)) return;
     setEntries((prev) => {
       if (prev.length > 0 && prev[prev.length - 1].text === latest) return prev;
       const next = [...prev, { id: ++counter.n, kind: "event" as const, title: "事件", text: latest }];
@@ -81,7 +79,7 @@ export function App() {
     });
   }, [session, version, counter]);
 
-  const current = entries[index];
+  const current = entries[index] ?? entries[entries.length - 1];
   const canGenerate = !!current?.scene && !!narrator;
 
   const doGenerate = useCallback(async () => {
@@ -146,6 +144,7 @@ export function App() {
         setCenterTab((c) => (c === "narration" ? "fortress" : c === "fortress" ? "combat" : "narration"));
         return;
       }
+      if (k === "p") { setShowStrip((v) => !v); return; }
       if (KEY_MAP[k]) {
         e.preventDefault();
         setOverlay((cur) => (cur === KEY_MAP[k] ? null : KEY_MAP[k]));
@@ -155,18 +154,25 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [entries.length]);
 
+  // 根字号随设置变化（所有尺寸用 em，因此整体缩放）
+  const rootStyle = {
+    "--fs": `${settings.display.fontSize}px`
+  } as React.CSSProperties;
+
   return (
-    <div className="game">
+    <div className={`game ${settings.gameplay.compactRoster ? "compact" : ""}`} style={rootStyle}>
       <div className="game-body">
+        {/* 左：后宫名册（主角与 AI 置顶） */}
         <HaremRoster selected={selected} onSelect={setSelected} />
 
+        {/* 中：舞台 + 下侧像素条 */}
         <main className="stage">
           <div className="stage-tabs">
             <button
               className={centerTab === "narration" ? "stagetab active" : "stagetab"}
               onClick={() => setCenterTab("narration")}
             >
-              叙事（Tab 切换）
+              叙事
             </button>
             <button
               className={centerTab === "fortress" ? "stagetab active" : "stagetab"}
@@ -183,6 +189,13 @@ export function App() {
             <span className="sub">
               {session.here()?.name}　第 {session.time.day} 天
             </span>
+            <button
+              className="stagetab"
+              onClick={() => setShowStrip((v) => !v)}
+              title="切换像素条（P）"
+            >
+              {showStrip ? "隐藏画面" : "显示画面"}
+            </button>
           </div>
 
           <div className="stage-body">
@@ -202,10 +215,21 @@ export function App() {
               <FortressSection onOpenBase={() => setOverlay("base")} />
             )}
           </div>
+
+          {/* 下侧栏：像素场景条 */}
+          {showStrip && <PixelStrip height={148} />}
         </main>
 
-        <aside className="rightcol">
-          <CompanionDetail id={selected} />
+        {/* 右：地图 / 基地 / 房车 / 行动 */}
+        <RightColumn onOpen={setOverlay} />
+
+        {/* 最右：详情（主角或同伴） */}
+        <aside className="detailcol">
+          {selected === "hero" || !selected ? (
+            <HeroDetail />
+          ) : (
+            <CompanionDetail id={selected} />
+          )}
         </aside>
       </div>
 
@@ -214,7 +238,7 @@ export function App() {
       <Overlay tab={overlay} onClose={() => setOverlay(null)} />
 
       <div className="keyhint">
-        Tab 切换　I 物品　N 主线　T 科技　B 基地　W 服装　H 后宫　M 模型　S 存档　←/→ 翻页　Esc 关闭
+        Tab 切换视图　P 画面　I 物品　N 主线　T 科技　B 基地　W 服装　M 模型　S 存档　←/→ 翻页　Esc 关闭
       </div>
     </div>
   );

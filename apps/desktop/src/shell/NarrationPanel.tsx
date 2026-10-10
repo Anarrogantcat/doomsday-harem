@@ -66,9 +66,17 @@ export function NarrationPanel({
 
       <div className="narration-body" ref={bodyRef}>
         {!entry && (
-          <p className="sub">
-            （尚无叙事记录。在地图上行动、推进时间或触发事件后，这里会出现文本。）
-          </p>
+          <div className="narration-welcome">
+            <div className="nw-title">末日生存·后宫</div>
+            <div className="nw-body">
+              <p>你是这世上唯一知道末日何时到来的人。</p>
+              <p>三十天后，城市陷落。而你已经准备好了 —— 特殊 AI 写完了，安全屋建起来了，山体深处的避难所也已就位。</p>
+              <p className="nw-hint">
+                在右侧「行动」推进时间，或在「地图」前往其他区域，这里会出现叙事。
+                按 <b>Tab</b> 切换到要塞剖面与战斗视图。
+              </p>
+            </div>
+          </div>
         )}
 
         {entry && (

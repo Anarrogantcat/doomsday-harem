@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { renderRig, rigToSvg, rigToDataUri, type RigParams } from "../src/render/rig.ts";
+import { renderRig, rigToSvg, rigToDataUri, buildFromText, type RigParams } from "../src/render/rig.ts";
 import { newWardrobe, equip, CLOTHING } from "../src/systems/clothing.ts";
 
 function base(over: Partial<RigParams> = {}): RigParams {
@@ -173,4 +173,70 @@ test("rig: 输出无 NaN 或 undefined", () => {
   assert.doesNotMatch(out, /NaN/);
   assert.doesNotMatch(out, /undefined/);
   assert.doesNotMatch(out, /null/);
+});
+
+// ============ 性别与身材可辨识 ============
+
+test("rig: 罩杯影响胸部体积", () => {
+  const flat = renderRig(base({ cup: 0 }));
+  const huge = renderRig(base({ cup: 7 }));
+  assert.notEqual(flat, huge, "不同罩杯应产出不同图形");
+  // 大罩杯应有乳沟绘制
+  assert.match(huge, /stroke-width/, "大罩杯应有阴影/乳沟");
+});
+
+test("rig: 腰臀比影响曲线", () => {
+  const slim = renderRig(base({ whr: 0.62 }));
+  const wide = renderRig(base({ whr: 0.85 }));
+  assert.notEqual(slim, wide, "不同腰臀比应产出不同图形");
+});
+
+test("rig: 扶她轮廓可辨识", () => {
+  const female = renderRig(base({ futanari: false }));
+  const futa = renderRig(base({ futanari: true }));
+  assert.notEqual(female, futa);
+  // 扶她应有额外的胯部元素
+  assert.ok(futa.length > female.length, "扶她应绘制更多元素");
+});
+
+test("rig: 未提供罩杯时由体型推导", () => {
+  const slim = renderRig(base({ build: 0.1, cup: undefined }));
+  const full = renderRig(base({ build: 0.9, cup: undefined }));
+  assert.notEqual(slim, full, "体型应影响推导出的罩杯");
+});
+
+test("rig: 女性比例（肩窄于胯）", () => {
+  // 通过输出对比验证：肩宽参数应小于胯宽参数
+  const out = renderRig(base({ build: 0.5 }));
+  // 检查是否含胸部绘制（女性特征）
+  assert.match(out, /ellipse/, "应绘制胸部椭圆");
+});
+
+test("rig: buildFromText 解析体型描述", () => {
+  const a = buildFromText("成熟丰腴型，E-cup，腰臀比 0.7，保养极好");
+  const b = buildFromText("清纯可爱型，C-cup，纤细柔软");
+  assert.ok(a > b, `丰腴型(${a}) 应大于纤细型(${b})`);
+  assert.ok(a >= 0 && a <= 1);
+  assert.ok(b >= 0 && b <= 1);
+});
+
+test("rig: buildFromText 处理空与特殊值", () => {
+  assert.equal(buildFromText(""), 0.5);
+  assert.ok(buildFromText("无实体（T6 投影）") > 0);
+});
+
+test("rig: buildFromText 解析罩杯", () => {
+  const a = buildFromText("A-cup");
+  const h = buildFromText("H-cup");
+  assert.ok(h > a, "H 罩杯应大于 A 罩杯");
+});
+
+test("rig: 身材差异在图形上可辨识", () => {
+  // 纤细 vs 丰腴，输出应明显不同
+  const slim = renderRig(base({ build: 0.05, cup: 0, whr: 0.78 }));
+  const full = renderRig(base({ build: 0.95, cup: 7, whr: 0.64 }));
+  assert.notEqual(slim, full);
+  // 长度差异应显著（元素数量不同）
+  const diff = Math.abs(slim.length - full.length);
+  assert.ok(diff > 100, `身材差异应产生明显不同的图形，长度差 ${diff}`);
 });

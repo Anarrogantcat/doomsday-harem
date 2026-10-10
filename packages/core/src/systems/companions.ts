@@ -148,6 +148,8 @@ export interface CompanionDef {
   heightCm: number;
   /** 体型描述 */
   build: string;
+  /** 罩杯数值 0-7（A=0），用于立绘 */
+  cup?: number;
   personality: Personality;
   /** 岗位专长与加成 */
   specialties: Array<{ job: Specialty; bonus: number }>;
