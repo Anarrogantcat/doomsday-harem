@@ -3313,14 +3313,18 @@ const COMPANIONS={
 sister:{name:'姐姐',role:'主导方',title:'企业项目经理 · 26岁',tags:['主动强势','174cm','D-cup','已破处'],lv:3,exp:'64/100',expPct:64,hue:300,
 bars:[['体力',85,'var(--ok)'],['心情',72,'var(--energy)'],['好感',72,'var(--accent-lt)'],['欲情',88,'var(--lust)']],
 grid:[['岗位','物资管理'],['冷落','0 天'],['暴露度','8%'],['亲密度','T2'],['受伤','无'],['被动增益','2 项'],['生育力','高'],['生理期','正常']],
+preg:{state:'未怀孕',stage:'—',count:0,births:0,children:0,recover:'—'},
 acts:['口交（施）','口交（受）','正面位','背后位','骑乘位','后庭（施）']},
 mother:{name:'母亲',role:'照顾方',title:'单亲母亲 / 居家设计师 · 45岁',tags:['温柔照顾','172cm','E-cup','已婚'],lv:3,exp:'48/100',expPct:48,hue:40,
 bars:[['体力',78,'var(--ok)'],['心情',65,'var(--energy)'],['好感',57,'var(--accent-lt)'],['欲情',40,'var(--lust)']],
-grid:[['岗位','厨房'],['冷落','2 天'],['暴露度','5%'],['亲密度','T1'],['受伤','无'],['被动增益','1 项'],['生育力','中'],['生理期','正常']],
+grid:[['岗位','厨房'],['冷落','2 天'],['暴露度','5%'],['亲密度','T1'],['受伤','无'],['被动增益','1 项'],['生育力','中'],['生理期','不规律']],
+// 她已经是三个孩子的母亲
+preg:{state:'未怀孕',stage:'—',count:3,births:3,children:3,recover:'—'},
 acts:['口交（施）','正面位','骑乘位','胸交']},
 sister2:{name:'妹妹',role:'被保护者',title:'大学生 · 19岁',tags:['害羞内敛','162cm','C-cup','处女'],lv:2,exp:'30/100',expPct:30,hue:200,
 bars:[['体力',90,'var(--ok)'],['心情',80,'var(--energy)'],['好感',45,'var(--accent-lt)'],['欲情',62,'var(--lust)']],
 grid:[['岗位','温室'],['冷落','0 天'],['暴露度','4%'],['亲密度','T1'],['受伤','无'],['被动增益','0 项'],['生育力','高'],['生理期','正常']],
+preg:{state:'未怀孕',stage:'—',count:0,births:0,children:0,recover:'—'},
 acts:['口交（受）','手活（受）']}};
 
 function HUE_SVG(h){return 'data:image/svg+xml;utf8,'+encodeURIComponent(
@@ -3331,6 +3335,24 @@ function HUE_SVG(h){return 'data:image/svg+xml;utf8,'+encodeURIComponent(
   "<rect width='120' height='184' fill='url(#g)'/>"+
   "<circle cx='60' cy='52' r='26' fill='hsl("+h+",30%,70%)'/>"+
   "<ellipse cx='60' cy='150' rx='34' ry='52' fill='hsl("+h+",32%,58%)'/></svg>");}
+
+/** 怀孕与生育区块（按角色数据渲染） */
+function pregBlock(d){
+  const pr = d.preg || {state:'未怀孕',stage:'—',count:0,births:0,children:0,recover:'—'};
+  const cell=(k,v,dim)=>'<div class="dcell"><span class="k">'+k+'</span><span class="v"'+(dim?' style="color:var(--dim)"':'')+'>'+v+'</span></div>';
+  let h = '<div class="sec">怀孕与生育</div><div class="dgrid">'
+    + cell('当前状态', pr.state, pr.state === '未怀孕')
+    + cell('孕程', pr.stage, pr.stage === '—')
+    + cell('累计怀孕', pr.count + ' 次')
+    + cell('累计生产', pr.births + ' 次')
+    + cell('已育子女', String(pr.children))
+    + cell('产后恢复', pr.recover, pr.recover === '—')
+    + '</div>';
+  if (pr.births > 0) {
+    h += '<div class="hint-line">她已经是 ' + pr.children + ' 个孩子的母亲</div>';
+  }
+  return h;
+}
 
 function fillDetail(id){
   const d=COMPANIONS[id]; if(!d) return;
@@ -3346,11 +3368,7 @@ function fillDetail(id){
   const st=q('#d-status');
   if(st){st.innerHTML=d.bars.map(([k,v,c])=>'<div class="kv"><span class="k">'+k+'</span><div class="tr"><div class="fl" style="width:'+v+'%;background:'+c+'"></div></div><span class="v">'+v+'</span></div>').join('')
     +'<div class="dgrid">'+d.grid.map(([k,v])=>'<div class="dcell"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>').join('')+'</div>'
-    +'<div class="sec">怀孕与生育</div><div class="dgrid">'
-    +'<div class="dcell"><span class="k">当前状态</span><span class="v" style="color:var(--dim)">未怀孕</span></div>'
-    +'<div class="dcell"><span class="k">累计怀孕</span><span class="v">0 次</span></div>'
-    +'<div class="dcell"><span class="k">累计生产</span><span class="v">0 次</span></div>'
-    +'<div class="dcell"><span class="k">生育力</span><span class="v" style="color:var(--ok)">高</span></div></div>';}
+    + pregBlock(d);}
   const ac=q('#d-acts');
   if(ac){const all=['口交（施）','口交（受）','正面位','背后位','骑乘位','后庭（施）','胸交','腿交'];
     ac.innerHTML='<div class="sec">可用行为（26 种）</div><div class="dgrid">'+all.map(a=>'<div class="dcell"><span class="k">'+a+'</span><span class="v" style="color:'+(d.acts.includes(a)?'var(--ok)':'var(--dim)')+'">'+(d.acts.includes(a)?'可用':'未解锁')+'</span></div>').join('')+'</div>';}
