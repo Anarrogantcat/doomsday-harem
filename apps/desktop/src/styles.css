@@ -129,9 +129,17 @@ body {
 }
 .fortress-body { display: flex; flex-direction: column; gap: 12px; }
 .flevel {
+  position: relative; overflow: hidden;
   border: 1px solid var(--line); border-radius: 8px; padding: 8px;
   background: linear-gradient(180deg, rgba(255,255,255,.02), transparent);
 }
+.flevel-strip {
+  position: absolute; left: 0; top: 0; width: 100%; height: 18px;
+  pointer-events: none; opacity: .55;
+  mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
+}
+.flevel-head, .fgrid { position: relative; z-index: 1; }
 .flevel-surface { border-left: 3px solid var(--surface); }
 .flevel-bunker { border-left: 3px solid var(--bunker); }
 .flevel-resource { border-left: 3px solid var(--resource); }

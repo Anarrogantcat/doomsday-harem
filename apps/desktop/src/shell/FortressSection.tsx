@@ -1,9 +1,13 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
-  FACILITIES, facilityDef, LEVEL_LABEL,
+  FACILITIES, facilityDef,
   type BaseLevel
 } from "@doomsday/core";
 import { useGame } from "../store/game.ts";
+import {
+  loadSheet, drawTileFloor, INDOOR_FRAMES, SHEET_INDOOR,
+  type LoadedSheet
+} from "../render/SheetLoader.ts";
 
 /** 三层要塞的视觉分组 */
 const LEVEL_ROWS: Array<{ level: BaseLevel; label: string; hint: string }> = [
@@ -33,6 +37,36 @@ export function FortressSection({ onOpenBase }: { onOpenBase: () => void }) {
   void version;
 
   const summary = session.baseSummary();
+  const stripRefs = useRef<Record<string, HTMLCanvasElement | null>>({});
+  const sheetRef = useRef<LoadedSheet | null>(null);
+
+  // 加载瓦片图集，为每一层铺一条可见的地板纹理带
+  useEffect(() => {
+    let alive = true;
+    loadSheet({ url: SHEET_INDOOR, grid: 16, scale: 1 })
+      .then((sheet) => {
+        if (!alive) return;
+        sheetRef.current = sheet;
+        for (const [key, cv] of Object.entries(stripRefs.current)) {
+          if (!cv) continue;
+          const ctx = cv.getContext("2d");
+          if (!ctx) continue;
+          const w = cv.parentElement?.clientWidth ?? 600;
+          const h = 18;
+          cv.width = w;
+          cv.height = h;
+          ctx.globalAlpha = 0.35;
+          // 每层用不同的瓦片，形成视觉区分
+          const frame = key === "surface" ? INDOOR_FRAMES.floorWood
+            : key === "bunker" ? INDOOR_FRAMES.floorStone
+            : INDOOR_FRAMES.wallBrick;
+          drawTileFloor(ctx, sheet, frame, 0, 0, Math.ceil(w / 16), Math.ceil(h / 16), 16);
+          ctx.globalAlpha = 1;
+        }
+      })
+      .catch(() => { /* 图集缺失时静默降级 */ });
+    return () => { alive = false; };
+  }, []);
 
   const byLevel = useMemo(() => {
     const out: Record<BaseLevel, Array<{ id: string; name: string; tier: number; building: boolean; max: number }>> = {
@@ -71,6 +105,10 @@ export function FortressSection({ onOpenBase }: { onOpenBase: () => void }) {
           const built = list.filter((x) => x.tier > 0).length;
           return (
             <div key={row.level} className={`flevel flevel-${row.level}`}>
+              <canvas
+                className="flevel-strip"
+                ref={(el) => { stripRefs.current[row.level] = el; }}
+              />
               <div className="flevel-head">
                 <span className="flevel-name">{row.label}</span>
                 <span className="flevel-hint">{row.hint}</span>

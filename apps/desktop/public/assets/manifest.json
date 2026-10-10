@@ -1,0 +1,29 @@
+{
+  "license": "CC0 1.0 Universal (Public Domain)",
+  "source": "Kenney.nl",
+  "attribution": "Kenney (kenney.nl) — CC0, 无需署名但在此致谢",
+  "packs": [
+    {
+      "id": "roguelike-indoors",
+      "url": "https://kenney.nl/assets/roguelike-indoors",
+      "file": "tiles/indoor.png"
+    },
+    {
+      "id": "roguelike-rpg-pack",
+      "url": "https://kenney.nl/assets/roguelike-rpg-pack",
+      "file": "sprites/rpg.png"
+    }
+  ],
+  "sheets": {
+    "tiles/indoor.png": {
+      "description": "室内瓦片集（透明底），16×16 网格",
+      "gridSize": 16,
+      "usage": "安全屋/避难所内部地面、墙体、家具"
+    },
+    "sprites/rpg.png": {
+      "description": "RPG 角色与物件图集（透明底），16×16 网格",
+      "gridSize": 16,
+      "usage": "角色立绘替代、道具图标、地图标记"
+    }
+  }
+}
