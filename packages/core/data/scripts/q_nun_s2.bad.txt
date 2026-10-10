@@ -1,0 +1,26 @@
+@scene q_nun_s2
+  title: 烛火未熄
+  participants: 主角, 修女
+  tone: 灰烬里的执念与救赎
+  when: mainline_nun_stage >= 2
+
+  @beat b1 pose: kneel_steady
+    action: 修女用锈迹斑斑的银质烛台压平泛黄账本
+    sense: 烛泪在羊皮纸上凝结成琥珀色的痂
+    mind: 每个未被埋葬的灵魂都成了她账本里的债务人
+    speech(修女): 这些名字...总得有人记得他们曾活过
+
+  @beat b2 pose: lean_forward
+    action: 主角指尖触碰账本边缘的焦痕
+    sense: 烟灰从修女的袖口簌簌落下，在地面积出灰蝶
+    mind: 烛光在她眼睑投下蛛网般的阴影
+    speech(主角): 为什么是教堂？
+
+  @beat b3 pose: cross_self
+    action: 修女将染血的绷带卷入账本夹层
+    sense: 金属十字架在她颈间硌出深红印记
+    mind: 纪事本的墨迹在潮湿空气里洇出黑色血管
+    speech(修女): 没人埋葬他们...就让我替上帝记账
+
+  @variant b2 when: affection >= 60
+    speech(修女): 你听...地窖下还有人在唱安魂曲

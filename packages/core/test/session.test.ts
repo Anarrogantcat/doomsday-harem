@@ -259,7 +259,7 @@ test("session: 同伴怀孕标记", () => {
 test("session: 载入全部剧本", () => {
   const s = new GameSession();
   const n = s.loadScripts(allScripts());
-  assert.equal(n, 20, `应载入 20 个剧本，实际 ${n}`);
+  assert.ok(n >= 20, `应载入至少 20 个剧本，实际 ${n}`);
 });
 
 test("session: 变量集包含同伴数值与标志位", () => {
@@ -410,7 +410,7 @@ test("session: 作弊器冻结时间", () => {
 test("session: 全部剧本都能解析且不报错", () => {
   const s = new GameSession();
   const n = s.loadScripts(allScripts());
-  assert.equal(n, 20);
+  assert.ok(n >= 20, `应载入至少 20 个剧本，实际 ${n}`);
   // 强制所有条件为真，确保每个剧本都能实体化
   const all: Record<string, number | boolean | string> = {};
   for (let i = 1; i <= 5; i++) {

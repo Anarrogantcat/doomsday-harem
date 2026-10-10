@@ -36,6 +36,7 @@ import {
 } from "../systems/clothing.ts";
 import {
   type Container, type Quality,
+  remove as removeFrom,
   newContainer, newStorage, add, addMany, remove, countOf, totalCount, weightOf,
   canAfford, missingFor, transfer, prune, use as useItem, rollLoot, lootTable,
   recipeById, canCraft, craft as craftRecipe,
@@ -124,6 +125,12 @@ import {
   ENEMA_STEPS, enemaTotalGain, enemaRequiredItems, pickVariant,
   VARIANT_LABEL
 } from "../systems/actScenes.ts";
+import {
+  type BranchPregStage, type PregnancyEvent, type DefeatEvent, type DefeatOutcome,
+  BRANCH_PREG_LABEL, BRANCH_PREG_DESC, branchPregStage,
+  PREGNANCY_EVENTS, pregnancyEvent, pregnancyEventsForStage,
+  DEFEAT_LABEL, DEFEAT_EVENTS, defeatEvent, rollDefeatOutcome, branchStats
+} from "../systems/branchEvents.ts";
 import {
   type CombatTerrain, type Stance, type ExtendedCombat, type CombatSkill,
   COMBAT_SKILLS, COMBAT_TERRAIN_LABEL, COMBAT_TERRAIN_DESC, COMBAT_TERRAIN_MODS,
@@ -284,6 +291,8 @@ export class GameSession {
   backpack: Container;
   /** 据点仓库（无上限） */
   storage: Container;
+  /** 最近一次战败事件（供 UI 展示） */
+  lastDefeatEvent: DefeatEvent | null = null;
   flags: Record<string, unknown>;
   registry: SceneRegistry;
   offspring: Offspring[];
@@ -1503,6 +1512,150 @@ export class GameSession {
     };
   }
 
+  // ---------- 分支事件（怀孕线 / 战败线） ----------
+
+  /** 主角当前怀孕阶段（未怀孕返回 null） */
+  heroPregnancyStage(): BranchPregStage | null {
+    const p = this.hero.pregnancy;
+    if (!p) return null;
+    return branchPregStage(p.progress);
+  }
+
+  /** 某同伴当前怀孕阶段 */
+  companionPregnancyStage(id: string): BranchPregStage | null {
+    const c = this.companion(id);
+    if (!c || !c.physiology.pregnant) return null;
+    return branchPregStage(c.physiology.pregnancyProgress);
+  }
+
+  /** 当前应触发的怀孕事件（主角） */
+  currentPregnancyEvent(): PregnancyEvent | null {
+    const stage = this.heroPregnancyStage();
+    if (!stage) return null;
+
+    const list = pregnancyEventsForStage(stage);
+    if (list.length === 0) return null;
+
+    // 一次性事件只触发一次
+    const fired = this.flags["preg_events_fired"] as string[] | undefined;
+    const firedList = fired ?? [];
+    const available = list.filter((e) => e.repeatable || !firedList.includes(e.id));
+
+    return available[0] ?? null;
+  }
+
+  /** 标记怀孕事件已触发 */
+  markPregnancyEventFired(id: string): void {
+    const fired = (this.flags["preg_events_fired"] as string[] | undefined) ?? [];
+    if (!fired.includes(id)) {
+      this.flags["preg_events_fired"] = [...fired, id];
+    }
+  }
+
+  /**
+   * 战败结算。
+   *
+   * 根据是否有同伴随行、敌人是否人形，
+   * 掷出一个战败结果并应用后果。
+   */
+  resolveDefeat(): DefeatEvent {
+    const c = this.combat;
+    const hasCompanion = (c?.allies.length ?? 0) > 0;
+    const isHumanoid = (c?.enemies ?? []).some((e) => e.humanoid);
+
+    const rng = this.combatRandom();
+    const event = rollDefeatOutcome(hasCompanion, isHumanoid, rng);
+
+    // 后果应用
+    switch (event.outcome) {
+      case "captured": {
+        // 损失部分物资
+        this.loseRandomStorage(0.3);
+        this.defense = { ...this.defense, blood: Math.min(100, this.defense.blood + 5) };
+        break;
+      }
+      case "escaped": {
+        this.loseRandomStorage(0.5);
+        this.hero.survival = {
+          ...this.hero.survival,
+          stamina: Math.max(5, Math.round(this.hero.survival.stamina * 0.4))
+        };
+        break;
+      }
+      case "rescued": {
+        // 同伴受伤，好感提升
+        for (const a of c?.allies ?? []) {
+          const comp = this.companion(a.id);
+          if (comp) {
+            comp.growth = { ...comp.growth, injuries: comp.growth.injuries + 1 };
+            this.gainAffection(comp.id, 8);
+          }
+        }
+        this.loseRandomStorage(0.15);
+        break;
+      }
+      case "abandoned": {
+        this.loseRandomStorage(1.0);
+        this.hero.survival = {
+          ...this.hero.survival,
+          stamina: 5,
+          hunger: Math.max(5, this.hero.survival.hunger - 30),
+          mood: Math.max(5, this.hero.survival.mood - 20)
+        };
+        this.time = { ...this.time, day: this.time.day + 3 };
+        break;
+      }
+    }
+
+    // 记录到独立字段（defense.history 只存夜袭记录）
+    const log = (this.flags["defeat_log"] as Array<{ day: number; outcome: DefeatOutcome; label: string }> | undefined) ?? [];
+    this.flags["defeat_log"] = [
+      ...log,
+      { day: this.time.day, outcome: event.outcome, label: DEFEAT_LABEL[event.outcome] }
+    ].slice(-50);
+
+    this.flags["last_defeat"] = event.outcome;
+    this.flags["last_defeat_day"] = this.time.day;
+
+    return event;
+  }
+
+  /** 损失一部分随机物资（从据点仓库扣除） */
+  private loseRandomStorage(ratio: number): void {
+    const rng = this.combatRandom();
+    const stacks = this.storage.stacks.filter((s) => s.count > 0);
+    if (stacks.length === 0) return;
+
+    const count = Math.max(1, Math.round(stacks.length * ratio));
+    for (let i = 0; i < count; i++) {
+      const s = stacks[Math.floor(rng() * stacks.length)];
+      if (!s) continue;
+      const lost = Math.max(1, Math.round(s.count * ratio));
+      const r = removeFrom(this.storage, s.itemId, lost);
+      this.storage = r.container;
+    }
+  }
+
+  /** 分支事件统计 */
+  branchEventStats() {
+    return branchStats();
+  }
+
+  /** 战败记录 */
+  defeatLog(): Array<{ day: number; outcome: DefeatOutcome; label: string }> {
+    return (this.flags["defeat_log"] as Array<{ day: number; outcome: DefeatOutcome; label: string }> | undefined) ?? [];
+  }
+
+  /** 全部战败事件（供 UI 浏览） */
+  allDefeatEvents(): DefeatEvent[] {
+    return DEFEAT_EVENTS;
+  }
+
+  /** 全部怀孕事件 */
+  allPregnancyEvents(): PregnancyEvent[] {
+    return PREGNANCY_EVENTS;
+  }
+
   // ---------- 作弊执行器 ----------
 
   /** 构建作弊宿主（把 session 能力暴露给 cheatRunner） */
@@ -2083,14 +2236,10 @@ export class GameSession {
         wallDamage: Math.max(0, this.defense.wallDamage - 1)
       };
     } else {
-      // 失败：同伴受伤、物资损失
+      // 失败：走战败分支（被俘/逃脱/被救/昏迷）
       this.defense = { ...this.defense, blood: Math.min(100, this.defense.blood + 10) };
-      for (const a of c.allies) {
-        if (a.hp <= 0) {
-          const comp = this.companion(a.id);
-          if (comp) comp.lust = { ...comp.lust, daysSinceIntimacy: 0 };
-        }
-      }
+      const event = this.resolveDefeat();
+      this.lastDefeatEvent = event;
     }
     this.combat = null;
   }

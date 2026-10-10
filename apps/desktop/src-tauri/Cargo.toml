@@ -1,6 +1,6 @@
 [package]
 name = "doomsday-harem"
-version = "0.38.0"
+version = "0.39.0"
 edition = "2021"
 description = "Doomsday Harem — survival sandbox with tech tree and harem management"
 

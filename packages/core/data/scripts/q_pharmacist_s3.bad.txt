@@ -1,0 +1,26 @@
+@scene q_pharmacist_s3
+  title: 仓库交火
+  participants: 主角, 女药剂师
+  tone: 肃杀紧张，药械争夺
+  when: mainline_pharmacist_stage >= 3
+
+  @beat b1 pose: crouch_low
+    action: 主角压低身形沿墙根移动，女药剂师用匕首挑开铁桶遮挡
+    sense: 空气里浮动着铁锈与硝烟混合的腥涩，靴底碾碎玻璃渣的脆响
+    mind: 每一发子弹都可能让药品落入不该得手的人
+    speech(女药剂师): "三分钟内解决他们，这批药剂关系到整个街区的止痛配给"
+
+  @beat b2 pose: feint_attack
+    action: 主角突刺击中劫匪大腿，女药剂师甩出装满麻醉剂的玻璃瓶
+    sense: 火药味在鼻腔炸开，金属碰撞声与玻璃碎裂声同时炸响
+    mind: 药剂的化学反应需要精确到秒的时机
+    speech(主角): "你的药剂能撑多久？"
+
+  @beat b3 pose: tactical_reload
+    action: 女药剂师将最后三颗麻醉弹填入枪膛，主角用铁管顶住剩余劫匪咽喉
+    sense: 药品箱碰撞声与喘息声在密闭空间形成回音，汗珠滑入颈动脉的凉意
+    mind: 这场战斗的胜负取决于对方是否相信医疗资源该被垄断
+    speech(女药剂师): "现在，你有两个选择——带走配方笔记，或者带着这些药剂去救人"
+
+  @variant b2 when: affection >= 60
+    speech(女药剂师): "你比那些粗暴的劫匪更懂药剂的价值，这瓶麻醉剂...给你"

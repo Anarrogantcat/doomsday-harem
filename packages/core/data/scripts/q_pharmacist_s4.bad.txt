@@ -1,0 +1,26 @@
+@scene q_pharmacist_s4
+  title: 配方与责任
+  participants: 主角, 女药剂师
+  tone: 压抑紧张，信任待建
+  when: mainline_pharmacist_stage >= 4
+
+  @beat b1 pose: cross_zone
+    action: 主角将泛黄笔记推过桌面
+    sense: 纸张边缘的焦痕在指尖留下细微刺痛
+    mind: 她的戒备像防弹玻璃般难以穿透
+    speech(女药剂师): 这些药方...和我无关
+
+  @beat b2 pose: signal_scan
+    action: 主角用指节敲击桌面药瓶
+    sense: 玻璃药瓶发出空洞的共鸣
+    mind: 末日里每个容器都盛着生存的筹码
+    speech(主角): 仓库的止痛药需要调配方案
+
+  @beat b3 pose: rescue
+    action: 女药剂师攥紧桌角金属把手
+    sense: 油漆剥落的金属散发铁锈腥气
+    mind: 她的颤抖暴露了被压抑的恐惧
+    speech(女药剂师): 我只在药店柜台后...活着
+
+  @variant b2 when: affection >= 60
+    speech(女药剂师): 那次爆炸...我见过更糟的
