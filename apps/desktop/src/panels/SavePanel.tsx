@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { allSlots, formatSlotTime, describeMeta, slotStats } from "@doomsday/core";
 import { useGame } from "../store/game.ts";
 
@@ -10,9 +11,25 @@ export function SavePanel() {
   const autoSave = useGame((s) => s.autoSave);
   const lastSaveMsg = useGame((s) => s.lastSaveMsg);
   const session = useGame((s) => s.session);
+  const refreshSlots = useGame((s) => s.refreshSlots);
+  const backendInfo = useGame((s) => s.backendInfo);
+  const [busy, setBusy] = useState<string>("");
   void version;
 
+  useEffect(() => {
+    void refreshSlots();
+  }, [refreshSlots]);
+
   const stats = slotStats(slots);
+
+  const run = async (label: string, fn: () => Promise<void>) => {
+    setBusy(label);
+    try {
+      await fn();
+    } finally {
+      setBusy("");
+    }
+  };
 
   return (
     <section className="panel">
@@ -24,10 +41,12 @@ export function SavePanel() {
       </h2>
 
       {lastSaveMsg && <p className="ok">{lastSaveMsg}</p>}
+      <p className="sub">存储后端：{backendInfo()}{busy && `　（${busy}中…）`}</p>
 
       <div className="controls">
-        <button onClick={autoSave}>立即自动存档</button>
-        <button onClick={() => saveToSlot("quick")}>快速存档</button>
+        <button onClick={() => run("自动存档", autoSave)} disabled={!!busy}>立即自动存档</button>
+        <button onClick={() => run("快速存档", () => saveToSlot("quick"))} disabled={!!busy}>快速存档</button>
+        <button onClick={() => run("刷新", refreshSlots)} disabled={!!busy}>刷新列表</button>
       </div>
 
       <table className="grid">
@@ -50,9 +69,9 @@ export function SavePanel() {
                   {meta ? `${(meta.bytes / 1024).toFixed(1)} KB` : "—"}
                 </td>
                 <td>
-                  <button onClick={() => saveToSlot(def.slot)}>保存</button>
-                  {meta && <button onClick={() => loadFromSlot(def.slot)}>读取</button>}
-                  {meta && <button className="danger" onClick={() => deleteSlot(def.slot)}>删除</button>}
+                  <button onClick={() => run("保存", () => saveToSlot(def.slot))} disabled={!!busy}>保存</button>
+                  {meta && <button onClick={() => run("读取", () => loadFromSlot(def.slot))} disabled={!!busy}>读取</button>}
+                  {meta && <button className="danger" onClick={() => run("删除", () => deleteSlot(def.slot))} disabled={!!busy}>删除</button>}
                 </td>
               </tr>
             );
@@ -76,8 +95,9 @@ export function SavePanel() {
       )}
 
       <p className="hint">
-        存档实际落盘由 Tauri 后端负责（AES-256-GCM 加密 + HMAC 校验），
-        本界面负责槽位语义与元数据。校验失败会拒绝加载（结构版本不符或不变式违规）。
+        Tauri 环境下存档经 AES-256-GCM 加密 + HMAC 校验后写入应用数据目录；
+        浏览器环境降级为 localStorage（明文，仅供开发预览）。
+        读取时校验完整性、结构版本与六项不变式，任一失败拒绝加载。
       </p>
     </section>
   );

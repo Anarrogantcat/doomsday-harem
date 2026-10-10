@@ -3,6 +3,7 @@ import {
   PROVIDER_PRESETS, applyPreset, validateSettings, describeSettings,
   type ProviderKind, type ModelStatus,
 } from "@doomsday/llm";
+import { MODE_LABEL, type GenerationMode } from "@doomsday/core";
 import { useGame } from "../store/game.ts";
 
 const KINDS: ProviderKind[] = [
@@ -16,7 +17,12 @@ export function LlmPanel() {
   const [status, setStatus] = useState<ModelStatus | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const generationMode = useGame((s) => s.generationMode);
+  const setGenerationMode = useGame((s) => s.setGenerationMode);
+  const planReport = useGame((s) => s.planReport);
+
   const errors = validateSettings(llm);
+  const MODES: GenerationMode[] = ["off", "minor", "all"];
 
   async function probe() {
     setBusy(true);
@@ -109,8 +115,38 @@ export function LlmPanel() {
         </div>
       )}
 
+      <h3>剧情生成范围</h3>
+      <div className="controls">
+        {MODES.map((m) => (
+          <button
+            key={m}
+            className={generationMode === m ? "tab active" : "tab"}
+            onClick={() => setGenerationMode(m)}
+          >
+            {MODE_LABEL[m]}
+          </button>
+        ))}
+      </div>
+      {(() => {
+        try {
+          const rep = planReport();
+          return (
+            <p className="sub">
+              剧本分级：关键 {rep.byTier.critical}　重要 {rep.byTier.major}　
+              日常 {rep.byTier.minor}　氛围 {rep.byTier.ambient}
+              　·　将生成 {rep.willGenerate.length} 个 / 手写 {rep.scriptedOnly.length} 个
+            </p>
+          );
+        } catch {
+          return null;
+        }
+      })()}
+
       <p className="hint">
-        模型不可用时会自动降级到手写剧本，游戏不会中断。生成结果按输入缓存，重复场景不重复推理。
+        关键剧情（破处、怀孕、分娩、主线节点）永远使用手写剧本，模型不参与，
+        以保证质量与一致性。日常与氛围场景可交给本地模型生成。
+        模型不可用时自动降级到手写剧本，游戏不会中断。
+        生成结果按输入缓存，重复场景不重复推理。
       </p>
     </section>
   );

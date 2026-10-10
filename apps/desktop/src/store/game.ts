@@ -4,13 +4,16 @@ import {
   type CheatOptions, type CheatEffects,
   type CompanionRuntime, type Activity, type JobId,
   type Weather, type ClothingSlot, type BodyZone, type ViewConfig, DEFAULT_VIEW_CONFIG,
+  type GenerationMode,
   newSlotList, upsertMeta, removeMeta, slotView, slotStats, buildMeta, packForSave, validateAndUnwrap,
   type SlotList, type SlotMeta, type SaveEnvelope,
 } from "@doomsday/core";
 import {
-  DEFAULT_LLM_SETTINGS, createNarrator, ensureAvailable,
+  DEFAULT_LLM_SETTINGS, createNarrator, ensureAvailable, GenerationPipeline,
+  buildSceneContext,
   type LlmSettings, type ModelStatus, type Narrator,
 } from "@doomsday/llm";
+import { getBackend, backendLabel } from "../save/backend.ts";
 
 // 剧本由 scripts/gen-scripts.mjs 在构建前内联为模块
 const SCRIPT_SOURCES: string[] = allScriptTexts();
@@ -27,6 +30,8 @@ export interface GameState {
   pixelConfig: ViewConfig;
   slots: SlotList;
   lastSaveMsg: string;
+  generationMode: GenerationMode;
+  pipeline: GenerationPipeline;
   log: string[];
 
   // 操作
@@ -77,11 +82,15 @@ export interface GameState {
   repairClothing: (who: string) => void;
 
   setPixelConfig: (cfg: ViewConfig) => void;
+  setGenerationMode: (mode: GenerationMode) => void;
+  planReport: () => ReturnType<GenerationPipeline["planReport"]>;
 
-  saveToSlot: (slot: string) => void;
-  loadFromSlot: (slot: string) => void;
-  deleteSlot: (slot: string) => void;
-  autoSave: () => void;
+  saveToSlot: (slot: string) => Promise<void>;
+  loadFromSlot: (slot: string) => Promise<void>;
+  deleteSlot: (slot: string) => Promise<void>;
+  autoSave: () => Promise<void>;
+  refreshSlots: () => Promise<void>;
+  backendInfo: () => string;
 
   applyCheatAll: () => void;
   cheatMaxRelations: () => void;
@@ -117,6 +126,8 @@ export const useGame = create<GameState>((set, get) => ({
   pixelConfig: { ...DEFAULT_VIEW_CONFIG },
   slots: newSlotList(),
   lastSaveMsg: "",
+  generationMode: "minor" as GenerationMode,
+  pipeline: new GenerationPipeline({ mode: "minor", narrator: null }),
   log: [],
 
   refresh: () => set((s) => ({ version: s.version + 1 })),
@@ -457,51 +468,111 @@ export const useGame = create<GameState>((set, get) => ({
 
   setPixelConfig: (cfg) => set({ pixelConfig: cfg }),
 
-  saveToSlot: (slot) => {
-    const { session, slots, pushLog } = get();
+  setGenerationMode: (mode) => {
+    const { pipeline, pushLog, refresh } = get();
+    pipeline.setMode(mode);
+    pipeline.clearCache();
+    set({ generationMode: mode });
+    pushLog(`剧情生成模式：${mode === "off" ? "关闭（全部手写）" : mode === "minor" ? "仅日常与氛围" : "除关键剧情外全部"}`);
+    refresh();
+  },
+
+  planReport: () => {
+    const { session, pipeline } = get();
+    return pipeline.planReport(session.registry.all().map((s) => s.id));
+  },
+
+  saveToSlot: async (slot) => {
+    const { session, slots, pushLog, refresh } = get();
     try {
       const data = session.toSave(slot);
       const env = packForSave(data, slot);
-      const bytes = JSON.stringify(env).length;
+      const json = JSON.stringify(env);
+      const bytes = json.length;
+
+      await getBackend().save(slot, json);
+
       const meta = buildMeta({ slot, data, bytes });
-      set({ slots: upsertMeta(slots, meta), lastSaveMsg: `已保存到 ${slot}` });
+      set({ slots: upsertMeta(slots, meta), lastSaveMsg: `已保存到 ${slot}（${(bytes / 1024).toFixed(1)} KB）` });
       pushLog(`存档写入 ${slot}（${(bytes / 1024).toFixed(1)} KB）`);
     } catch (e) {
-      set({ lastSaveMsg: `保存失败：${e instanceof Error ? e.message : String(e)}` });
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ lastSaveMsg: `保存失败：${msg}` });
+      pushLog(`保存失败：${msg}`);
+    }
+    refresh();
+  },
+
+  loadFromSlot: async (slot) => {
+    const { pushLog, refresh } = get();
+    try {
+      const json = await getBackend().load(slot);
+      const env = JSON.parse(json) as SaveEnvelope;
+      const check = validateAndUnwrap(env);
+
+      if (!check.ok || !check.data) {
+        const reason = check.error === "checksum" ? "校验失败（存档被篡改）"
+          : check.error === "schema" ? "结构版本不兼容"
+          : check.error === "invariant" ? `数据不变式违规：${check.violations?.map((v) => v.code).join("、")}`
+          : "存档不存在";
+        set({ lastSaveMsg: `读取失败：${reason}` });
+        pushLog(`读取 ${slot} 失败：${reason}`);
+        refresh();
+        return;
+      }
+
+      const restored = GameSession.fromSave(check.data);
+      set({ session: restored, lastSaveMsg: `已读取 ${slot}` });
+      pushLog(`读取存档 ${slot}（第 ${check.data.time.day} 天）`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ lastSaveMsg: `读取失败：${msg}` });
+      pushLog(`读取 ${slot} 失败：${msg}`);
+    }
+    refresh();
+  },
+
+  deleteSlot: async (slot) => {
+    const { slots, pushLog, refresh } = get();
+    try {
+      await getBackend().remove(slot);
+      set({ slots: removeMeta(slots, slot), lastSaveMsg: `已删除 ${slot}` });
+      pushLog(`删除存档 ${slot}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ lastSaveMsg: `删除失败：${msg}` });
+    }
+    refresh();
+  },
+
+  autoSave: async () => {
+    const { session, slots, pushLog } = get();
+    const autos = slots.metas.filter((m) => m.kind === "auto");
+    const emptySlot = [1, 2, 3].find((i) => !autos.some((m) => m.slot === `auto${i}`));
+    const nextSlot = emptySlot !== undefined
+      ? `auto${emptySlot}`
+      : [...autos].sort((a, b) => new Date(a.savedAt).getTime() - new Date(b.savedAt).getTime())[0].slot;
+    await get().saveToSlot(nextSlot);
+    pushLog(`自动存档 ${nextSlot}`);
+  },
+
+  refreshSlots: async () => {
+    const { slots } = get();
+    try {
+      const existing = await getBackend().list();
+      // 剔除本地已无文件的槽位元数据
+      let next = slots;
+      for (const m of slots.metas) {
+        if (!existing.includes(m.slot)) next = removeMeta(next, m.slot);
+      }
+      set({ slots: next });
+    } catch {
+      // 后端不可用时保留内存视图
     }
     get().refresh();
   },
 
-  loadFromSlot: (slot) => {
-    const { pushLog } = get();
-    // 浏览器/Node 环境下无真实持久化，这里从内存槽位元数据模拟
-    // 实际持久化由 Tauri 侧 invoke('load_game') 提供
-    set({ lastSaveMsg: `槽位 ${slot} 的读取需要 Tauri 后端支持` });
-    pushLog(`读取存档 ${slot}（需 Tauri 后端）`);
-    get().refresh();
-  },
-
-  deleteSlot: (slot) => {
-    const { slots, pushLog } = get();
-    set({ slots: removeMeta(slots, slot), lastSaveMsg: `已删除 ${slot}` });
-    pushLog(`删除存档 ${slot}`);
-    get().refresh();
-  },
-
-  autoSave: () => {
-    const { session, slots, pushLog } = get();
-    const autos = slots.metas.filter((m) => m.kind === "auto");
-    const nextSlot = autos.length < 3
-      ? `auto${[1, 2, 3].find((i) => !autos.some((m) => m.slot === `auto${i}`)) ?? 1}`
-      : autos.sort((a, b) => new Date(a.savedAt).getTime() - new Date(b.savedAt).getTime())[0].slot;
-    const data = session.toSave(nextSlot);
-    const env = packForSave(data, nextSlot);
-    const bytes = JSON.stringify(env).length;
-    const meta = buildMeta({ slot: nextSlot, data, bytes });
-    set({ slots: upsertMeta(slots, meta), lastSaveMsg: `自动存档 ${nextSlot}` });
-    pushLog(`自动存档 ${nextSlot}`);
-    get().refresh();
-  },
+  backendInfo: () => backendLabel(),
 
   applyCheatAll: () => {
     const { session, pushLog, refresh } = get();
@@ -579,19 +650,26 @@ export const useGame = create<GameState>((set, get) => ({
   },
 
   testLlm: async () => {
-    const { llm } = get();
+    const { llm, pipeline } = get();
     const { narrator, status } = await ensureAvailable(llm.config, true);
     set({ narrator });
+    pipeline.setNarrator(narrator);
+    pipeline.clearCache();
     return status;
   },
 
   rebuildNarrator: async () => {
-    const { llm } = get();
+    const { llm, pipeline } = get();
     if (!llm.enabled) {
       set({ narrator: null });
+      pipeline.setNarrator(null);
+      pipeline.clearCache();
       return;
     }
-    set({ narrator: createNarrator(llm.config, { retries: llm.retries }) });
+    const n = createNarrator(llm.config, { retries: llm.retries });
+    set({ narrator: n });
+    pipeline.setNarrator(n);
+    pipeline.clearCache();
   }
 }));
 
