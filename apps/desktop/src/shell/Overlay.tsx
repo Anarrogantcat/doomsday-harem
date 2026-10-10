@@ -19,6 +19,9 @@ import { PluginPanel } from "../panels/PluginPanel.tsx";
 import { ProloguePanel } from "../panels/ProloguePanel.tsx";
 import { LlmPanel } from "../panels/LlmPanel.tsx";
 import { CanvasView } from "../panels/CanvasView.tsx";
+import { FortressSections } from "./FortressSections.tsx";
+import { DetailTabs } from "./DetailTabs.tsx";
+import { SoloPanel, AnalPrepPanel } from "./SpecialModals.tsx";
 
 export const OVERLAY_TITLES: Record<string, string> = {
   status: "状态详情",
@@ -40,10 +43,15 @@ export const OVERLAY_TITLES: Record<string, string> = {
   mods: "Mod",
   achievements: "成就",
   plugins: "插件",
-  prologue: "序章"
+  prologue: "序章",
+  fortress: "山体要塞 · 剖面图",
+  "hero-detail": "主角完整资料",
+  detail: "角色完整资料",
+  solo: "自慰",
+  "anal-prep": "后庭准备"
 };
 
-export function Overlay({ tab, onClose }: { tab: string | null; onClose: () => void }) {
+export function Overlay({ tab, onClose, detailId }: { tab: string | null; onClose: () => void; detailId?: string }) {
   // Esc 关闭
   useEffect(() => {
     if (!tab) return;
@@ -78,18 +86,23 @@ export function Overlay({ tab, onClose }: { tab: string | null; onClose: () => v
       case "achievements": return <AchievementPanel />;
       case "plugins": return <PluginPanel />;
       case "prologue": return <ProloguePanel />;
+      case "fortress": return <FortressSections onOpenBase={() => { /* 已在弹窗内 */ }} />;
+      case "hero-detail": return <DetailTabs kind="hero" />;
+      case "detail": return <DetailTabs kind="companion" id={detailId} />;
+      case "solo": return <SoloPanel onClose={onClose} />;
+      case "anal-prep": return <AnalPrepPanel id={detailId ?? "sister"} onClose={onClose} />;
       default: return <p className="sub">（未知面板）</p>;
     }
   })();
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="overlay-box" onClick={(e) => e.stopPropagation()}>
-        <header className="overlay-head">
-          <span className="overlay-title">{OVERLAY_TITLES[tab] ?? tab}</span>
-          <button className="navbtn" onClick={onClose}>✕ 关闭（Esc）</button>
-        </header>
-        <div className="overlay-body">{body}</div>
+    <div className="modal on" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="mbox" style={{ width: "min(72em,96vw)", maxWidth: "96vw" }}>
+        <div className="mhead">
+          <span className="mtitle">{OVERLAY_TITLES[tab] ?? tab}</span>
+          <button className="mclose" onClick={onClose}>✕</button>
+        </div>
+        <div className="dbody">{body}</div>
       </div>
     </div>
   );

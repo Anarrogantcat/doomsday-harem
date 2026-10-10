@@ -48,24 +48,24 @@ export function OptionsBar(p: OptionsBarProps) {
   if (p.options.length === 0) return null;
 
   return (
-    <div className="proto-obar">
-      <div className="proto-ohint">
-        <span className="proto-ohl">{p.label ?? "选择回应"}</span>
-        <span className="proto-ohk">数字键 1-9 快速选择 · 空格继续</span>
+    <div className="obar">
+      <div className="ohint">
+        <span className="ohl">{p.label ?? "选择回应"}</span>
+        <span className="ohk">数字键 1-9 快速选择 · 空格继续</span>
       </div>
-      <div className="proto-olist">
+      <div className="olist">
         {p.options.map((o, i) => (
           <button
             key={i}
             className={
-              "proto-opt" + (o.primary ? " proto-go" : "") + (o.locked ? " proto-locked" : "")
+              "opt" + (o.primary ? " go" : "") + (o.locked ? " lock" : "")
             }
             disabled={o.locked}
             onClick={() => o.onPick?.()}
           >
-            <span className="proto-oi">{o.icon}</span>
-            <span className="proto-ot">{o.text}</span>
-            <span className="proto-ok">{o.hint ?? String(i + 1)}</span>
+            <span className="oi">{o.icon}</span>
+            <span className="ot">{o.text}</span>
+            <span className="ok">{o.hint ?? String(i + 1)}</span>
           </button>
         ))}
       </div>
@@ -79,6 +79,8 @@ export interface EventEntry {
   id: number;
   text: string;
   kind?: "ok" | "alert" | "info";
+  /** 游戏内日期标签（原型 .eb-day） */
+  day?: string;
 }
 
 export interface EventBarProps {
@@ -132,28 +134,29 @@ export function EventBar(p: EventBarProps) {
 
   return (
     <div
-      className={"proto-eventbar" + (collapsed ? " collapsed" : "")}
+      className={"eventbar" + (collapsed ? " collapsed" : "")}
       ref={barRef}
       style={height && !collapsed ? { height } : undefined}
     >
-      <div className="proto-eb-grip" onPointerDown={startDrag} title="拖动调节高度" />
-      <div className="proto-eb-head">
-        <span>事件记录</span>
-        <span className="proto-eb-n">{p.entries.length}</span>
+      <div className="eb-grip" onPointerDown={startDrag} title="拖动调节高度" />
+      <div className="eb-head">
+        <span className="eb-title">事件记录</span>
+        <span className="eb-count">{p.entries.length}</span>
         <button
-          className="proto-eb-toggle"
+          className="eb-btn"
           onClick={() => setCollapsed((v) => !v)}
           title={collapsed ? "展开" : "折叠"}
         >{collapsed ? "▸" : "▾"}</button>
       </div>
       {!collapsed ? (
-        <div className="proto-eb-list">
+        <div className="eb-list">
           {p.entries.map((e) => (
-            <div key={e.id} className={"proto-eb-entry" + (e.kind ? " " + e.kind : "")}>
-              {e.text}
+            <div key={e.id} className={"eb-entry" + (e.kind && e.kind !== "info" ? " " + e.kind : "")}>
+              {e.day ? <span className="eb-day">{e.day}</span> : null}
+              <span className="eb-text">{e.text}</span>
             </div>
           ))}
-          {p.entries.length === 0 ? <div className="proto-eb-entry proto-dim">（暂无事件）</div> : null}
+          {p.entries.length === 0 ? <div className="eb-entry dim">（暂无事件）</div> : null}
         </div>
       ) : null}
     </div>
@@ -201,8 +204,8 @@ export function InputBar(p: InputBarProps) {
 
   if (!open) {
     return (
-      <div className="proto-ibar-collapsed">
-        <button className="proto-ib-toggle" onClick={toggle} title="显示输入栏">▴ 输入栏</button>
+      <div className="ibar-collapsed">
+        <button className="itoggle" onClick={toggle} title="显示输入栏">▴ 输入栏</button>
       </div>
     );
   }
@@ -210,22 +213,22 @@ export function InputBar(p: InputBarProps) {
   const cur = MODES.find((m) => m.id === mode)!;
 
   return (
-    <div className="proto-ibar">
-      <div className="proto-imodes">
+    <div className="ibar">
+      <div className="imodes">
         {MODES.map((m) => (
           <button
             key={m.id}
-            className={"proto-imode" + (m.id === mode ? " proto-on" : "")}
+            className={"imode" + (m.id === mode ? " on" : "")}
             title={m.hint}
             onClick={() => { setMode(m.id); p.onMode?.(m.id); }}
           >{m.label}</button>
         ))}
-        <button className="proto-ib-toggle" onClick={toggle} title="隐藏输入栏">▾</button>
+        <button className="itoggle" onClick={toggle} title="隐藏输入栏">▾</button>
       </div>
-      <div className="proto-ibody">
-        <div className="proto-irow">
+      <div className="ibody">
+        <div className="irow">
           <input
-            className="proto-iinput"
+            className="iinput"
             value={text}
             placeholder={cur.hint}
             onChange={(e) => setText(e.target.value)}
@@ -238,13 +241,13 @@ export function InputBar(p: InputBarProps) {
             disabled={p.busy}
           />
           <button
-            className="proto-isend"
+            className="isend"
             disabled={p.busy || !text.trim()}
             onClick={() => { if (text.trim()) { p.onSubmit?.(text.trim()); setText(""); } }}
           >{p.busy ? "生成中…" : "发送"}</button>
         </div>
       </div>
-      <div className="proto-ihint">{p.hint ?? cur.hint}　·　Enter 发送</div>
+      <div className="ihint">{p.hint ?? cur.hint}　·　Enter 发送</div>
     </div>
   );
 }

@@ -1,390 +1,326 @@
 /**
- * 主角 / 同伴详情面板（原型 UI 移植）。
+ * 详情侧栏（原型 UI 移植）。
  *
- * 对应原型 `#hero-detail` 与 `#detail` 两个弹窗，各 6 个标签：
+ * 严格对应原型 `docs/ui-prototype.html` 的 `.detail-side`，5 个一级子元素：
+ *   1. .ds-hero    主角段（固定顶部）
+ *   2. .ds-divider 分隔（「选中角色」）
+ *   3. .ds-head    同伴段头（名 + 角色定位 + ⤢）
+ *   4. .ds-body    同伴段体（立绘 + info + 状态条 + 概况）
+ *   5. .ds-acts    同伴段操作按钮
  *
- *   主角   状态 / 属性 / 性爱统计 / 成长 / 着装 / 技能
- *   同伴   状态 / 亲密 / 性爱统计 / 成长 / 着装 / 技能
- *
- * 性爱统计区块用 core 的 sexStatsView 渲染 9 个分组，
- * 与原型 sexBlock 字段一一对应。
+ * 立绘走既有接口：
+ *   Portrait → rigToDataUri / GenPortrait（外部模型）→ portraitCacheKey
  */
-import { useMemo, useState } from "react";
-import {
-  companionDef,
-  PART_LABEL, DIRECTION_LABEL, ACT_TIER_LABEL,
-  ATTR_KEYS, ATTR_LABEL,
-  JOB_LABEL, SLOT_LABEL,
-  PERSONALITY_LABEL,
-  type SexStatsView,
-  type CompanionRuntime
-} from "@doomsday/core";
+import { useState } from "react";
+import { companionDef, PART_LABEL, DIRECTION_LABEL } from "@doomsday/core";
 import { useGame } from "../store/game.ts";
+import { Portrait } from "./Portrait.tsx";
+import { SexStatsBlock } from "./SexStatsBlock.tsx";
 
-type Kind = "hero" | "companion";
-
-/** 6 个标签定义 */
-const TABS: Record<Kind, Array<{ id: string; label: string }>> = {
-  hero: [
-    { id: "status", label: "状态" },
-    { id: "attrs", label: "属性" },
-    { id: "sex", label: "性爱统计" },
-    { id: "growth", label: "成长" },
-    { id: "wear", label: "着装" },
-    { id: "skill", label: "技能" }
-  ],
-  companion: [
-    { id: "status", label: "状态" },
-    { id: "acts", label: "亲密" },
-    { id: "sex", label: "性爱统计" },
-    { id: "growth", label: "成长" },
-    { id: "wear", label: "着装" },
-    { id: "skill", label: "技能" }
-  ]
-};
-
-/** 单元格 */
-function cell(k: string, v: string | number, dim = false) {
+/** 一行状态条（原型 .dsb） */
+function Bar({ k, v, color }: { k: string; v: number; color: string }) {
   return (
-    <div className="proto-dcell" key={k}>
+    <div className="dsb">
       <span className="k">{k}</span>
-      <span className="v" style={dim ? { color: "var(--dim)" } : undefined}>{v}</span>
-    </div>
-  );
-}
-
-/** 熟练度进度条 */
-function profBar(k: string, lv: number) {
-  return (
-    <div className="proto-kv" key={k}>
-      <span className="k">{k}</span>
-      <div className="proto-tr">
-        <div className="proto-fl" style={{ width: Math.min(100, lv * 10) + "%", background: "var(--accent-lt)" }} />
+      <div className="t">
+        <div className="f" style={{ width: Math.max(0, Math.min(100, v)) + "%", background: color }} />
       </div>
-      <span className="v">Lv{lv}</span>
+      <span className="v">{Math.round(v)}</span>
     </div>
   );
 }
 
-/** 性爱统计（与 core sexStatsView 字段一一对应） */
-export function SexStatsBlock({ v, name }: { v: SexStatsView; name: string }) {
-  const n = (x: number) => x || 0;
-  const dim = (x: number) => n(x) === 0;
+/** 一格概况（原型 .dsg） */
+function G({ k, v }: { k: string; v: string | number }) {
+  return <div className="dsg"><span className="k">{k}</span><span className="v">{v}</span></div>;
+}
 
-  if (n(v.total) === 0) {
-    return (
-      <>
-        <div className="proto-sec">性爱统计</div>
-        <div className="proto-dgrid">
-          {cell("累计亲密", "0 次", true)}
-          {cell("累计高潮", "0 次", true)}
-          {cell("解锁行为", "0 / 26", true)}
-          {cell("后庭准备", v.prep, !v.prepReady)}
+/** 主角段（.ds-hero，固定顶部） */
+function HeroSection({ onOpen }: { onOpen: (tab: string) => void }) {
+  const session = useGame((s) => s.session);
+  const version = useGame((s) => s.version);
+  void version;
+  const h = session.hero;
+  const sv = h.survival;
+
+  return (
+    <div className="ds-hero">
+      <div className="ds-head hero">
+        <span className="ds-name">{h.identity.name}</span>
+        <button className="ds-expand" title="查看完整资料" onClick={() => onOpen("hero-detail")}>⤢</button>
+      </div>
+      <div className="ds-body">
+        <div className="ds-portrait">
+          <Portrait
+            name={h.identity.name}
+            mood={sv.mood}
+            pregnant={h.physiology.pregnant}
+            size={56}
+            active
+          />
+          <div className="ds-info">
+            <div className="ds-title">{h.identity.title}</div>
+            <div className="ds-tags">
+              <span className="ds-tag">{h.identity.heightCm}cm</span>
+              <span className="ds-tag ok">预知能力</span>
+            </div>
+            <div className="ds-lvl">
+              <b>{h.growth.level}</b>
+              <div className="eb"><div className="ef" style={{ width: "45%" }} /></div>
+              <span className="et">{h.growth.exp ?? 0}</span>
+            </div>
+          </div>
         </div>
-        <div className="proto-hint-line">{name}尚无性经验 · 完整统计将在首次亲密后解锁</div>
-      </>
-    );
-  }
 
-  return (
-    <>
-      <div className="proto-sec">总览</div>
-      <div className="proto-dgrid">
-        {cell("累计亲密", n(v.total) + " 次", dim(v.total))}
-        {cell("累计高潮", n(v.orgasm) + " 次", dim(v.orgasm))}
-        {cell("解锁行为", n(v.unlocked) + " / 26", dim(v.unlocked))}
-        {cell("攻受比", n(v.topRatio) + "%", dim(v.topRatio))}
-        {cell("后庭准备", v.prep, !v.prepReady)}
-        {cell("平均时长", n(v.avgMinutes) ? n(v.avgMinutes) + " 分钟" : "—", dim(v.avgMinutes))}
+        {/* 6 条状态条（原型 .ds-bars） */}
+        <div className="ds-bars">
+          <Bar k="体力" v={sv.stamina} color="var(--ok)" />
+          <Bar k="饥饿" v={sv.hunger} color="var(--energy)" />
+          <Bar k="口渴" v={sv.thirst} color="var(--info)" />
+          <Bar k="精力" v={sv.energy} color="var(--accent-lt)" />
+          <Bar k="心情" v={sv.mood} color="var(--warn)" />
+          <Bar k="欲情" v={h.lust.value} color="var(--lust)" />
+        </div>
+
+        <div className="ds-grid">
+          <G k="同伴" v={session.joined().length} />
+          <G k="科技" v={session.tech.unlocked.size} />
+          <G k="设施" v={session.baseSummary().built} />
+          <G k="可加点" v={h.growth.points ?? 0} />
+        </div>
       </div>
-
-      <div className="proto-sec">插入 / 被插入</div>
-      <div className="proto-dgrid">
-        {cell("插入总次数", n(v.penetrate) + " 次", dim(v.penetrate))}
-        {cell("被插入总次数", n(v.penetrated) + " 次", dim(v.penetrated))}
-        {cell("插入前庭", n(v.penetrateVagina) + " 次", dim(v.penetrateVagina))}
-        {cell("插入后庭", n(v.penetrateAnus) + " 次", dim(v.penetrateAnus))}
-        {cell("被插入前庭", n(v.penetratedVagina) + " 次", dim(v.penetratedVagina))}
-        {cell("被插入后庭", n(v.penetratedAnus) + " 次", dim(v.penetratedAnus))}
-      </div>
-
-      <div className="proto-sec">射精（自己主动）</div>
-      <div className="proto-dgrid">
-        {cell("射精总次数", n(v.shots) + " 次", dim(v.shots))}
-        {cell("其中内射", n(v.shotInside) + " 次", dim(v.shotInside))}
-        {cell("外射", n(v.shotOutside) + " 次", dim(v.shotOutside))}
-        {cell("口爆", n(v.shotMouth) + " 次", dim(v.shotMouth))}
-        {cell("颜射", n(v.shotFacial) + " 次", dim(v.shotFacial))}
-        {cell("胸射", n(v.shotBreast) + " 次", dim(v.shotBreast))}
-        {cell("内射率", n(v.shotInsideRate) + "%", dim(v.shotInsideRate))}
-      </div>
-
-      <div className="proto-sec">被射（自己接受）</div>
-      <div className="proto-dgrid">
-        {cell("被内射", n(v.inside) + " 次", dim(v.inside))}
-        {cell("被外射", n(v.outside) + " 次", dim(v.outside))}
-        {cell("被口爆", n(v.inMouth) + " 次", dim(v.inMouth))}
-        {cell("被颜射", n(v.facial) + " 次", dim(v.facial))}
-        {cell("被胸射", n(v.breast) + " 次", dim(v.breast))}
-        {cell("被射总计", n(v.receivedTotal) + " 次", dim(v.receivedTotal))}
-        {cell("被内射占比", n(v.receivedInsideRate) + "%", dim(v.receivedInsideRate))}
-      </div>
-
-      <div className="proto-sec">主动服务</div>
-      <div className="proto-dgrid">
-        {cell("口交（施）", n(v.giveBJ) + " 次", dim(v.giveBJ))}
-        {cell("口交（受）", n(v.receiveBJ) + " 次", dim(v.receiveBJ))}
-        {cell("手活（施）", n(v.giveHand) + " 次", dim(v.giveHand))}
-        {cell("手活（受）", n(v.receiveHand) + " 次", dim(v.receiveHand))}
-        {cell("使用道具", n(v.toys) + " 次", dim(v.toys))}
-        {cell("使用润滑剂", n(v.lube) + " 次", dim(v.lube))}
-      </div>
-
-      <div className="proto-sec">后庭专项</div>
-      <div className="proto-dgrid">
-        {cell("准备流程完成", n(v.analPrep) + " 次", dim(v.analPrep))}
-        {cell("灌肠次数", n(v.enema) + " 次", dim(v.enema))}
-        {cell("后庭玩具", n(v.analToy) + " 次", dim(v.analToy))}
-        {cell("双穴同时", n(v.analDouble) + " 次", dim(v.analDouble))}
-        {cell("后庭总次数", n(v.analTotal) + " 次", dim(v.analTotal))}
-        {cell("后庭开发度", "Lv" + n(v.analLevel), dim(v.analLevel))}
-      </div>
-
-      <div className="proto-sec">受精与生育</div>
-      <div className="proto-dgrid">
-        {cell("受精风险", n(v.fertilized) + " 次", dim(v.fertilized))}
-        {cell("成功受孕", n(v.conceived) + " 次", dim(v.conceived))}
-        {cell("事后避孕", n(v.pill) + " 次", dim(v.pill))}
-        {cell("累计生产", n(v.births) + " 次", dim(v.births))}
-        {cell("已育子女", String(n(v.children)), dim(v.children))}
-      </div>
-
-      <div className="proto-sec">部位熟练度</div>
-      {profBar("口", Math.min(10, Math.floor((n(v.giveBJ) * 4 + n(v.receiveBJ) * 3) / 6)))}
-      {profBar("前庭", Math.min(10, Math.floor((n(v.penetrateVagina) * 3 + n(v.penetratedVagina) * 3) / 6)))}
-      {profBar("后庭", n(v.analLevel))}
-      {profBar("手", Math.min(10, Math.floor((n(v.giveHand) * 4 + n(v.receiveHand) * 3) / 6)))}
-      {profBar("道具", Math.min(10, Math.floor((n(v.toys) * 4 + n(v.lube) * 2) / 6)))}
-
-      <div className="proto-sec">偏好</div>
-      <div className="proto-dgrid">
-        {cell("主要对象", v.partner || "—", v.partner === "—")}
-        {cell("最常用体位", v.pose || "—", (v.pose || "—") === "—")}
-        {cell("累计时长", n(v.minutes) ? n(v.minutes) + " 分钟" : "—", dim(v.minutes))}
-        {cell("首次亲密", v.firstDay != null ? "第 " + v.firstDay + " 天" : "—", v.firstDay == null)}
-        {cell("最近亲密", v.lastDay != null ? "第 " + v.lastDay + " 天" : "—", v.lastDay == null)}
-      </div>
-    </>
+    </div>
   );
 }
 
-/** 同伴状态页（含生理九项，R-1 新增 face） */
-function CompanionStatus({ c }: { c: CompanionRuntime }) {
-  const def = companionDef(c.id);
-  const body = def ? {
-    sex: "女",
-    gender: "女性",
-    orient: "女",
-    height: c.identity.heightCm + "cm",
-    cup: (def.cup ?? 0) > 0 ? ["A", "B", "C", "D", "E", "F", "G", "H"][def.cup!] : "—",
-    build: def.build,
-    face: def.face ?? "—"
-  } : null;
-
-  return (
-    <>
-      <div className="proto-sec">生理</div>
-      <div className="proto-dgrid">
-        {cell("生理性别", "女")}
-        {cell("性别认同", "女性")}
-        {cell("性取向", "女")}
-        {cell("身高", c.identity.heightCm + "cm")}
-        {cell("体型", body?.build ?? "—")}
-        {cell("罩杯", body?.cup ?? "—")}
-        {cell("伴侣履历", c.hadPartner ? "有过伴侣" : "无", !c.hadPartner)}
-        {cell("处女", c.physiology.virgin ? "是" : "否", !c.physiology.virgin)}
-      </div>
-      {body?.face ? (
-        <>
-          <div className="proto-sec">相貌</div>
-          <div className="proto-hint-line">{body.face}</div>
-        </>
-      ) : null}
-    </>
-  );
-}
-
-export function DetailPanel({ kind, id }: { kind: Kind; id?: string }) {
-  const [tab, setTab] = useState("status");
+/** 同伴段（.ds-head + .ds-body + .ds-acts） */
+function CompanionSection({ id, onOpen }: { id: string; onOpen: (tab: string) => void }) {
   const session = useGame((s) => s.session);
   const version = useGame((s) => s.version);
   void version;
 
-  const tabs = TABS[kind];
+  const c = id ? session.companion(id) : null;
+  const sexView = id ? session.companionSexStatsView(id) : null;
 
-  const sexView: SexStatsView | null = useMemo(() => {
-    if (kind === "hero") return session.heroSexStatsView();
-    const cid = id;
-    return cid && cid !== "hero" ? session.companionSexStatsView(cid) : null;
-  }, [session, kind, id, version]);
+  if (!c) {
+    return (
+      <>
+        <div className="ds-divider">选中角色</div>
+        <div className="ds-head">
+          <span className="ds-name">未选中</span>
+        </div>
+        <div className="ds-body" style={{ padding: ".6em", color: "var(--dim)", fontSize: ".8em" }}>
+          点击左栏角色卡查看详情，双击打开完整资料。
+        </div>
+      </>
+    );
+  }
 
-  const companion: CompanionRuntime | null = useMemo(() => {
-    if (kind === "hero") return null;
-    const cid = id;
-    return cid && cid !== "hero" ? (session.companion(cid) ?? null) : null;
-  }, [session, kind, id, version]);
+  const def = companionDef(c.id);
+  const r = c.relationship;
+  const roleText = r.role === "family" ? "家人" : r.role === "ai" ? "AI" : r.role === "main" ? "主线" : "支线";
 
   return (
-    <div className="proto-ds-hero">
-      <div className="proto-ds-head">
-        <div className="proto-dname">
-          {kind === "hero" ? "主角" : companion?.identity.name ?? "同伴"}
-        </div>
-        <div className="proto-dtitle">
-          {kind === "hero" ? "扶她 · 指挥者" : companion?.identity.title ?? ""}
-        </div>
+    <>
+      <div className="ds-divider">选中角色</div>
+      <div className="ds-head">
+        <span className="ds-name">{c.identity.name}</span>
+        <span className="ds-role">{roleText}</span>
+        <button className="ds-expand" title="查看完整资料" onClick={() => onOpen("detail")}>⤢</button>
       </div>
-      <div className="proto-dtabs">
+
+      <div className="ds-body">
+        <div className="ds-portrait">
+          <Portrait
+            name={c.identity.name}
+            mood={70}
+            pregnant={c.physiology.pregnant}
+            size={52}
+            active
+          />
+          <div className="ds-info">
+            <div className="ds-title">{c.identity.title}</div>
+            <div className="ds-tags">
+              {def?.build ? <span className="ds-tag">{def.build.split("，")[0]}</span> : null}
+              <span className="ds-tag">{c.identity.heightCm}cm</span>
+              <span className={"ds-tag" + (c.physiology.virgin ? "" : " ok")}>
+                {c.physiology.virgin ? "处女" : "已破处"}
+              </span>
+            </div>
+            <div className="ds-lvl">
+              <b>{c.growth.level ?? 1}</b>
+              <div className="eb"><div className="ef" style={{ width: "60%" }} /></div>
+              <span className="et">{c.growth.exp ?? 0}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="ds-bars">
+          <Bar k="好感" v={r.affection} color="var(--accent-lt)" />
+          <Bar k="忠诚" v={r.loyalty} color="var(--info)" />
+          <Bar k="欲情" v={c.lust.value} color="var(--lust)" />
+          <Bar k="羁绊" v={r.bond * 20} color="var(--ok)" />
+        </div>
+
+        <div className="ds-grid">
+          <G k="岗位" v={c.job.id ?? "待分配"} />
+          <G k="冷落" v={(c.lust.daysSinceIntimacy ?? 0) + " 天"} />
+          <G k="亲密" v={"T" + r.bond} />
+          <G k="增益" v={c.growth.perks.length + " 项"} />
+        </div>
+
+        {sexView ? (
+          <div className="ds-grid" style={{ marginTop: ".3em" }}>
+            <G k="累计亲密" v={sexView.total + " 次"} />
+            <G k="内射" v={sexView.shotInside + " 次"} />
+            <G k="被内射" v={sexView.inside + " 次"} />
+            <G k="后庭" v={"Lv" + sexView.analLevel} />
+          </div>
+        ) : null}
+      </div>
+
+      <div className="ds-acts">
+        <button className="abtn" onClick={() => onOpen("detail")}>完整资料</button>
+        <button className="abtn primary" onClick={() => onOpen("status")}>亲密</button>
+        <button className="abtn" onClick={() => onOpen("anal-prep")}>后庭准备</button>
+      </div>
+    </>
+  );
+}
+
+export function DetailPanel({ kind, id, onOpen }: {
+  kind: "hero" | "companion";
+  id?: string;
+  onOpen?: (tab: string) => void;
+}) {
+  const open = onOpen ?? (() => { /* 无回调时不动作 */ });
+  const target = kind === "companion" && id ? id : "";
+  return (
+    <>
+      <HeroSection onOpen={open} />
+      <CompanionSection id={target} onOpen={open} />
+    </>
+  );
+}
+
+
+// ============ 弹窗版：完整 6 标签资料（原型 #hero-detail / #detail）============
+
+type DetailTabId = "status" | "acts" | "sex" | "growth" | "wear" | "skill";
+
+const COMPANION_TABS: Array<{ id: DetailTabId; label: string }> = [
+  { id: "status", label: "状态" },
+  { id: "acts", label: "亲密" },
+  { id: "sex", label: "性爱统计" },
+  { id: "growth", label: "成长" },
+  { id: "wear", label: "着装" },
+  { id: "skill", label: "技能" }
+];
+
+const HERO_TABS: Array<{ id: DetailTabId; label: string }> = [
+  { id: "status", label: "状态" },
+  { id: "sex", label: "性爱统计" },
+  { id: "growth", label: "成长" },
+  { id: "wear", label: "着装" },
+  { id: "skill", label: "技能" },
+  { id: "acts", label: "亲密" }
+];
+
+/** 弹窗版完整资料（原型 6 标签） */
+export function DetailTabs({ kind, id }: { kind: "hero" | "companion"; id?: string }) {
+  const session = useGame((s) => s.session);
+  const version = useGame((s) => s.version);
+  const [tab, setTab] = useState<DetailTabId>("status");
+  void version;
+
+  const tabs = kind === "hero" ? HERO_TABS : COMPANION_TABS;
+  const c = kind === "companion" && id ? session.companion(id) : null;
+  const sexView = kind === "hero" ? session.heroSexStatsView() : (id ? session.companionSexStatsView(id) : null);
+
+  return (
+    <>
+      <div className="dtabs">
         {tabs.map((t) => (
-          <div
-            key={t.id}
-            className={"proto-dtab" + (t.id === tab ? " proto-on" : "")}
-            onClick={() => setTab(t.id)}
-          >{t.label}</div>
+          <div key={t.id} className={"dtab" + (t.id === tab ? " on" : "")} onClick={() => setTab(t.id)}>
+            {t.label}
+          </div>
         ))}
       </div>
 
-      <div className="proto-dbody">
-        {tab === "sex" && sexView ? (
-          <div className="proto-pane proto-on">
-            <SexStatsBlock v={sexView} name={kind === "hero" ? "主角" : companion?.identity.name ?? "该角色"} />
-          </div>
-        ) : null}
+      {tab === "sex" && sexView ? (
+        <SexStatsBlock v={sexView} name={kind === "hero" ? "主角" : c?.identity.name ?? "该角色"} />
+      ) : null}
 
-        {tab === "status" ? (
-          <div className="proto-pane proto-on">
-            {kind === "hero" ? (
-              <>
-                <div className="proto-sec">生理</div>
-                <div className="proto-dgrid">
-                  {cell("生理性别", "扶她")}
-                  {cell("性别认同", "女性")}
-                  {cell("性取向", "女")}
-                  {cell("身高", session.hero.identity.heightCm + "cm")}
-                  {cell("处女", session.hero.physiology.virgin ? "是" : "否")}
-                  {cell("怀孕", session.hero.physiology.pregnant ? "是" : "否")}
-                </div>
-                <div className="proto-sec">生存</div>
-                <div className="proto-dgrid">
-                  {cell("体力", Math.round(session.hero.survival.stamina))}
-                  {cell("精力", Math.round(session.hero.survival.energy))}
-                  {cell("心情", Math.round(session.hero.survival.mood))}
-                  {cell("饥饿", Math.round(session.hero.survival.hunger))}
-                  {cell("口渴", Math.round(session.hero.survival.thirst))}
-                  {cell("欲情", Math.round(session.hero.lust.value))}
-                </div>
-              </>
-            ) : companion ? (
-              <CompanionStatus c={companion} />
-            ) : (
-              <div className="proto-hint-line">未选中角色</div>
-            )}
-          </div>
-        ) : null}
+      {tab === "status" ? (
+        <div className="dgrid">
+          {kind === "hero" ? (
+            <>
+              <div className="dcell"><span className="k">生理性别</span><span className="v">扶她</span></div>
+              <div className="dcell"><span className="k">身高</span><span className="v">{session.hero.identity.heightCm}cm</span></div>
+              <div className="dcell"><span className="k">等级</span><span className="v">{session.hero.growth.level}</span></div>
+              <div className="dcell"><span className="k">体力</span><span className="v">{Math.round(session.hero.survival.stamina)}</span></div>
+            </>
+          ) : c ? (
+            <>
+              <div className="dcell"><span className="k">身份</span><span className="v">{c.identity.title}</span></div>
+              <div className="dcell"><span className="k">身高</span><span className="v">{c.identity.heightCm}cm</span></div>
+              <div className="dcell"><span className="k">处女</span><span className="v">{c.physiology.virgin ? "是" : "否"}</span></div>
+              <div className="dcell"><span className="k">伴侣履历</span><span className="v">{c.hadPartner ? "有过伴侣" : "无"}</span></div>
+            </>
+          ) : null}
+        </div>
+      ) : null}
 
-        {tab === "attrs" && kind === "hero" ? (
-          <div className="proto-pane proto-on">
-            <div className="proto-sec">属性</div>
-            <div className="proto-dgrid">
-              {ATTR_KEYS.map((k) => cell(ATTR_LABEL[k], Math.round(session.hero.growth.attributes[k] ?? 0)))}
+      {tab === "acts" && c ? (
+        <div className="dgrid">
+          {session.availableSexActs(c.id).map((a) => (
+            <div className="dcell" key={a.def.id}>
+              <span className="k">{a.def.name} · {PART_LABEL[a.def.part]}{DIRECTION_LABEL[a.def.direction]}</span>
+              <span className="v" style={{ color: a.usable ? "var(--ok)" : "var(--dim)" }}>
+                {a.usable ? "可用" : a.reason ?? "未解锁"}
+              </span>
             </div>
-            <div className="proto-sec">加成</div>
-            <div className="proto-dgrid">
-              {cell("可用点数", session.hero.growth.points ?? 0)}
-              {cell("等级", session.hero.growth.level)}
+          ))}
+        </div>
+      ) : null}
+
+      {tab === "growth" ? (
+        <div className="dgrid">
+          {c ? (
+            <>
+              <div className="dcell"><span className="k">岗位</span><span className="v">{c.job.id ?? "待分配"}</span></div>
+              <div className="dcell"><span className="k">在岗天数</span><span className="v">{c.job.daysOnJob}</span></div>
+              <div className="dcell"><span className="k">被动增益</span><span className="v">{c.growth.perks.length} 项</span></div>
+              <div className="dcell"><span className="k">技能数</span><span className="v">{c.growth.skills.length}</span></div>
+            </>
+          ) : (
+            <div className="dcell"><span className="k">等级</span><span className="v">{session.hero.growth.level}</span></div>
+          )}
+        </div>
+      ) : null}
+
+      {tab === "wear" ? (
+        <div className="dgrid">
+          {(c ?? session.hero) ? (
+            <div className="dcell">
+              <span className="k">已装备</span>
+              <span className="v">
+                {Object.keys((c ?? session.hero).wardrobe.equipped).length} / 11 槽
+              </span>
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
+      ) : null}
 
-        {tab === "acts" && kind === "companion" && companion ? (
-          <div className="proto-pane proto-on">
-            <div className="proto-sec">可用行为</div>
-            <div className="proto-dgrid">
-              {session.availableSexActs(companion.id).map((a) => (
-                <div className="proto-dcell" key={a.def.id}>
-                  <span className="k">{a.def.name}
-                    <span className="proto-dim"> · {PART_LABEL[a.def.part]}{DIRECTION_LABEL[a.def.direction]}</span>
-                  </span>
-                  <span className="v" style={{ color: a.usable ? "var(--ok)" : "var(--dim)" }}>
-                    {a.usable ? "可用" : a.reason ?? "未解锁"}
-                  </span>
-                </div>
-              ))}
+      {tab === "skill" ? (
+        <div className="dgrid">
+          {c ? c.growth.skills.map((sk) => (
+            <div className="dcell" key={sk.id}>
+              <span className="k">{sk.name}</span><span className="v">Lv{sk.level}</span>
             </div>
-          </div>
-        ) : null}
-
-        {tab === "growth" ? (
-          <div className="proto-pane proto-on">
-            {kind === "hero" ? (
-              <>
-                <div className="proto-dgrid">
-                  {cell("等级", session.hero.growth.level)}
-                  {cell("技能总数", Object.keys(session.hero.growth.skills ?? {}).length)}
-                </div>
-              </>
-            ) : companion ? (
-              <>
-                <div className="proto-dgrid">
-                  {cell("岗位", companion.job.id ? JOB_LABEL[companion.job.id] : "无")}
-                  {cell("在岗天数", companion.job.daysOnJob)}
-                  {cell("被动增益", companion.growth.perks.length + " 项")}
-                  {cell("亲密度", "T" + companion.relationship.bond)}
-                </div>
-                <div className="proto-sec">熟练度</div>
-                {session.companionProficiencyDetail(companion.id)?.map((x) =>
-                  profBar(x.label, x.level))}
-              </>
-            ) : null}
-          </div>
-        ) : null}
-
-        {tab === "wear" && companion ? (
-          <div className="proto-pane proto-on">
-            <div className="proto-sec">着装</div>
-            <div className="proto-dgrid">
-              {(Object.keys(SLOT_LABEL) as Array<keyof typeof SLOT_LABEL>).map((slot) => {
-                const g = companion.wardrobe.equipped[slot];
-                return (
-                  <div className="proto-dcell" key={slot}>
-                    <span className="k">{SLOT_LABEL[slot]}</span>
-                    <span className="v" style={!g ? { color: "var(--dim)" } : undefined}>
-                      {g ? `${g.itemId}（耐久 ${Math.round(g.durability)}）` : "未装备"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
-
-        {tab === "skill" && companion ? (
-          <div className="proto-pane proto-on">
-            <div className="proto-sec">技能</div>
-            {companion.growth.skills.length === 0
-              ? <div className="proto-hint-line">尚无技能</div>
-              : companion.growth.skills.map((s) => (
-                <div className="proto-skl" key={s.id}>
-                  <span className="proto-sn">{s.name}</span>
-                  <span className="proto-sl">Lv{s.level}</span>
-                  <span className="proto-sd">{s.description ?? ""}</span>
-                </div>
-              ))}
-            <div className="proto-sec">性格</div>
-            <div className="proto-hint-line">{PERSONALITY_LABEL[companion.identity.tags[1] as keyof typeof PERSONALITY_LABEL] ?? companion.identity.tags[1]}</div>
-          </div>
-        ) : null}
-      </div>
-    </div>
+          )) : <div className="dcell"><span className="k">主角技能</span><span className="v">见属性页</span></div>}
+        </div>
+      ) : null}
+    </>
   );
 }

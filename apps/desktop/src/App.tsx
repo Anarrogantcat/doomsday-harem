@@ -4,7 +4,7 @@ import { buildSceneContext } from "@doomsday/llm";
 import { useGame } from "./store/game.ts";
 import { LeftColumn } from "./shell/LeftColumn.tsx";
 import { RightColumn } from "./shell/RightColumn.tsx";
-import { NarrationPanel, type NarrationEntry } from "./shell/NarrationPanel.tsx";
+import { Stage, CenterTabs, type NarrationEntry } from "./shell/Stage.tsx";
 import { PixelStrip } from "./shell/PixelStrip.tsx";
 import { CombatView } from "./shell/CombatView.tsx";
 import { StatusStrip, MessageLog } from "./shell/StatusStrip.tsx";
@@ -338,35 +338,22 @@ export function App() {
 
       {/* ═══ 中栏：舞台 + 选项 + 事件 + 输入 ═══ */}
       <div className="center">
-        <div className="ctabs">
-          {([
-            ["narration", "叙事"],
-            ["combat", "战斗"]
-          ] as Array<[CenterTab, string]>).map(([id, label]) => (
-            <button
-              key={id}
-              className={"ctab" + (centerTab === id ? " on" : "")}
-              onClick={() => setCenterTab(id)}
-            >
-              {label}{id === "combat" && session.inCombat() ? " ●" : ""}
-            </button>
-          ))}
-          <span className="chint">视图随操作自动切换</span>
-        </div>
+        <CenterTabs
+          tab={centerTab}
+          onTab={setCenterTab}
+          combat={session.inCombat()}
+        />
 
         {/* 舞台 */}
         <div className="stage">
           {centerTab === "combat" ? (
             <CombatView />
           ) : (
-            <NarrationPanel
+            <Stage
               entries={entries}
               index={index}
-              onIndex={setIndex}
-              onGenerate={doGenerate}
               generating={generating}
               streamText={streamText}
-              embedded
             />
           )}
         </div>
@@ -402,6 +389,7 @@ export function App() {
         <DetailPanel
           kind={selected === "hero" || !selected ? "hero" : "companion"}
           id={selected ?? undefined}
+          onOpen={setOverlay}
         />
       </div>
 
@@ -410,7 +398,7 @@ export function App() {
 
       <StatusStrip />
       <MessageLog />
-      <Overlay tab={overlay} onClose={() => setOverlay(null)} />
+      <Overlay tab={overlay} onClose={() => setOverlay(null)} detailId={selected && selected !== "hero" ? selected : undefined} />
       <CheatOverlay />
       <BigMapHost />
 
