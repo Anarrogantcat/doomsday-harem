@@ -206,7 +206,8 @@ export class Narrator {
   toScene(ctx: ScenePromptContext, text: string): Scene {
     const chunks = parseBeats(text);
     const beats: Beat[] = chunks.map((chunk, i) => {
-      const lines: Line[] = classifyLines(chunk).map((l) => ({
+      const known = ctx.participants.map((p) => p.name);
+      const lines: Line[] = classifyLines(chunk, known).map((l) => ({
         layer: l.layer as Line["layer"],
         text: l.text,
         speaker: l.speaker
@@ -230,7 +231,7 @@ export class Narrator {
           beats: paras.map((p, i) => ({
             id: `${ctx.sceneId}_p${i + 1}`,
             poseKey: ctx.pose ?? "generated",
-            lines: classifyLines(p).map((l) => ({
+            lines: classifyLines(p, ctx.participants.map((x) => x.name)).map((l) => ({
               layer: l.layer as Line["layer"],
               text: l.text,
               speaker: l.speaker

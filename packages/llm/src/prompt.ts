@@ -203,7 +203,11 @@ export function normalizeOutput(text: string): string {
   let s = text;
 
   // 1) 说话人与引号之间被换行隔开（允许中间夹着 ? ？ : 等杂字符）
-  s = s.replace(/([^\s「『"：:\n]{1,12})\s*\n\s*[?？:：,，.。]*\s*([「『])/g, "$1$2");
+  //    但分隔符行（--- / *** / ===）不是说话人，必须排除
+  s = s.replace(
+    /([^\s「『"：:\n\-*=]{1,12})\s*\n\s*[?？:：,，.。]*\s*([「『])/g,
+    "$1$2"
+  );
   // 2) 嵌套引号收拢
   s = s.replace(/「「([^」]*)」」/g, "「$1」");
   s = s.replace(/『『([^』]*)』』/g, "『$1』");
@@ -246,6 +250,16 @@ export function isBeatMarker(line: string): boolean {
 const SPEAKER_RE = /^([^「」\n]{1,12})\s*[「『]([^」』]+)[」』]/;
 
 /**
+ * 整行恰好是「角色名「台词」」，无任何前后缀。
+ * 说话人名限制在 1-6 字，且不能含动词、代词、标点 ——
+ * 避免把「你俯身吻她耳垂」这样的叙述误判成人名。
+ */
+const FULL_SPEECH_RE = /^([^「」\n]{1,6})\s*[「『]([^」』]+)[」』]$/;
+
+/** 叙述性词汇：出现在「说话人」位置说明这是叙述而非人名 */
+const NARRATION_WORDS = /[你我的了她他它们着过就都还又很太被把让使能动说问道看听想觉得站坐走跑俯身伸抬低抱吻舔咬手指膝盖腰唇舌臂腿脚呼吸喉眼嘴头肩背身]/;
+
+/**
  * 从一行文本中提取说话人与台词。
  * 支持「姐姐「别动。」」与「姐姐：别动。」两种写法。
  */
@@ -270,17 +284,124 @@ export function extractSpeech(line: string): { speaker: string; text: string } |
  *  3. 台词优先识别说话人
  *  4. 其余按关键词启发式归类
  */
-export function classifyLines(paragraph: string): Array<{ layer: string; text: string; speaker?: string }> {
+export function classifyLines(
+  paragraph: string,
+  knownSpeakers: string[] = []
+): Array<{ layer: string; text: string; speaker?: string }> {
   const out: Array<{ layer: string; text: string; speaker?: string }> = [];
 
-  const rawLines = paragraph.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+  const rawLines = paragraph
+    .split(/\n+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && !isBeatMarker(s))
+    // 过滤孤立标点噪声行（模型偶尔输出单独的「。」）
+    .filter((s) => !/^[。，、；：！？…—\-]+$/.test(s));
 
-  for (const rawLine of rawLines) {
-    // 整行就是一句台词（含说话人）
-    const whole = extractSpeech(rawLine);
-    if (whole && rawLine.length < 80) {
-      out.push({ layer: "speech", text: whole.text, speaker: whole.speaker });
-      continue;
+  /**
+   * 从最近的上文推断说话人。
+   *
+   * 只看非台词行（动作/心理/感官描写），因为台词内容里出现的名字
+   * 是「被称呼的对象」而非说话人。
+   * 按距离加权：越近的行权重越高。
+   */
+  const inferSpeaker = (lookahead: string[] = []): string | undefined => {
+    const scores = new Map<string, number>();
+
+    // 向后看：最近几行非台词描写里提到的角色
+    let weight = 3;
+    for (let i = out.length - 1; i >= 0 && weight > 0; i--, weight--) {
+      const line = out[i];
+      if (line.layer === "speech") continue;
+      for (const name of knownSpeakers) {
+        if (name === "主角" || name === "你") continue;
+        if (line.text.includes(name)) {
+          scores.set(name, (scores.get(name) ?? 0) + weight);
+        }
+      }
+    }
+
+    // 向前看：若上文无线索，用后续描写推断（权重略低）
+    let fw = 2;
+    for (let i = 0; i < lookahead.length && fw > 0; i++, fw--) {
+      for (const name of knownSpeakers) {
+        if (name === "主角" || name === "你") continue;
+        if (lookahead[i].includes(name)) {
+          scores.set(name, (scores.get(name) ?? 0) + fw);
+        }
+      }
+    }
+
+    if (scores.size === 0) return undefined;
+    return [...scores.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  };
+
+  /**
+   * 由「引号前的叙述」判定说话人。
+   *
+   * 看主语小句（第一个小句）而非最后一个小句：
+   *   「她的膝盖顶住你腰侧，呼吸喷在你耳后」→ 主语是「她」
+   *   「你俯身用唇尖轻触她耳垂」→ 主语是「你」
+   *   「大学女教师的手指…」→ 直接点名
+   */
+  const speakerFromNarration = (before: string): string | undefined => {
+    if (!before.trim()) return undefined;
+    const clauses = before.split(/[，,。；;]/).map((x) => x.trim()).filter(Boolean);
+    const subject = clauses[0] ?? before;
+    const females = knownSpeakers.filter((n) => n !== "主角" && n !== "你");
+
+    // 1) 主语小句直接点名某角色
+    const named = females.find((n) => subject.includes(n));
+    if (named) return named;
+
+    // 2) 主语是第二人称 → 主角
+    if (/^(你|您)/.test(subject)) return "主角";
+
+    // 3) 主语是第三人称代词 → 唯一候选
+    if (/^(她|他|它)/.test(subject) && females.length === 1) return females[0];
+
+    // 4) 叙述里提到唯一候选
+    const inBefore = females.find((n) => before.includes(n));
+    if (inBefore && females.length === 1) return inBefore;
+
+    return undefined;
+  };
+
+  /** 取当前行之后的前几行非台词文本，供向前推断 */
+  const lookaheadFrom = (startIdx: number): string[] => {
+    const out2: string[] = [];
+    for (let i = startIdx; i < rawLines.length && out2.length < 3; i++) {
+      const l = rawLines[i];
+      if (!l.includes("「")) out2.push(l);
+    }
+    return out2;
+  };
+
+  for (let rawIdx = 0; rawIdx < rawLines.length; rawIdx++) {
+    const rawLine = rawLines[rawIdx];
+    // 整行恰好是一句台词（含说话人），无前后缀。
+    // 需校验前缀确实是个人名：要么是已知角色，要么不含叙述性词汇。
+    const full = rawLine.match(FULL_SPEECH_RE);
+    if (full) {
+      const name = full[1].trim();
+      const isKnown = knownSpeakers.includes(name);
+      // 未登记的名字必须像人名：不含叙述性词汇
+      const looksLikeName = !NARRATION_WORDS.test(name);
+      if (isKnown || looksLikeName) {
+        out.push({ layer: "speech", text: full[2].trim(), speaker: name });
+        continue;
+      }
+      // 否则当作叙述+台词处理（落到下面的 inline 分支）
+    }
+
+    // 冒号写法：`姐姐：抓紧我。`（无引号）
+    const colonForm = rawLine.match(/^([^：:\n]{1,6})[：:]\s*(.+)$/);
+    if (colonForm) {
+      const nm = colonForm[1].trim();
+      const isKnown = knownSpeakers.includes(nm);
+      if (isKnown || !NARRATION_WORDS.test(nm)) {
+        out.push({ layer: "speech", text: colonForm[2].trim(), speaker: nm });
+        continue;
+      }
     }
 
     const segments = splitSentences(rawLine);
@@ -288,12 +409,82 @@ export function classifyLines(paragraph: string): Array<{ layer: string; text: s
       const s = seg.trim();
       if (!s) continue;
 
-      // 段落内嵌台词
-      const sp = extractSpeech(s);
-      if (sp) {
-        out.push({ layer: "speech", text: sp.text, speaker: sp.speaker });
+      // 段落内嵌台词。仅当整段就是「名字「台词」」时才算，
+      // 否则交给下面的 inline 分支按叙述+台词拆分。
+      const spFull = s.match(FULL_SPEECH_RE);
+      if (spFull) {
+        const nm = spFull[1].trim();
+        const known = knownSpeakers.includes(nm);
+        if (known || !NARRATION_WORDS.test(nm)) {
+          out.push({ layer: "speech", text: spFull[2].trim(), speaker: nm });
+          continue;
+        }
+      }
+
+      // 引号闭合后还有叙述（`「别动。」她想了很久。`）→ 拆分
+      const closeThenText = s.match(/^[「『]([^」』]*)[」』](.+)$/);
+      if (closeThenText && closeThenText[2].trim()) {
+        const speechText = closeThenText[1].trim();
+        if (speechText) {
+          const prevNar = [...out].reverse().find((l) => l.layer !== "speech");
+          const spk =
+            (prevNar ? speakerFromNarration(prevNar.text) : undefined) ??
+            inferSpeaker(lookaheadFrom(rawIdx + 1)) ??
+            "主角";
+          out.push({ layer: "speech", text: speechText, speaker: spk });
+        }
+        const rest = closeThenText[2].trim();
+        if (rest) out.push({ layer: classifyOne(rest), text: rest });
         continue;
       }
+
+      // 纯引号行（无说话人）→ 从上下文推断
+      const bare = s.match(/^[「『](.+(?:[」』]?))$/);
+      if (bare) {
+        const text = bare[1].replace(/[」』]$/, "").trim();
+
+        // 优先用紧邻的上一条叙述行判定（最常见形态：
+        //   「她……喘息。」
+        //   「别动了」）
+        const prevNarration = [...out].reverse().find((l) => l.layer !== "speech");
+        let inferred =
+          (prevNarration ? speakerFromNarration(prevNarration.text) : undefined) ??
+          inferSpeaker(lookaheadFrom(rawIdx + 1));
+
+        // 若台词开头直接呼唤某角色（如「姐姐……求求你」），
+        // 说明说话人不是被呼唤者，需换一个候选
+        const called = knownSpeakers.find(
+          (n) => n !== "主角" && text.startsWith(n)
+        );
+        if (called && inferred === called) {
+          const others = knownSpeakers.filter(
+            (n) => n !== "主角" && n !== called && n !== "你"
+          );
+          inferred = others.length === 1 ? others[0] : undefined;
+        }
+
+        out.push({ layer: "speech", text, speaker: inferred });
+        continue;
+      }
+
+      // 正文里夹着的引号 → 拆成「正文 + 台词 + 正文」
+      // 形如：`你的呼吸扫过她耳畔「嘘——」`
+      // 说话人判定：若引号前的正文以第二人称叙述主角动作，则说话人是主角
+      const inline = s.match(/^(.+?)[「『]([^」』]+)[」』](.*)$/);
+      if (inline && inline[1].trim().length > 0) {
+        const before = inline[1].trim();
+        out.push({ layer: classifyOne(before), text: before });
+
+        const speaker =
+          speakerFromNarration(before) ??
+          inferSpeaker(lookaheadFrom(rawIdx + 1)) ??
+          "主角";
+
+        out.push({ layer: "speech", text: inline[2].trim(), speaker });
+        if (inline[3].trim()) out.push({ layer: classifyOne(inline[3].trim()), text: inline[3].trim() });
+        continue;
+      }
+
       out.push({ layer: classifyOne(s), text: s });
     }
   }
@@ -306,7 +497,11 @@ const CLOSE_QUOTES = "」』”’";
 const SENTENCE_END = "。！？；…";
 
 /**
- * 按句末标点切句，并把引号块作为独立段切出。
+ * 按句末标点切句。
+ *
+ * 关键：遇到开引号时**不**切断，保留引号前的叙述，这样后续才能
+ * 依据「谁在说话之前做了什么」判定说话人。
+ * 形如 `你的呼吸扫过她耳畔「嘘——」` 会作为一个整体段落下传。
  * 引号内的句末标点不切句。
  */
 function splitSentences(line: string): string[] {
@@ -323,16 +518,14 @@ function splitSentences(line: string): string[] {
     const ch = line[i];
 
     if (OPEN_QUOTES.includes(ch) && depth === 0) {
-      flush();
       depth = 1;
-      buf = ch;
+      buf += ch;
       continue;
     }
 
     if (CLOSE_QUOTES.includes(ch) && depth === 1) {
       buf += ch;
       depth = 0;
-      flush();
       continue;
     }
 
