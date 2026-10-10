@@ -721,6 +721,46 @@ border-radius:.2em;padding:.25em .65em;cursor:pointer;font-family:inherit;font-s
 transition:all .12s}
 .modrow .ms.btn:hover{background:var(--accent-lt);color:#000}
 
+/* ============ 暗色滚动条（全局） ============ */
+* { scrollbar-width: thin; scrollbar-color: var(--panel3) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: rgba(0,0,0,.25); border-radius: 4px; }
+*::-webkit-scrollbar-thumb { background: #4a5668; border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: var(--accent-lt); background-clip: content-box; }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* ============ 要塞剖面（可折叠） ============ */
+.foldbar{display:flex;align-items:center;gap:.4em;font-size:.76em;
+padding:.35em .5em;background:rgba(0,0,0,.2);border-radius:.25em}
+.foldbar .fbt{color:var(--sub);font-weight:600}
+.foldbar .fbd{color:var(--dim);margin-left:auto}
+.fb{background:var(--panel2);border:1px solid var(--line);color:var(--sub);
+border-radius:.2em;padding:.15em .55em;cursor:pointer;font-family:inherit;font-size:1em;
+transition:all .12s}
+.fb:hover{border-color:var(--accent-lt);color:var(--fg)}
+
+.fsec-h{cursor:pointer;user-select:none}
+.fsec-h:hover{background:rgba(255,255,255,.03)}
+.fsec-h .farrow{
+  margin-left:auto;font-size:.9em;color:var(--dim);flex-shrink:0;
+  transition:transform .18s;display:inline-block;width:1em;text-align:center;
+}
+.fsec.collapsed > .fsec-h .farrow{transform:rotate(-90deg)}
+.fsec.collapsed > *:not(.fsec-h):not(.fsec-sub){display:none}
+.fsec.collapsed > .fsec-h{border-bottom-style:dashed;opacity:.8}
+.fsec-body{display:flex;flex-direction:column;gap:.3em}
+.fsec-sub{display:flex;align-items:center;gap:.5em;font-size:.8em;color:var(--accent-lt);
+padding:.35em .1em .25em;margin-top:.3em}
+.fsec-sub .fl{background:var(--accent-dk);color:#fff;font-weight:700;font-size:.9em;
+padding:.05em .5em;border-radius:.2em;min-width:2.2em;text-align:center}
+.fsec-sub .fd{flex:1;font-size:.88em;color:var(--dim)}
+.fsec-actions{margin-left:.4em;display:flex;gap:.2em}
+.fsec-actions button{
+  background:transparent;border:1px solid var(--line);color:var(--dim);
+  border-radius:.2em;font-size:.85em;padding:0 .35em;cursor:pointer;font-family:inherit;
+}
+.fsec-actions button:hover{border-color:var(--accent-lt);color:var(--fg)}
+
 /* ============ 要塞剖面 ============ */
 .fsec{display:flex;flex-direction:column;gap:.3em}
 .fsec-h{display:flex;align-items:center;gap:.5em;font-size:.8em;color:var(--sub);
@@ -769,6 +809,25 @@ padding:.5em .6em;background:rgba(0,0,0,.25);border-radius:.3em;font-size:.76em;
 .fcell.robot.built .fs{color:#4ade80}
 
 /* 空中航母 */
+.fsec-h.rooms{border-bottom-color:var(--accent-lt)}
+.fsec-h .fl.rm{background:linear-gradient(90deg,var(--accent),var(--accent-lt));color:#fff}
+
+.fsec-h.pharma{border-bottom-color:#7ee787}
+.fsec-h .fl.ph{background:#7ee787;color:#000}
+.fcell.pharma{border-left-color:#7ee787 !important}
+.fcell.pharma.built{border-left:3px solid #7ee787}
+.fcell.pharma.built .fs{color:#7ee787}
+
+.fsec-h.prod{border-bottom-color:#ffb347}
+.fsec-h .fl.pd{background:#ffb347;color:#000}
+.fcell.prod{border-left-color:#ffb347 !important}
+.fcell.prod.built{border-left:3px solid #ffb347}
+.fcell.prod.built .fs{color:#ffb347}
+.fcell.prod.build{border-left:3px solid #ffb347;opacity:.85}
+.prodnote{font-size:.74em;color:#ffb347;padding:.45em .6em;line-height:1.5;
+background:rgba(255,179,71,.07);border-left:2px solid #ffb347;border-radius:.25em;
+margin-top:.4em}
+
 .fsec-h.carrier{border-bottom-color:var(--accent-lt)}
 .fsec-h .fl.cv{background:linear-gradient(90deg,var(--accent),var(--accent-lt));color:#fff}
 .carrierbox{display:flex;flex-direction:column;gap:.5em;padding:.7em;
@@ -1501,6 +1560,13 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
     </div>
     <div class="dbody" style="gap:.6em">
       <!-- 概要 -->
+      <div class="foldbar">
+        <span class="fbt" id="fsecCount">11 个区块</span>
+        <button class="fb" onclick="fsecAll(true)">全部展开</button>
+        <button class="fb" onclick="fsecAll(false)">全部收起</button>
+        <span class="fbd">点区块标题可单独折叠</span>
+      </div>
+
       <div class="eq-sum" style="grid-template-columns:repeat(6,1fr)">
         <div class="c"><div class="n">41</div><div class="l">设施总数</div></div>
         <div class="c"><div class="n">14</div><div class="l">已建成</div></div>
@@ -1512,7 +1578,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
 
       <!-- 防御体系 -->
       <div class="fsec">
-        <div class="fsec-h def"><span class="fl df">DEF</span> 防御体系 <span class="fd">外围 → 内层 → 火力 → 预警</span></div>
+        <div class="fsec-h def" onclick="fsecToggle(this)"><span class="fl df">DEF</span> 防御体系 <span class="fd">外围 → 内层 → 火力 → 预警</span><span class="farrow">▼</span></div>
 
         <div class="defrow">
           <div class="dt">防御等级</div>
@@ -1673,9 +1739,97 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
         </div>
       </div>
 
+      <!-- 资源生产体系 -->
+      <div class="fsec">
+        <div class="fsec-h prod" onclick="fsecToggle(this)"><span class="fl pd">PROD</span> 资源生产体系 <span class="fd">自动车间 · 无人产线 · 物资自给</span><span class="farrow">▼</span></div>
+
+        <div class="defrow" style="grid-template-columns:auto 1fr auto 1fr auto auto">
+          <div class="dt">产线数</div><div class="dv"><b>9</b> 条已建 / 24 条</div>
+          <div class="dt">自动化率</div><div class="dv"><b style="color:var(--ok)">68%</b></div>
+          <div class="dt">日产能</div><div class="dv"><b>142</b> 单位</div>
+        </div>
+
+        <div class="sec" style="margin-top:.35em">采掘与原料　<span style="font-size:.9em;color:var(--dim)">把周围的资源变成能用的材料</span></div>
+        <div class="defgrid">
+          <div class="fcell built prod"><span class="fi">⚙</span><span class="fn">废料分拣线</span><span class="fs">Lv2</span></div>
+          <div class="fcell built prod"><span class="fi">🔥</span><span class="fn">小型熔炉</span><span class="fs">Lv2</span></div>
+          <div class="fcell built prod"><span class="fi">💧</span><span class="fn">水泵站</span><span class="fs">Lv2</span></div>
+          <div class="fcell built prod"><span class="fi">🪚</span><span class="fn">锯木工位</span><span class="fs">Lv1</span></div>
+          <div class="fcell build prod"><span class="fi">⛏</span><span class="fn">采矿机组</span><span class="fs">58%</span></div>
+
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">自动碎石线</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">油脂提取</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">采伐机械</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">材料回收</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">化工车间</span><span class="fs">未解锁</span></div>
+        </div>
+
+        <div class="sec" style="margin-top:.35em">食物生产　<span style="font-size:.9em;color:var(--dim)">不再靠搜刮吃饭</span></div>
+        <div class="defgrid">
+          <div class="fcell built prod"><span class="fi">🌱</span><span class="fn">菌菇房</span><span class="fs">Lv1</span></div>
+          <div class="fcell built prod"><span class="fi">🌿</span><span class="fn">自动温室</span><span class="fs">Lv2</span></div>
+          <div class="fcell build prod"><span class="fi">🐟</span><span class="fn">循环鱼池</span><span class="fs">44%</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">水培塔</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">多层水培</span><span class="fs">未解锁</span></div>
+        </div>
+
+        <div class="sec" style="margin-top:.35em">加工车间　<span style="font-size:.9em;color:var(--dim)">从零件到成品</span></div>
+        <div class="defgrid">
+          <div class="fcell built prod"><span class="fi">🛠</span><span class="fn">基础机床组</span><span class="fs">Lv2</span></div>
+          <div class="fcell built prod"><span class="fi">🧵</span><span class="fn">纺织车间</span><span class="fs">Lv1</span></div>
+          <div class="fcell built prod"><span class="fi">👕</span><span class="fn">制衣工位</span><span class="fs">Lv1</span></div>
+          <div class="fcell built prod"><span class="fi">📦</span><span class="fn">装配线</span><span class="fs">Lv1</span></div>
+          <div class="fcell build prod"><span class="fi">🖥</span><span class="fn">数控加工中心</span><span class="fs">35%</span></div>
+
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">3D 打印车间</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">金属烧结打印</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">电子车间</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">芯片蚀刻间</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">光学磨制</span><span class="fs">未解锁</span></div>
+
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">无人装配车间</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">质量管控</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">传送网</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">自动立体仓</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">生产管理系统</span><span class="fs">未解锁</span></div>
+        </div>
+
+        <div class="sec" style="margin-top:.35em">军械与装备产线　<span style="font-size:.9em;color:var(--dim)">弹药与装甲自给</span></div>
+        <div class="defgrid">
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">弹药生产线</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">枪械工坊</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">装甲生产线</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">药品生产线</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">车辆改装间</span><span class="fs">未解锁</span></div>
+        </div>
+
+        <div class="sec" style="margin-top:.35em">生产机器人　<span style="font-size:.9em;color:var(--dim)">车间里干活的全是机器</span></div>
+        <div class="defgrid">
+          <div class="fcell built robot"><span class="fi">🧹</span><span class="fn">清洁机器人</span><span class="fs">在线</span></div>
+          <div class="fcell built robot"><span class="fi">📦</span><span class="fn">搬运机器人</span><span class="fs">在线</span></div>
+          <div class="fcell built robot"><span class="fi">🔨</span><span class="fn">焊接机器人</span><span class="fs">在线</span></div>
+          <div class="fcell build robot"><span class="fi">🔧</span><span class="fn">装配机器人</span><span class="fs">62%</span></div>
+          <div class="fcell build robot"><span class="fi">🍳</span><span class="fn">厨房机器人</span><span class="fs">41%</span></div>
+
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">喷涂机器人</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">质检机器人</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">采收机器人</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">采矿机器人</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">机器人组装线</span><span class="fs">未解锁</span></div>
+
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">无人机产线</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">蜂群作业机</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">全自动基地</span><span class="fs">未解锁</span></div>
+        </div>
+
+        <div class="prodnote">
+          产线由特殊 AI 统一排产。物资完全自给后可脱离外部搜刮，但高级零件仍需探索获取。
+        </div>
+      </div>
+
       <!-- 空中航母 -->
       <div class="fsec">
-        <div class="fsec-h carrier"><span class="fl cv">AIR</span> 无人机空中航母 <span class="fd">远程支援平台 · 从机场起飞，任务结束返场</span></div>
+        <div class="fsec-h carrier" onclick="fsecToggle(this)"><span class="fl cv">AIR</span> 无人机空中航母 <span class="fd">远程支援平台 · 从机场起飞，任务结束返场</span><span class="farrow">▼</span></div>
 
         <div class="carrierbox">
           <div class="cv-top">
@@ -1754,9 +1908,79 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
         </div>
       </div>
 
+      <!-- 制药与医疗 -->
+      <div class="fsec">
+        <div class="fsec-h pharma" onclick="fsecToggle(this)"><span class="fl ph">MED</span> 制药与医疗 <span class="fd">药品自产 · 扶她药体系 · 外伤与感染处理</span><span class="farrow">▼</span></div>
+
+        <div class="defrow" style="grid-template-columns:auto 1fr auto 1fr auto auto">
+          <div class="dt">药品储备</div><div class="dv"><b>128</b> 单位</div>
+          <div class="dt">日产</div><div class="dv"><b style="color:var(--ok)">34</b> 单位</div>
+          <div class="dt">库存周转</div><div class="dv"><b>3.8</b> 天</div>
+        </div>
+
+        <div class="sec" style="margin-top:.35em">常用药品　<span style="font-size:.9em;color:var(--dim)">最要紧的救命线</span></div>
+        <div class="defgrid">
+          <div class="fcell built pharma"><span class="fi">🌿</span><span class="fn">药草园</span><span class="fs">Lv2</span></div>
+          <div class="fcell built pharma"><span class="fi">🌾</span><span class="fn">药草炮制</span><span class="fs">Lv1</span></div>
+          <div class="fcell built pharma"><span class="fi">💊</span><span class="fn">抗生素</span><span class="fs">Lv2</span></div>
+          <div class="fcell built pharma"><span class="fi">💉</span><span class="fn">镇痛与麻醉</span><span class="fs">Lv1</span></div>
+          <div class="fcell build pharma"><span class="fi">🩸</span><span class="fn">血浆制备</span><span class="fs">47%</span></div>
+
+          <div class="fcell built pharma"><span class="fi">🧰</span><span class="fn">外科套装</span><span class="fs">Lv1</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">高级外科</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">广谱解毒剂</span><span class="fs">未解锁</span></div>
+          <div class="fcell built pharma"><span class="fi">🌾</span><span class="fn">营养补剂</span><span class="fs">Lv1</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">免疫力增强</span><span class="fs">未解锁</span></div>
+
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">抗辐射药</span><span class="fs">未解锁</span></div>
+          <div class="fcell built pharma"><span class="fi">⚡</span><span class="fn">兴奋剂</span><span class="fs">Lv1</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">高级兴奋剂</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">再生促进剂</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">抗病毒药</span><span class="fs">未解锁</span></div>
+        </div>
+
+        <div class="sec" style="margin-top:.35em">扶她药体系　<span style="font-size:.9em;color:var(--dim)">本作核心 · 全部为临时效果</span></div>
+        <div class="defgrid">
+          <div class="fcell built pharma"><span class="fi">💗</span><span class="fn">扶她药·娱乐型</span><span class="fs">已解锁</span></div>
+          <div class="fcell built pharma"><span class="fi">🤰</span><span class="fn">扶她药·怀孕型</span><span class="fs">已解锁</span></div>
+          <div class="fcell build pharma"><span class="fi">🔥</span><span class="fn">扶她药·强效型</span><span class="fs">63%</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">扶她药·稳定型</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">扶她药·双效型</span><span class="fs">未解锁</span></div>
+
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">扶她药·完美体</span><span class="fs">未解锁</span></div>
+          <div class="fcell built pharma"><span class="fi">📅</span><span class="fn">生育调控</span><span class="fs">已解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">生育调律</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">可控避孕</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">泌乳调控</span><span class="fs">未解锁</span></div>
+
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">孕期营养剂</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">催情剂</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">情绪调控剂</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">仿生体生物系统</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">异常免疫 · 早期阻断</span><span class="fs">未解锁</span></div>
+        </div>
+
+        <div class="sec" style="margin-top:.35em">生产与储备　<span style="font-size:.9em;color:var(--dim)">不靠捡药过日子</span></div>
+        <div class="defgrid">
+          <div class="fcell build pharma"><span class="fi">🌱</span><span class="fn">药用原料棚</span><span class="fs">31%</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">人工合成</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">自动制药线</span><span class="fs">未解锁</span></div>
+          <div class="fcell built pharma"><span class="fi">🧊</span><span class="fn">药品恒温库</span><span class="fs">Lv2</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">成分分析台</span><span class="fs">未解锁</span></div>
+
+          <div class="fcell built pharma"><span class="fi">🎒</span><span class="fn">野战药箱</span><span class="fs">Lv1</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">冷冻保护剂</span><span class="fs">未解锁</span></div>
+          <div class="fcell locked"><span class="fi">🔒</span><span class="fn">延寿配方</span><span class="fs">未解锁</span></div>
+        </div>
+
+        <div class="prodnote" style="color:#7ee787;background:rgba(126,231,135,.07);border-left-color:#7ee787">
+          扶她药全部为临时效果，不会永久改变体质。后宫之间只使用娱乐型，绝不使用怀孕型。
+        </div>
+      </div>
+
       <!-- 随行探索机器人 -->
       <div class="fsec">
-        <div class="fsec-h rover"><span class="fl rv">EXP</span> 随行探索机器人 <span class="fd">跟主角或后宫出门 · 按人绑定编队</span></div>
+        <div class="fsec-h rover" onclick="fsecToggle(this)"><span class="fl rv">EXP</span> 随行探索机器人 <span class="fd">跟主角或后宫出门 · 按人绑定编队</span><span class="farrow">▼</span></div>
 
         <div class="patrolbar" style="background:rgba(0,212,255,.05);border-color:rgba(0,212,255,.25)">
           <div class="pb-row">
@@ -1935,7 +2159,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
 
       <!-- 剖面：地表 + 地下 4 层 -->
       <div class="fsec">
-        <div class="fsec-h surface"><span class="fl su">L0</span> 地表 · 别墅安全屋 <span class="fd">伪装成度假屋 · 对外的门面</span></div>
+        <div class="fsec-h surface" onclick="fsecToggle(this)"><span class="fl su">L0</span> 地表 · 别墅安全屋 <span class="fd">伪装成度假屋 · 对外的门面</span><span class="farrow">▼</span></div>
         <div class="fgrid">
           <div class="fcell built"><span class="fi">🏡</span><span class="fn">别墅主体</span><span class="fs">Lv3</span></div>
           <div class="fcell built"><span class="fi">🛋</span><span class="fn">客厅</span><span class="fs">Lv2</span></div>
@@ -1951,7 +2175,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
       </div>
 
       <div class="fsec">
-        <div class="fsec-h"><span class="fl">L1</span> 入口层 <span class="fd">防爆门 · 车库 · 军械库</span></div>
+        <div class="fsec-h" onclick="fsecToggle(this)"><span class="fl">L1</span> 入口层 <span class="fd">防爆门 · 车库 · 军械库</span><span class="farrow">▼</span></div>
         <div class="fgrid">
           <div class="fcell built"><span class="fi">🚪</span><span class="fn">防爆门厅</span><span class="fs">Lv3</span></div>
           <div class="fcell built"><span class="fi">🔌</span><span class="fn">动力室</span><span class="fs">Lv2</span></div>
@@ -1962,7 +2186,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
       </div>
 
       <div class="fsec">
-        <div class="fsec-h"><span class="fl">L2</span> 生活层 <span class="fd">厨房 · 医务室 · 私人房间</span></div>
+        <div class="fsec-h" onclick="fsecToggle(this)"><span class="fl">L2</span> 生活层 <span class="fd">厨房 · 医务室 · 私人房间</span><span class="farrow">▼</span></div>
         <div class="fgrid" style="grid-template-columns:repeat(5,1fr)">
           <div class="fcell built"><span class="fi">🍲</span><span class="fn">厨房食堂</span><span class="fs">Lv2</span></div>
           <div class="fcell built"><span class="fi">🏥</span><span class="fn">医务室</span><span class="fs">Lv1</span></div>
@@ -1971,9 +2195,11 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
           <div class="fcell locked"><span class="fi">🔒</span><span class="fn">健身房</span><span class="fs">未解锁</span></div>
         </div>
 
-        <div class="fsec-h" style="margin-top:.2em;border-bottom:none;color:var(--accent-lt)">
-          <span class="fl" style="background:var(--accent-dk)">▤</span> 个人房间 · 每人一间 <span class="fd">扩建后可升级</span>
-        </div>
+      </div>
+
+      <!-- 个人房间（独立区块） -->
+      <div class="fsec">
+        <div class="fsec-h rooms" onclick="fsecToggle(this)"><span class="fl rm">ROOM</span> 个人房间 <span class="fd">每人一间 · 扩建后可升级</span><span class="farrow">▼</span></div>
         <div class="roomlist">
           <div class="rrow built">
             <span class="ri">👑</span>
@@ -2035,7 +2261,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
       </div>
 
       <div class="fsec">
-        <div class="fsec-h"><span class="fl">L3</span> 技术层 <span class="fd">研究室 · 蓄电池 · 净水</span></div>
+        <div class="fsec-h" onclick="fsecToggle(this)"><span class="fl">L3</span> 技术层 <span class="fd">研究室 · 蓄电池 · 净水</span><span class="farrow">▼</span></div>
         <div class="fgrid">
           <div class="fcell built"><span class="fi">🔬</span><span class="fn">研究室</span><span class="fs">Lv2</span></div>
           <div class="fcell built"><span class="fi">💧</span><span class="fn">蓄水层</span><span class="fs">Lv2</span></div>
@@ -2046,7 +2272,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
       </div>
 
       <div class="fsec">
-        <div class="fsec-h"><span class="fl">L4</span> 核心层 <span class="fd">机房 · 收容室 · 密室</span></div>
+        <div class="fsec-h" onclick="fsecToggle(this)"><span class="fl">L4</span> 核心层 <span class="fd">机房 · 收容室 · 密室</span><span class="farrow">▼</span></div>
         <div class="fgrid">
           <div class="fcell built"><span class="fi">💾</span><span class="fn">核心机房</span><span class="fs">Lv3</span></div>
           <div class="fcell built"><span class="fi">🔒</span><span class="fn">收容室</span><span class="fs">Lv1</span></div>
@@ -2704,6 +2930,21 @@ function ctTab(el) {
 }
 function openFortress() {
   document.getElementById('fortress-view').classList.add('on');
+  const n = document.querySelectorAll('#fortress-view .dbody > .fsec').length;
+  const el = document.getElementById('fsecCount');
+  if (el) el.textContent = n + ' 个区块';
+}
+/** 全部展开 / 全部收起 */
+function fsecAll(expand) {
+  document.querySelectorAll('#fortress-view .fsec').forEach(s => {
+    s.classList.toggle('collapsed', !expand);
+  });
+  toastMsg(expand ? '已展开全部区块' : '已收起全部区块');
+}
+/** 折叠/展开要塞剖面的某个区块 */
+function fsecToggle(el) {
+  const sec = el.parentElement;
+  if (sec) sec.classList.toggle('collapsed');
 }
 function openVehicle() {
   document.getElementById('vehicle-view').classList.add('on');
@@ -3228,4 +3469,6 @@ function setToggleIcon(expanded) {
 </script>
 </body>
 </html>
+
+
 

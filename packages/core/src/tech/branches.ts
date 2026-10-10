@@ -65,7 +65,66 @@ const shelter: TechNode[] = [
   n("shelter_factory", "地下工厂", 6, ["shelter_reload"], { "3D打印机": 1, "CNC机床": 1 }, 40, "可加工任意中级以下装备"),
   n("shelter_cryo", "冷冻休眠舱", 6, ["shelter_closed_loop"], { "冷却系统": 3, "医疗监控": 1 }, 36, "同伴濒死可冷冻，后期复活", { cryoSlots: 4 }),
   n("shelter_fortress", "要塞化", 7, ["shelter_factory", "shelter_harem_dorm"], { "合金装甲": 50, "自动炮塔": 2 }, 60, "抵御军队级攻击"),
-  n("shelter_clone", "克隆实验室", 7, ["shelter_cryo"], { "DNA分析仪": 1, "培养舱": 3 }, 64, "食物无限 + 克隆动植物")
+  n("shelter_clone", "克隆实验室", 7, ["shelter_cryo"], { "DNA分析仪": 1, "培养舱": 3 }, 64, "食物无限 + 克隆动植物"),
+
+  // ============ 资源生产体系 ============
+  n("prod_scrap_sorter", "废料分拣线", 2, ["shelter_storage"], { "传送带": 4, "筛网": 6, "电机": 2 }, 16, "把搜刮回来的杂料自动分类", { autoSort: 1 }),
+  n("prod_smelter", "小型熔炉", 2, ["shelter_power"], { "耐火砖": 20, "鼓风机": 1, "坩埚": 2 }, 20, "废金属重熔成钢锭", { smelter: 1 }),
+  n("prod_water_pump", "水泵站", 2, ["shelter_purify"], { "水泵": 2, "管道": 20, "阀门": 4 }, 14, "从溪谷/蓄水层持续抽水", { waterPump: 1 }),
+  n("prod_sawmill", "锯木工位", 2, ["shelter_power"], { "圆锯": 1, "电机": 1, "导轨": 3 }, 12, "原木加工成板材", { sawmill: 1 }),
+
+  n("prod_greenhouse_auto", "自动温室", 4, ["shelter_auto_farm"], { "温室骨架": 6, "灌溉系统": 1, "补光灯": 12 }, 26, "无需人力，日产蔬菜", { foodPerDay: 12 }),
+  n("prod_mushroom", "菌菇房", 3, ["shelter_greenhouse"], { "菌架": 8, "湿度控制": 1 }, 18, "废弃有机物转蛋白", { mushroomFarm: 1 }),
+  n("prod_fish_tank", "循环鱼池", 4, ["prod_mushroom"], { "水箱": 4, "过滤泵": 2, "饵料": 20 }, 24, "室内养鱼，蛋白自给", { fishFarm: 1 }),
+  n("prod_hydroponic", "水培塔", 5, ["prod_greenhouse_auto"], { "水培架": 12, "营养液": 30, "泵": 2 }, 34, "垂直种植，产量 ×2", { hydroponic: 2 }),
+  n("prod_hydroponic_up", "多层水培", 6, ["prod_hydroponic"], { "水培架": 30, "补光阵列": 1 }, 46, "往上长，占地不变产量 ×3", { hydroponic3: 3 }),
+
+  n("prod_machine_basic", "基础机床组", 3, ["shelter_power"], { "车床": 1, "钻床": 1, "台钳": 2 }, 22, "加工零件与简单部件", { machining: 1 }),
+  n("prod_cnc", "数控加工中心", 5, ["prod_machine_basic"], { "CNC": 1, "控制电脑": 1, "刀具组": 6 }, 40, "高精度零件，装备品质 +1", { cnc: 1 }),
+  n("prod_3dprint", "3D 打印车间", 5, ["prod_machine_basic"], { "3D打印机": 2, "耗材": 40 }, 36, "塑料/树脂件快速成型", { printer3d: 1 }),
+  n("prod_metal_print", "金属烧结打印", 7, ["prod_cnc", "prod_3dprint"], { "金属打印机": 1, "激光器": 1 }, 62, "直接打印金属零件，省料", { metalPrint: 1 }),
+  n("prod_assembly", "装配线", 4, ["prod_machine_basic"], { "传送带": 10, "机械臂": 2, "工装夹具": 8 }, 30, "批量生产，速度 +80%", { assemblyLine: 0.8 }),
+  n("prod_assembly_auto", "无人装配车间", 6, ["prod_assembly", "rob_repair_arm"], { "工业机械臂": 6, "视觉识别": 1, "调度软件": 1 }, 56, "全自动，产能再 +150%", { autoAssembly: 1.5 }),
+  n("prod_quality", "质量管控", 5, ["prod_assembly"], { "检测仪": 3, "标准件": 20 }, 26, "出品质检，废品率 -80%", { qc: 0.8 }),
+  n("prod_recycle", "材料回收", 4, ["prod_scrap_sorter"], { "破碎机": 1, "分选机": 1, "熔炉": 1 }, 28, "废品回收再利用率 70%", { recycle: 0.7 }),
+
+  n("prod_ammo_line", "弹药生产线", 5, ["shelter_reload", "prod_assembly"], { "装填机": 1, "模具组": 4, "火药": 40 }, 38, "多种口径弹药自产", { ammoLine: 1 }),
+  n("prod_gun_smith", "枪械工坊", 6, ["prod_cnc", "prod_ammo_line"], { "精密机床": 1, "枪管料": 10 }, 52, "可造与改装枪械", { gunsmith: 1 }),
+  n("prod_armor_line", "装甲生产线", 7, ["prod_metal_print"], { "轧机": 1, "热处理炉": 1, "装甲板": 20 }, 54, "批量生产装甲板与护具", { armorLine: 1 }),
+  n("prod_electronics", "电子车间", 5, ["prod_3dprint"], { "焊接台": 2, "示波器": 1, "元件盒": 10 }, 34, "电路板与传感器自产", { electronicsShop: 1 }),
+  n("prod_chip", "芯片蚀刻间", 7, ["prod_electronics"], { "蚀刻设备": 1, "无尘柜": 1, "晶圆": 20 }, 68, "自产芯片，高级设备不再卡脖子", { chipFab: 1 }),
+
+  n("prod_textile", "纺织车间", 2, ["shelter_power"], { "织机": 2, "纺轮": 4 }, 14, "布料与绳索自产", { textile: 1 }),
+  n("prod_tailor", "制衣工位", 3, ["prod_textile"], { "缝纫机": 2, "剪裁台": 1 }, 16, "服装制作与修补", { tailor: 1 }),
+  n("prod_chem_lab", "化工车间", 5, ["prod_smelter"], { "反应釜": 2, "蒸馏塔": 1, "原料": 40 }, 42, "酸碱、溶剂、火药原料自产", { chemLab: 1 }),
+  n("prod_pharma_line", "药品生产线", 6, ["prod_chem_lab", "shelter_medical"], { "压片机": 1, "灌装机": 1, "培养箱": 2 }, 50, "常用药品批量自产", { pharmaLine: 1 }),
+  n("prod_lens", "光学磨制", 6, ["prod_cnc"], { "研磨机": 1, "光学玻璃": 20 }, 40, "镜片与瞄准镜自产", { lensShop: 1 }),
+
+  n("prod_robot_line", "机器人组装线", 7, ["prod_assembly_auto", "rob_repair_arm"], { "专用夹具": 12, "机械臂": 8, "控制柜": 1 }, 72, "量产巡逻与随行机器人", { robotLine: 1 }),
+  n("prod_drone_line", "无人机产线", 7, ["prod_robot_line"], { "测试台": 2, "气压台": 1, "机体模": 8 }, 64, "自产各型无人机", { droneLine: 1 }),
+  n("prod_vehicle_bay", "车辆改装间", 7, ["prod_armor_line"], { "举升机": 1, "焊接台": 2, "改装件": 20 }, 48, "房车与皮车改装", { vehicleBay: 1 }),
+
+  n("prod_mining_rig", "采矿机组", 5, ["prod_smelter"], { "凿岩机": 1, "传送带": 8, "矿车": 4 }, 44, "矿洞自动采矿", { miningRig: 1 }),
+  n("prod_quarry_auto", "自动碎石线", 5, ["prod_mining_rig"], { "颚式破碎机": 1, "筛分机": 2 }, 40, "石料与砂石量产", { quarryAuto: 1 }),
+  n("prod_oil_extract", "油脂提取", 4, ["prod_smelter"], { "压榨机": 1, "储罐": 2 }, 30, "废弃油脂转生物柴油原料", { oilExtract: 1 }),
+  n("prod_logging", "采伐机械", 3, ["prod_sawmill"], { "链锯": 4, "集材架": 1 }, 20, "林地自动采伐", { logging: 1 }),
+
+  n("prod_conveyor_net", "传送网", 5, ["prod_assembly"], { "传送带": 30, "转向机": 8 }, 36, "各车间物料自动流转", { conveyorNet: 1 }),
+  n("prod_storage_auto", "自动立体仓", 6, ["prod_conveyor_net", "shelter_storage"], { "货架": 40, "堆垛机": 2, "系统": 1 }, 48, "库存自动管理，容量 ×3", { autoWarehouse: 3 }),
+  n("prod_mes", "生产管理系统", 7, ["prod_conveyor_net", "prod_recycle"], { "MES 软件": 1, "传感器网": 1 }, 58, "AI 排产，全厂产能 +25%", { mesBonus: 0.25 }),
+  n("prod_fully_auto", "全自动基地", 8, ["prod_mes", "prod_robot_line", "en_off_grid"], { "总控系统": 1, "冗余产线": 1 }, 110, "物资完全自给，可脱离外部搜刮", { fullyAuto: 1 }),
+
+  // ============ 生产机器人 ============
+  n("prod_bot_hauler", "搬运机器人", 4, ["rob_sentry"], { "底盘": 2, "货斗": 2 }, 26, "车间内自动搬料", { haulBots: 2 }),
+  n("prod_bot_welder", "焊接机器人", 5, ["prod_bot_hauler"], { "焊接臂": 2, "控制柜": 1 }, 34, "自动焊接，比人快且稳", { weldBots: 2 }),
+  n("prod_bot_assembler", "装配机器人", 6, ["prod_bot_welder", "prod_assembly"], { "装配臂": 4, "视觉系统": 1 }, 46, "自动装配，24 小时不停", { assemblyBots: 4 }),
+  n("prod_bot_painter", "喷涂机器人", 5, ["prod_bot_welder"], { "喷涂臂": 1, "漆料": 20 }, 28, "防腐与伪装涂装", { paintBots: 1 }),
+  n("prod_bot_inspector", "质检机器人", 6, ["prod_quality"], { "检测臂": 2, "视觉系统": 1 }, 32, "自动全检，不放过次品", { inspectBots: 2 }),
+  n("prod_bot_harvester", "采收机器人", 5, ["prod_greenhouse_auto"], { "采摘臂": 2, "识别模块": 1 }, 30, "温室自动采摘与分拣", { harvestBots: 2 }),
+  n("prod_bot_miner", "采矿机器人", 6, ["prod_mining_rig"], { "凿岩臂": 1, "装载斗": 1 }, 48, "矿洞无人采矿", { minerBots: 1 }),
+  n("prod_bot_cook", "厨房机器人", 5, ["prod_bot_cleaner"], { "料理臂": 2, "菜谱库": 1 }, 26, "自动备餐，解放人力", { cookBots: 2 }),
+  n("prod_bot_cleaner", "清洁机器人", 3, ["rob_monitor"], { "清扫机构": 1, "滤芯": 4 }, 16, "基地日常清洁", { cleanerBots: 2 }),
+  n("prod_bot_swarm_work", "蜂群作业机", 8, ["prod_bot_assembler", "rob_swarm_micro"], { "微型机架": 12, "协同芯片": 1 }, 74, "十几台小机协同作业", { workSwarm: 12 })
 ];
 
 // ============ 远征（房车） ============
@@ -333,7 +392,47 @@ const pharma: TechNode[] = [
   n("ph_advanced", "高级制药", 4, ["ph_med_recreational"], { "精密仪器": 1, "化学合成台": 1 }, 22, "基因稳定剂 / 再生促进剂"),
   n("ph_med_pregnant", "扶她药·怀孕型", 4, ["ph_advanced"], { "稀有催化剂": 3, "基因样本": 1 }, 26, "后宫服用后短暂具生殖能力，可让主角受孕", { medPregnant: 1 }),
   n("ph_fertility_ctrl", "生育调控", 5, ["ph_med_pregnant"], { "激素分析仪": 1, "数据模型": 1 }, 30, "促孕 / 避孕 / 精准选择受孕方", { fertilityControl: 1 }),
-  n("ph_mass", "大规模制药", 5, ["ph_fertility_ctrl"], { "自动制药机": 1, "原料温棚": 1 }, 36, "自动批量，产量 ×5", { medMult: 5 })
+  n("ph_mass", "大规模制药", 5, ["ph_fertility_ctrl"], { "自动制药机": 1, "原料温棚": 1 }, 36, "自动批量，产量 ×5", { medMult: 5 }),
+
+  n("ph_herb_garden", "药草园", 3, ["shelter_greenhouse"], { "药苗": 20, "花盆": 30 }, 14, "自种常用药草，不再靠采集", { herbGarden: 1 }),
+  n("ph_herb_dry", "药草炮制", 3, ["ph_base"], { "晒架": 4, "研磨器": 2 }, 10, "干燥与研磨，药效保存更久", { herbDry: 1 }),
+  n("ph_antibiotic", "抗生素", 3, ["ph_base"], { "培养基": 10, "培养箱": 1 }, 20, "最要紧的药，能救感染", { antibiotic: 1 }),
+  n("ph_painkiller", "镇痛与麻醉", 3, ["ph_base"], { "原料": 20, "蒸馏器": 1 }, 16, "手术与重伤处理的基础", { painkiller: 1 }),
+  n("ph_blood_pack", "血浆制备", 4, ["ph_antibiotic"], { "冷藏库": 1, "血袋": 20 }, 24, "重伤与失血时救命", { bloodPack: 1 }),
+  n("ph_surgery_kit", "外科套装", 4, ["ph_painkiller"], { "手术器械": 2, "消毒液": 20 }, 22, "可做清创与缝合", { surgeryKit: 1 }),
+  n("ph_surgery_adv", "高级外科", 6, ["ph_surgery_kit", "shelter_medical"], { "无影灯": 1, "监护仪": 1, "精密器械": 6 }, 44, "能开腹、接骨、取弹片", { surgeryAdv: 1 }),
+  n("ph_antidote_univ", "广谱解毒剂", 5, ["ph_antibiotic"], { "解毒剂": 6, "分析仪": 1 }, 30, "毒气、蛇咬、感染性毒素通用", { antidote: 1 }),
+
+  n("ph_supplement", "营养补剂", 3, ["ph_herb_dry"], { "维生素原": 20, "胶囊壳": 100 }, 14, "长期吃不到新鲜食物也不垮", { supplement: 1 }),
+  n("ph_immunity", "免疫力增强", 5, ["ph_supplement"], { "免疫原": 10, "培养箱": 2 }, 34, "减少感染与发病人数", { immunity: 1 }),
+  n("ph_radiation", "抗辐射药", 6, ["ph_immunity"], { "碘剂": 20, "稀有化合物": 6 }, 40, "进入辐射区前服用", { antiRad: 1 }),
+  n("ph_stimulant", "兴奋剂", 4, ["ph_base"], { "咖啡因": 50, "激素前体": 6 }, 18, "短时间内战力与耐力提升", { stimulant: 1 }),
+  n("ph_stim_adv", "高级兴奋剂", 6, ["ph_stimulant"], { "合成激素": 10, "注射器": 20 }, 36, "战斗持续更久，副作用更小", { stimAdv: 1 }),
+  n("ph_regen", "再生促进剂", 7, ["ph_stim_adv", "ph_surgery_adv"], { "生长因子": 8, "培养设备": 1 }, 56, "加速伤口愈合，重伤恢复减半", { regen: 0.5 }),
+
+  n("ph_med_potent", "扶她药·强效型", 5, ["ph_med_recreational", "ph_advanced"], { "浓缩激素": 6, "稳定剂": 4 }, 28, "效果持续更久（仍为临时）", { medPotent: 1 }),
+  n("ph_med_stable", "扶她药·稳定型", 6, ["ph_med_potent"], { "稳定剂": 10, "缓释载体": 6 }, 34, "副作用最小化", { medStable: 1 }),
+  n("ph_med_twin", "扶她药·双效型", 6, ["ph_med_stable", "ph_med_pregnant"], { "双效配方": 1, "稀有催化剂": 6 }, 42, "娱乐与怀孕效果合一", { medTwin: 1 }),
+  n("ph_med_perfect", "扶她药·完美体", 8, ["ph_med_twin", "ph_fertility_ctrl"], { "完美配方": 1, "基因样本": 4, "精密合成台": 1 }, 78, "一次性达到最优形态，无副作用", { medPerfect: 1 }),
+  n("ph_fertility_harm", "生育调律", 6, ["ph_fertility_ctrl"], { "激素分析仪": 2, "模型库": 1 }, 38, "可主动决定受孕时机与孕程节奏", { fertilityHarm: 1 }),
+  n("ph_contraception", "可控避孕", 5, ["ph_fertility_ctrl"], { "药基": 20, "稳定剂": 4 }, 24, "想生才生，完全受控", { contraception: 1 }),
+  n("ph_ai_body_bio", "仿生体生物系统", 8, ["ph_med_perfect", "rob_body"], { "生物子宫": 1, "神经耦合": 1, "激素模拟": 1 }, 88, "配合 AI 仿生身体的生理机能", { aiBodyBio: 1 }),
+
+  n("ph_raw_greenhouse", "药用原料棚", 4, ["ph_herb_garden"], { "棚架": 6, "控温设备": 1 }, 26, "稀有植物可控种植", { rawGreenhouse: 1 }),
+  n("ph_synthesis", "人工合成", 6, ["ph_advanced", "prod_chem_lab"], { "合成台": 2, "反应釜": 1 }, 46, "不依赖稀有植物也能做药", { synthesis: 1 }),
+  n("ph_auto_line", "自动制药线", 7, ["ph_synthesis", "prod_armor_line"], { "灌装机": 2, "压片机": 2, "机器人臂": 4 }, 58, "24 小时无人产药", { autoPharma: 1 }),
+  n("ph_storage", "药品恒温库", 5, ["ph_base"], { "恒温柜": 4, "除湿机": 1 }, 20, "药品保质期 ×4", { pharmaStorage: 4 }),
+  n("ph_analysis", "成分分析台", 5, ["ph_advanced"], { "色谱仪": 1, "分析软件": 1 }, 28, "能仿造捡到的药", { pharmaAnalysis: 1 }),
+  n("ph_field_kit", "野战药箱", 4, ["ph_painkiller"], { "药箱": 2, "分装盒": 10 }, 16, "外出时能现场配药与急救", { fieldKit: 1 }),
+
+  n("ph_antiviral", "抗病毒药", 6, ["ph_immunity"], { "抗病毒原": 8, "培养箱": 1 }, 38, "对感染性病原有效", { antiviral: 1 }),
+  n("ph_cure_early", "早期感染抑制", 7, ["ph_antiviral"], { "抑制剂": 6, "样本": 4 }, 52, "被咬后短时间内可以阻断", { cureEarly: 1 }),
+  n("ph_cryo_drug", "冷冻保护剂", 7, ["ph_regen", "shelter_cryo"], { "保护剂": 10, "冷却系统": 1 }, 54, "配合冷冻休眠舱使用", { cryoDrug: 1 }),
+  n("ph_longevity", "延寿配方", 8, ["ph_regen", "lo_genome"], { "端粒酶": 4, "稀有化合物": 10 }, 82, "长期服用显著延缓衰老", { longevityDrug: 1 }),
+  n("ph_psyche", "情绪调控剂", 5, ["ph_painkiller"], { "药基": 20, "镇静剂": 6 }, 26, "降低同伴压力与冲突", { psyche: 1 }),
+  n("ph_aphrodisiac", "催情剂", 4, ["ph_med_recreational"], { "催情原": 10, "载体": 6 }, 18, "提升欲情（非扶她药）", { aphrodisiac: 1 }),
+  n("ph_lactation", "泌乳调控", 5, ["ph_fertility_ctrl"], { "激素原": 10, "分析仪": 1 }, 24, "产后哺乳相关调控", { lactation: 1 }),
+  n("ph_prenatal", "孕期营养剂", 5, ["ph_fertility_ctrl"], { "营养原": 20, "维生素": 30 }, 22, "孕期减少不适，胎儿更健康", { prenatal: 1 })
 ];
 
 // ============ 寿命 ============
