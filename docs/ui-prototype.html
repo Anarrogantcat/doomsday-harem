@@ -3268,6 +3268,8 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
 document.querySelectorAll('.mbtn').forEach(b => b.addEventListener('click', () => {
   document.getElementById('menu').classList.remove('on');
   document.getElementById('game').classList.add('on');
+  // 进入游戏后刷新地图标题与当前格
+  setTimeout(() => { mapSyncName(); mapUpdateCellInfo(); }, 0);
 }));
 document.querySelectorAll('.rtab').forEach(el => el.addEventListener('click', () => {
   document.querySelectorAll('.rtab').forEach(x => x.classList.remove('on'));
@@ -3971,16 +3973,42 @@ function bmTabGo(mapId) {
 let curMap = MCITY_SOUTH;
 let curCellId = "hero_home";
 curMap.id = "jc_south";
-const explored = new Set([
-  "hero_home", "home_block", "mountain_foot", "south_park",
-  // 要塞内部：自己家的房间都认识
-  "ft_entry", "ft_villa", "ft_garage", "ft_power", "ft_water", "ft_air",
-  "ft_hall", "ft_kitchen", "ft_living", "ft_medbay", "ft_bath", "ft_laundry",
-  "ft_room_hero", "ft_room_ai", "ft_room_a", "ft_room_b", "ft_room_c", "ft_room_empty",
-  "ft_workshop", "ft_lab", "ft_armory", "ft_armor_wb", "ft_robot_bay", "ft_drone_bay",
-  "ft_server", "ft_cell", "ft_nursery", "ft_vault", "ft_cold", "ft_gym",
-  "ft_tunnel", "ft_escape_shaft", "ft_safe_nook", "ft_deep_lab", "ft_reactor", "ft_self_destruct"
-]);
+/* 探索度：按地图分组。
+ * 已知区域 = 主角生活圈 + 自己建的要塞，其余靠探索。 */
+const EXPLORED = {
+  // 自己住的小区周边
+  jc_south: new Set([
+    "hero_home", "home_block", "univ_neigh", "south_park", "park_lake",
+    "mountain_foot", "hillside_road", "metro_south", "clin_neigh",
+    "res_blocks", "street_east", "middle_school", "res_west",
+    "shoemaker", "vegetable_market", "south_plaza"
+  ]),
+  // 没进过城，只认得入城口
+  jc_center: new Set(["center_gate_n", "central_plaza"]),
+  // 只认得离城口
+  jc_east: new Set(["e_gate_n", "e_farm_main"]),
+  // 自己建的：山脚到要塞一带
+  beiling: new Set([
+    "mt_foot_camp", "mt_trail", "mt_stream", "mt_ledge", "mt_rv_park",
+    "mt_fortress_out", "mt_fortress_side", "mt_fortress", "mt_gate_south",
+    "mt_garage_out", "mt_workshop_out", "mt_tunnel_mouth", "mt_water_tank",
+    "mt_terraces", "mt_spring_s"
+  ]),
+  // 自己家：全部认识
+  fortress_inside: new Set([
+    "ft_entry", "ft_villa", "ft_garage", "ft_power", "ft_water", "ft_air",
+    "ft_hall", "ft_kitchen", "ft_living", "ft_medbay", "ft_bath", "ft_laundry",
+    "ft_room_hero", "ft_room_ai", "ft_room_a", "ft_room_b", "ft_room_c", "ft_room_empty",
+    "ft_workshop", "ft_lab", "ft_armory", "ft_armor_wb", "ft_robot_bay", "ft_drone_bay",
+    "ft_server", "ft_cell", "ft_nursery", "ft_vault", "ft_cold", "ft_gym",
+    "ft_tunnel", "ft_escape_shaft", "ft_safe_nook", "ft_deep_lab", "ft_reactor", "ft_self_destruct"
+  ])
+};
+/** 取某地图的已探索集合 */
+function exploredSet(mapId) {
+  if (!EXPLORED[mapId]) EXPLORED[mapId] = new Set();
+  return EXPLORED[mapId];
+}
 
 function mapRender() {
   const g = document.getElementById("mgrid");
@@ -3993,7 +4021,7 @@ function mapRender() {
       const d = document.createElement("div");
       if (!c) { d.className = "mcell locked"; d.innerHTML = '<span class="mc-i">·</span>'; g.appendChild(d); continue; }
       const isHere = c.id === curCellId;
-      const seen = explored.has(c.id) || isHere;
+      const seen = exploredSet(curMapId).has(c.id) || isHere;
       d.className = "mcell" + (isHere ? " here" : "") + (seen ? "" : " unk") +
         (c.exit ? " exit" : "") + (c.sub ? " sub" : "");
       d.title = seen ? c.n + "（危险 " + c.d + "）" : "未探索";
@@ -4098,9 +4126,10 @@ function mapMove(dir) {
   const nb = curMap.cells.find(v => v.x === c.x + D[0] && v.y === c.y + D[1]);
   if (!nb) return;
   curCellId = nb.id;
-  explored.add(nb.id);
+  exploredSet(curMapId).add(nb.id);
   mapRender();
   mapUpdateDirs();
+  mapUpdateCellInfo();
   mapFlash(nb.n);
 }
 
@@ -4145,7 +4174,10 @@ function mapToggleDense() {
 }
 function mapSyncName() {
   const el = document.getElementById('miniMapName');
-  if (el && MAPS[curMapId]) el.textContent = MAPS[curMapId].name;
+  const m = MAPS[curMapId];
+  if (!el || !m) return;
+  el.textContent = m.name;
+  el.title = m.name + "　已探索 " + exploredSet(curMapId).size + " / " + m.cells.length + " 格";
 }
 function mapCycle() {
   const i = CYCLE.indexOf(curMapId);
@@ -4155,8 +4187,11 @@ function mapCycle() {
   // 优先停在有出口的格，否则第一个格
   const start = m.cells.find(c => c.exit) || m.cells[0];
   curCellId = start.id;
-  explored.add(curCellId);
-  mapRender(); mapUpdateDirs();
+  exploredSet(curMapId).add(curCellId);
+  mapRender();
+  mapSyncName();
+  mapUpdateDirs();
+  mapUpdateCellInfo();
   toastMsg('切换地图：' + m.name);
 }
 function toastMsg(t) {
@@ -4172,8 +4207,10 @@ loadColWidths();
 initSplitters();
 loadInputbar();
 
+mapSyncName();
 mapRender();
 mapUpdateDirs();
+mapUpdateCellInfo();
 
 /* ============ 事件栏：拖动调节 + 折叠 + 高度持久化 ============ */
 (function initEventBar() {
