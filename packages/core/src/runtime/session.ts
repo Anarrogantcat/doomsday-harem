@@ -176,6 +176,16 @@ import {
   type CompanionSkill
 } from "../systems/haremGrowth.ts";
 import {
+  type SexStats, type SexStatsView, type ActEvent, type ShotTarget,
+  type MedType, type PenetrationSide,
+  newSexStats, applyActEvent, shotFor, shotTargetFor, recordConception,
+  recordContraceptive, recordBirthStat, sexStatsView, sexStatsSummary, insideRate,
+  shotInsideRate, receivedInsideRate, receivedTotal, avgMinutes, topRatio,
+  unlockedActCount, insertionSide, analLevel,
+  sexStatsToJSON, sexStatsFromJSON, type SexStatsJSON,
+  SHOT_LABEL, MED_SHOT_NOTE, medCapable, medFertile
+} from "../systems/sexStats.ts";
+import {
   type HeroGrowth, type HeroAttributes, type HeroBonuses,
   newHeroGrowth, gainExp, gainSkillExp, spendPoint, effectiveAttributes,
   emptyBonuses, attributeTotal, skillTotal, levelProgress, expForLevel,
@@ -206,6 +216,8 @@ export interface CompanionRuntime {
   joined: boolean;
   /** 成长状态（熟练度/岗位经验/被动增益） */
   growth: CompanionGrowth;
+  /** 性爱统计（与主角同结构） */
+  sexStats: SexStats;
 }
 
 /** 主角运行时状态 */
@@ -221,6 +233,8 @@ export interface HeroRuntime {
   growth: HeroGrowth;
   /** 性爱熟练度（按部位） */
   proficiency: Proficiency;
+  /** 性爱统计（与同伴同结构） */
+  sexStats: SexStats;
 }
 
 export interface SessionOptions {
@@ -285,7 +299,8 @@ export function makeCompanion(def: CompanionDef, joined = true): CompanionRuntim
       daysOnJob: 0
     },
     wardrobe: presetWardrobe(def.wardrobePreset),
-    joined
+    joined,
+    sexStats: newSexStats()
   };
 }
 
@@ -353,6 +368,13 @@ export class GameSession {
   analPrep: Record<string, number>;
   /** 加成共享授权（玩家决定哪些加成惠及后宫） */
   share: ShareState;
+  /**
+   * 临时扶她药状态：同伴 id → { 类型, 到期日 }。
+   *
+   * 为什么放在 session 而不是 physiology：physiology 存的是「天生性征」，
+   * 扶她药是几小时到一天的临时状态（INV-3），混进去会污染存档与生理判定。
+   */
+  futaMeds: Record<string, { type: MedType; untilDay: number }>;
   /** 本次战斗的逃跑尝试次数（影响随机源，使重复尝试结果不同） */
   private fleeAttempts = 0;
 
@@ -396,7 +418,8 @@ export class GameSession {
       pregnancy: null,
       wardrobe: presetWardrobe("hero"),
       growth: newHeroGrowth(),
-      proficiency: newProficiency()
+      proficiency: newProficiency(),
+      sexStats: newSexStats()
     };
 
     this.companions = defaultCompanions();
@@ -426,6 +449,7 @@ export class GameSession {
     this.combat = null;
     this.analPrep = {};
     this.share = newShareState();
+    this.futaMeds = {};
   }
 
   /**
@@ -1291,7 +1315,8 @@ export class GameSession {
           lust: { ...DEFAULT_LUST, value: 20 },
           job: { id: null, bonus: 0, daysOnJob: 0 },
           wardrobe: presetWardrobe("sister2"),
-          joined: true
+          joined: true,
+          sexStats: newSexStats()
         });
       }
       granted.push(g);
@@ -1378,7 +1403,8 @@ export class GameSession {
           lust: { ...DEFAULT_LUST, value: 15 },
           job: { id: null, bonus: 0, daysOnJob: 0 },
           wardrobe: presetWardrobe("sister2"),
-          joined: true
+          joined: true,
+          sexStats: newSexStats()
         });
       }
     }
@@ -3467,6 +3493,84 @@ export class GameSession {
     return this.hero.physiology.sex === "futanari";
   }
 
+  // ---------- 临时扶她药（INV-3：一律临时）----------
+
+  /**
+   * 喂给某位同伴一份扶她药。
+   *
+   * 为什么把「娱乐型」和「怀孕型」分开记：娱乐型同样能插入、能内射，
+   * 只是精子不具备致孕能力。统计里两者对 `shot*` 字段一样，
+   * 但对 `fertilized` 字段完全不同 —— 所以必须记住用的是哪一种。
+   */
+  giveFutaMed(companionId: string, type: MedType, hours = 6): { ok: boolean; reason?: string } {
+    const c = this.companion(companionId);
+    if (!c) return { ok: false, reason: "同伴不存在" };
+    if (c.id === "ai") return { ok: false, reason: "AI 无实体" };
+    if (type === "none") return { ok: false, reason: "未指定药物类型" };
+    const itemId = type === "pregnant" ? "futa_pregnant" : "futa_recreational";
+    const have = countOf(this.backpack, itemId) + countOf(this.storage, itemId);
+    if (have <= 0) return { ok: false, reason: "库存不足" };
+    const used = remove(this.backpack, itemId, 1);
+    this.backpack = used.container;
+    if (used.removed === 0) {
+      const fromStore = remove(this.storage, itemId, 1);
+      this.storage = fromStore.container;
+    }
+    const untilDay = this.time.day + Math.ceil(hours / 24);
+    this.futaMeds[companionId] = { type, untilDay };
+    return { ok: true };
+  }
+
+  /** 同伴当前是否具有插入器官（天生扶她或药效未过） */
+  companionFutanari(companionId: string): boolean {
+    const c = this.companion(companionId);
+    if (!c) return false;
+    if (c.physiology.sex === "futanari") return true;
+    const m = this.futaMeds[companionId];
+    if (!m) return false;
+    return m.untilDay >= this.time.day;
+  }
+
+  /** 同伴当前使用的扶她药类型 */
+  companionMedType(companionId: string): MedType {
+    const c = this.companion(companionId);
+    if (c?.physiology.sex === "futanari") return "pregnant"; // 天生扶她，精子有效
+    const m = this.futaMeds[companionId];
+    if (!m || m.untilDay < this.time.day) return "none";
+    return m.type;
+  }
+
+  /** 同伴当前的精子是否具备致孕能力（娱乐型为 false） */
+  companionFertile(companionId: string): boolean {
+    const c = this.companion(companionId);
+    if (c?.physiology.sex === "futanari") return true;
+    return medFertile(this.companionMedType(companionId));
+  }
+
+  /** 清除过期的临时扶她药（每日推进时调用） */
+  expireFutaMeds(): string[] {
+    const expired: string[] = [];
+    for (const [id, m] of Object.entries(this.futaMeds)) {
+      if (m.untilDay < this.time.day) {
+        delete this.futaMeds[id];
+        expired.push(id);
+      }
+    }
+    return expired;
+  }
+
+  /** 当前所有处于药效中的同伴 */
+  futaMedActive(): Array<{ id: string; type: MedType; untilDay: number }> {
+    return Object.entries(this.futaMeds)
+      .filter(([, m]) => m.untilDay >= this.time.day)
+      .map(([id, m]) => ({ id, type: m.type, untilDay: m.untilDay }));
+  }
+
+  /** 药物能力说明（UI 直接展示） */
+  medNote(type: MedType): string {
+    return MED_SHOT_NOTE[type];
+  }
+
   /** 是否有可用性玩具 */
   hasSexToy(): boolean {
     const toys = ["dildo_double", "strap_on", "vibrator", "egg_vibe", "restraint_set"];
@@ -3541,6 +3645,12 @@ export class GameSession {
     newPerks?: CompanionPerk[];
     lustAfter?: number;
     staminaAfter?: number;
+    /** 主角射精落点（用于文字表现层） */
+    heroShot?: ShotTarget;
+    /** 同伴射精落点（后宫服用扶她药时才会出现） */
+    partnerShot?: ShotTarget;
+    /** 本次插入方向 */
+    penetration?: PenetrationSide;
   } {
     const c = this.companion(companionId);
     if (!c) return { ok: false, reason: "同伴不存在" };
@@ -3548,7 +3658,8 @@ export class GameSession {
     const def = actDef(actId);
     if (!def) return { ok: false, reason: "未知行为" };
 
-    const partnerFuta = c.physiology.sex === "futanari";
+    // 同伴是否具备器官：天生扶她，或娱乐型 / 怀孕型药效未过
+    const partnerFuta = this.companionFutanari(companionId);
     const check = canPerform(def, {
       heroFutanari: this.heroIsFutanari(),
       partnerFutanari: partnerFuta,
@@ -3610,12 +3721,50 @@ export class GameSession {
     this.giveHeroSkillExp("intimacy", def.intimacyExp);
     this.giveHeroExp(Math.round(def.intimacyExp * 0.5));
 
+    // ---- 性爱统计（双边镜像记账）----
+    // 为什么在这里记：这是唯一一个「行为已确认生效」的收口点，
+    // 放在校验之前会统计到被拒绝的行为，放在返回之后又拿不到最终欲情值。
+    const medType = this.companionMedType(companionId);
+    const ev: ActEvent = {
+      actId,
+      day: this.time.day,
+      // 单次时长由体力消耗折算：18 点体力约等于 18 分钟，
+      // 比另开一个随机数更稳定，也保证存档回放一致。
+      minutes: Math.max(5, Math.round(def.staminaCost)),
+      heroFutanari: this.heroIsFutanari(),
+      // 同伴是否「有器官」：天生扶她，或娱乐型 / 怀孕型药效未过。
+      // 娱乐型同样能插入、能内射，所以这里不能用 fertile 代替。
+      partnerFutanari: partnerFuta,
+      partnerMedType: medType,
+      heroFutanariFertile: true,
+      // 精子是否具备致孕能力 —— 娱乐型为 false，这才是两者的唯一区别
+      partnerFutanariFertile: this.companionFertile(companionId),
+      heroCanConceive: this.hero.physiology.fertileWindow && !this.hero.physiology.pregnant,
+      partnerCanConceive: c.physiology.fertileWindow && !c.physiology.pregnant,
+      // 高潮判定：同伴欲情被清空（此处 < 10）即视为高潮；
+      // 主角以「本次产生射精落点」为高潮标志。
+      heroOrgasm: shotTargetFor(actId, this.heroIsFutanari()) !== "none",
+      partnerOrgasm: c.lust.value <= 10,
+      usedLube: def.part === "anus" || def.part === "toy",
+      usedToy: def.part === "toy",
+      usedEnema: actId === "anal_prep",
+      usedContraceptive: false
+    };
+    const evr = applyActEvent(
+      this.hero.sexStats, c.sexStats, ev, this.hero.id, c.id
+    );
+    this.hero.sexStats = evr.hero;
+    c.sexStats = evr.companion;
+
     return {
       ok: true,
       leveledParts: rec.leveledParts,
       newPerks: rec.newPerks,
       lustAfter: c.lust.value,
-      staminaAfter: this.hero.survival.stamina
+      staminaAfter: this.hero.survival.stamina,
+      heroShot: evr.heroShot,
+      partnerShot: evr.partnerShot,
+      penetration: evr.penetration
     };
   }
 
@@ -3640,6 +3789,171 @@ export class GameSession {
   /** 行为统计（供 UI 显示总量） */
   sexActStats() {
     return actStats();
+  }
+
+  // ---------- 性爱统计 ----------
+
+  /** 主角的性爱统计（原始数据） */
+  heroSexStats(): SexStats {
+    return this.hero.sexStats;
+  }
+
+  /** 同伴的性爱统计（原始数据） */
+  companionSexStats(id: string): SexStats | null {
+    const c = this.companion(id);
+    return c ? c.sexStats : null;
+  }
+
+  /** 行为 id → 显示名 */
+  private actName(actId: string): string | undefined {
+    return actDef(actId)?.name;
+  }
+
+  /** 角色 id → 显示名 */
+  private personName(id: string): string | undefined {
+    if (id === this.hero.id) return this.hero.identity.name;
+    return this.companion(id)?.identity.name;
+  }
+
+  /** 主角性爱统计（UI 展示结构） */
+  heroSexStatsView(): SexStatsView {
+    return sexStatsView(this.hero.sexStats, {
+      poseName: (id) => this.actName(id),
+      partnerName: (id) => this.personName(id),
+      analPrepSteps: 0,
+      analPrepTotal: ENEMA_STEPS.length
+    });
+  }
+
+  /** 同伴性爱统计（UI 展示结构） */
+  companionSexStatsView(id: string): SexStatsView | null {
+    const c = this.companion(id);
+    if (!c) return null;
+    return sexStatsView(c.sexStats, {
+      poseName: (x) => this.actName(x),
+      partnerName: (x) => this.personName(x),
+      analPrepSteps: this.analPrepLevel(id),
+      analPrepTotal: ENEMA_STEPS.length
+    });
+  }
+
+  /**
+   * 全员性爱统计一览。
+   *
+   * 为什么连主角和后期加入的同伴一起返回：UI 的名册是一张表，
+   * 分三次取数据容易出现「有的角色有统计、有的没有」的漏洞。
+   */
+  sexStatsBoard(): Array<{
+    id: string;
+    name: string;
+    role: "hero" | "companion";
+    view: SexStatsView;
+    summary: string;
+    insideRate: number;
+    avgMinutes: number;
+    unlocked: number;
+    /** 攻受比（插入占比，0-100） */
+    topRatio: number;
+    /** 后庭开发度 */
+    analLevel: number;
+    /** 扶她药状态说明 */
+    medNote: string;
+  }> {
+    const hero = this.hero.sexStats;
+    type Row = {
+      id: string; name: string; role: "hero" | "companion";
+      view: SexStatsView; summary: string;
+      insideRate: number; avgMinutes: number; unlocked: number;
+      topRatio: number; analLevel: number; medNote: string;
+    };
+    const rows: Row[] = [{
+      id: this.hero.id,
+      name: this.hero.identity.name,
+      role: "hero",
+      view: this.heroSexStatsView(),
+      summary: sexStatsSummary(hero, this.hero.identity.name),
+      insideRate: insideRate(hero),
+      avgMinutes: avgMinutes(hero),
+      unlocked: unlockedActCount(hero),
+      topRatio: topRatio(hero),
+      analLevel: analLevel(hero),
+      medNote: "天生扶她 · 精子有效"
+    }];
+    for (const c of this.companions) {
+      const med = this.companionMedType(c.id);
+      rows.push({
+        id: c.id,
+        name: c.identity.name,
+        role: "companion",
+        view: this.companionSexStatsView(c.id)!,
+        summary: sexStatsSummary(c.sexStats, c.identity.name),
+        insideRate: insideRate(c.sexStats),
+        avgMinutes: avgMinutes(c.sexStats),
+        unlocked: unlockedActCount(c.sexStats),
+        topRatio: topRatio(c.sexStats),
+        analLevel: analLevel(c.sexStats),
+        medNote: MED_SHOT_NOTE[med]
+      });
+    }
+    return rows;
+  }
+
+  /** 统计某位角色的内射占比（0-100） */
+  insideRateOf(id: string | null): number {
+    const s = id === null ? this.hero.sexStats : this.companion(id)?.sexStats;
+    return s ? insideRate(s) : 0;
+  }
+
+  /** 某位角色自己射出去时的内射率（0-100） */
+  shotInsideRateOf(id: string | null): number {
+    const s = id === null ? this.hero.sexStats : this.companion(id)?.sexStats;
+    return s ? shotInsideRate(s) : 0;
+  }
+
+  /** 某位角色被内射占比（0-100） */
+  receivedInsideRateOf(id: string | null): number {
+    const s = id === null ? this.hero.sexStats : this.companion(id)?.sexStats;
+    return s ? receivedInsideRate(s) : 0;
+  }
+
+  /** 某位角色的攻受比与后庭开发度 */
+  sexProfile(id: string | null): { topRatio: number; analLevel: number; received: number } | null {
+    const s = id === null ? this.hero.sexStats : this.companion(id)?.sexStats;
+    if (!s) return null;
+    return { topRatio: topRatio(s), analLevel: analLevel(s), received: receivedTotal(s) };
+  }
+
+  /** 落点标签（供文字层拼接句子） */
+  shotLabel(shot: ShotTarget): string {
+    return SHOT_LABEL[shot];
+  }
+
+  /**
+   * 记录一次生产，同时更新性爱统计里的生育计数。
+   * 与 offspring 数组一起用，保证「履历」与「子女数」永远一致。
+   */
+  recordBirthFor(id: string | null, children = 1): void {
+    if (id === null) {
+      this.hero.sexStats = recordBirthStat(this.hero.sexStats, children);
+      return;
+    }
+    const c = this.companion(id);
+    if (c) c.sexStats = recordBirthStat(c.sexStats, children);
+  }
+
+  /**
+   * 记录一次成功受孕。
+   * 同时更新统计与生育履历，避免两处数字打架。
+   */
+  recordConceptionFor(id: string | null): boolean {
+    if (id === null) {
+      this.hero.sexStats = recordConception(this.hero.sexStats);
+      return true;
+    }
+    const c = this.companion(id);
+    if (!c) return false;
+    c.sexStats = recordConception(c.sexStats);
+    return true;
   }
 
   // ---------- 主角成长 ----------
@@ -4019,7 +4333,16 @@ export class GameSession {
         Object.fromEntries(
           this.companions.map((c) => [c.id, companionGrowthToJSON(c.growth)])
         )
-      )
+      ),
+      // 性爱统计：主角 + 全部同伴（含后期加入的），一份表存完
+      __heroSex: JSON.stringify(sexStatsToJSON(this.hero.sexStats)),
+      __compSex: JSON.stringify(
+        Object.fromEntries(
+          this.companions.map((c) => [c.id, sexStatsToJSON(c.sexStats)])
+        )
+      ),
+      // 临时扶她药状态（INV-3：读档时过期的一律丢弃）
+      __futaMeds: JSON.stringify(this.futaMeds)
     };
 
     data.entities.push({
@@ -4185,6 +4508,40 @@ export class GameSession {
         }
       } catch {
         // 忽略，保持默认
+      }
+    }
+
+    // 性爱统计（主角 + 全部同伴）
+    const heroSexRaw = data.flags["__heroSex"];
+    if (typeof heroSexRaw === "string") {
+      try {
+        s.hero.sexStats = sexStatsFromJSON(JSON.parse(heroSexRaw) as SexStatsJSON);
+      } catch {
+        // 忽略，保持空统计
+      }
+    }
+    const compSexRaw = data.flags["__compSex"];
+    if (typeof compSexRaw === "string") {
+      try {
+        const map = JSON.parse(compSexRaw) as Record<string, SexStatsJSON>;
+        for (const c of s.companions) {
+          const j = map[c.id];
+          if (j) c.sexStats = sexStatsFromJSON(j);
+        }
+      } catch {
+        // 忽略，保持空统计
+      }
+    }
+    // 临时扶她药：过期的直接丢掉，避免读档后凭空获得器官
+    const medRaw = data.flags["__futaMeds"];
+    if (typeof medRaw === "string") {
+      try {
+        const map = JSON.parse(medRaw) as Record<string, { type: MedType; untilDay: number }>;
+        for (const [id, m] of Object.entries(map)) {
+          if (m && m.untilDay >= s.time.day) s.futaMeds[id] = m;
+        }
+      } catch {
+        s.futaMeds = {};
       }
     }
 

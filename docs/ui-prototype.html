@@ -3007,19 +3007,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
         <div class="hint-line">力量→攻击 · 敏捷→闪避 · 耐力→HP · 感知→暴击 · 意志→抗性 · 魅力→招募</div>
       </div>
 
-      <div class="pane" id="h-sex">
-        <div class="dgrid">
-          <div class="dcell"><span class="k">累计亲密</span><span class="v">42 次</span></div>
-          <div class="dcell"><span class="k">解锁行为</span><span class="v">18/26</span></div>
-          <div class="dcell"><span class="k">使用道具</span><span class="v">5 种</span></div>
-          <div class="dcell"><span class="k">后庭准备</span><span class="v" style="color:var(--ok)">已就绪</span></div>
-        </div>
-        <div class="sec">部位熟练度</div>
-        <div class="kv"><span class="k">口</span><div class="tr"><div class="fl" style="width:80%;background:var(--accent-lt)"></div></div><span class="v">Lv8</span></div>
-        <div class="kv"><span class="k">前庭</span><div class="tr"><div class="fl" style="width:75%;background:var(--accent-lt)"></div></div><span class="v">Lv7</span></div>
-        <div class="kv"><span class="k">后庭</span><div class="tr"><div class="fl" style="width:50%;background:var(--accent-lt)"></div></div><span class="v">Lv5</span></div>
-        <div class="kv"><span class="k">手</span><div class="tr"><div class="fl" style="width:90%;background:var(--accent-lt)"></div></div><span class="v">Lv9</span></div>
-      </div>
+      <div class="pane" id="h-sex"></div>
 
       <div class="pane" id="h-growth">
         <div class="dgrid">
@@ -3323,6 +3311,30 @@ document.querySelectorAll('.rtab').forEach(el => el.addEventListener('click', ()
   document.querySelectorAll('.rtab').forEach(x => x.classList.remove('on'));
   el.classList.add('on');
 }));
+/* ===== 主角数据（sex 字段与 core sexStatsView 一一对应）===== */
+const HERO = {
+  id: 'hero', name: '主角', role: '指挥者', hue: 280,
+  sex: {
+    total:42, orgasm:56, unlocked:18, minutes:756, avgMinutes:18,
+    firstDay:8, lastDay:62,
+    penetrate:64, penetrated:14,
+    penetrateVagina:41, penetrateAnus:23,
+    penetratedVagina:9, penetratedAnus:5,
+    topRatio:82,
+    shots:38, shotInside:26, shotOutside:6, shotMouth:4, shotFacial:2, shotBreast:0,
+    shotInsideRate:68,
+    inside:14, outside:4, inMouth:3, facial:1, breast:0,
+    receivedTotal:22, receivedInsideRate:64,
+    receiveBJ:3, receiveHand:4,
+    giveBJ:11, giveHand:7,
+    toys:23, lube:31, enema:9, contraceptives:7,
+    analPrep:5, analToy:6, analDouble:4, analTotal:28, analLevel:7,
+    prep:'已就绪', prepReady:true,
+    fertilized:26, conceived:1, births:0, children:0, pill:7,
+    partner:'姐姐', pose:'正面位 · 14 次'
+  }
+};
+
 /* ===== 同伴数据 ===== */
 const COMPANIONS={
 sister:{name:'姐姐',role:'主导方',title:'企业项目经理 · 26岁',tags:['主动强势','174cm','D-cup','已破处'],lv:3,exp:'64/100',expPct:64,hue:300,
@@ -3331,6 +3343,16 @@ grid:[['岗位','物资管理'],['冷落','0 天'],['暴露度','8%'],['亲密�
 preg:{state:'未怀孕',stage:'—',count:0,births:0,children:0,recover:'—'},
 body:{sex:'女',gender:'女性',orient:'女',height:'174cm',weight:'58kg',
       measure:'86-60-90',cup:'D',build:'匀称',skin:'白皙'},
+sex:{total:18,orgasm:27,unlocked:14,minutes:324,avgMinutes:18,firstDay:12,lastDay:61,
+         penetrate:0,penetrated:9,penetrateVagina:0,penetrateAnus:0,penetratedVagina:7,penetratedAnus:2,topRatio:0,
+         shots:0,shotInside:0,shotOutside:0,shotMouth:0,shotFacial:0,shotBreast:0,shotInsideRate:0,
+         inside:12,outside:4,inMouth:2,facial:1,breast:3,receivedTotal:22,receivedInsideRate:55,
+         receiveBJ:2,receiveHand:14,giveBJ:6,giveHand:3,
+         toys:8,lube:11,enema:5,contraceptives:0,
+         analPrep:3,analToy:5,analDouble:2,analTotal:2,analLevel:6,
+         prep:'已就绪',prepReady:true,
+         fertilized:6,conceived:0,births:0,children:0,pill:6,
+         partner:'主角',pose:'骑乘位 · 6 次'},
 acts:['口交（施）','口交（受）','正面位','背后位','骑乘位','后庭（施）']},
 mother:{name:'母亲',role:'照顾方',title:'单亲母亲 / 居家设计师 · 45岁',tags:['温柔照顾','172cm','E-cup','已婚'],lv:3,exp:'48/100',expPct:48,hue:40,
 bars:[['体力',78,'var(--ok)'],['心情',65,'var(--energy)'],['好感',57,'var(--accent-lt)'],['欲情',40,'var(--lust)']],
@@ -3339,6 +3361,16 @@ grid:[['岗位','厨房'],['冷落','2 天'],['暴露度','5%'],['亲密度','T1
 preg:{state:'未怀孕',stage:'—',count:3,births:3,children:3,recover:'—'},
 body:{sex:'女',gender:'女性',orient:'女',height:'172cm',weight:'62kg',
       measure:'92-66-94',cup:'E',build:'丰腴',skin:'温润'},
+sex:{total:9,orgasm:12,unlocked:9,minutes:198,avgMinutes:22,firstDay:18,lastDay:58,
+         penetrate:0,penetrated:6,penetrateVagina:0,penetrateAnus:0,penetratedVagina:5,penetratedAnus:1,topRatio:0,
+         shots:0,shotInside:0,shotOutside:0,shotMouth:0,shotFacial:0,shotBreast:0,shotInsideRate:0,
+         inside:6,outside:2,inMouth:1,facial:0,breast:1,receivedTotal:10,receivedInsideRate:60,
+         receiveBJ:1,receiveHand:6,giveBJ:4,giveHand:2,
+         toys:3,lube:7,enema:2,contraceptives:0,
+         analPrep:2,analToy:1,analDouble:0,analTotal:1,analLevel:4,
+         prep:'已就绪',prepReady:true,
+         fertilized:3,conceived:0,births:3,children:3,pill:3,
+         partner:'主角',pose:'正面位 · 4 次'},
 acts:['口交（施）','正面位','骑乘位','胸交']},
 sister2:{name:'妹妹',role:'被保护者',title:'大学生 · 19岁',tags:['害羞内敛','162cm','C-cup','处女'],lv:2,exp:'30/100',expPct:30,hue:200,
 bars:[['体力',90,'var(--ok)'],['心情',80,'var(--energy)'],['好感',45,'var(--accent-lt)'],['欲情',62,'var(--lust)']],
@@ -3346,6 +3378,16 @@ grid:[['岗位','温室'],['冷落','0 天'],['暴露度','4%'],['亲密度','T1
 preg:{state:'未怀孕',stage:'—',count:0,births:0,children:0,recover:'—'},
 body:{sex:'女',gender:'女性',orient:'女',height:'162cm',weight:'48kg',
       measure:'80-56-84',cup:'C',build:'娇小',skin:'嫩白'},
+sex:{total:0,orgasm:0,unlocked:0,minutes:0,avgMinutes:0,firstDay:null,lastDay:null,
+         penetrate:0,penetrated:0,penetrateVagina:0,penetrateAnus:0,penetratedVagina:0,penetratedAnus:0,topRatio:0,
+         shots:0,shotInside:0,shotOutside:0,shotMouth:0,shotFacial:0,shotBreast:0,shotInsideRate:0,
+         inside:0,outside:0,inMouth:0,facial:0,breast:0,receivedTotal:0,receivedInsideRate:0,
+         receiveBJ:0,receiveHand:0,giveBJ:0,giveHand:0,
+         toys:0,lube:0,enema:0,contraceptives:0,
+         analPrep:0,analToy:0,analDouble:0,analTotal:0,analLevel:0,
+         prep:'未准备',prepReady:false,
+         fertilized:0,conceived:0,births:0,children:0,pill:0,
+         partner:'—',pose:'—'},
 acts:['口交（受）','手活（受）']},
 // ── 以下为「后期遇到」的同伴示例 ──
 // 她们不随主角姓，有自己的姓名与生理数据，结构与家人完全一致
@@ -3356,7 +3398,17 @@ doctor:{name:'沈清',app:'林医生',role:'外科医生',title:'市立医院 ·
   preg:{state:'未怀孕',stage:'—',count:0,births:0,children:0,recover:'—'},
   body:{sex:'女',gender:'女性',orient:'女',height:'168cm',weight:'55kg',
         measure:'88-62-90',cup:'C',build:'清瘦',skin:'苍白'},
-  acts:['口交（施）','正面位','骑乘位']},
+  sex:{total:3,orgasm:4,unlocked:3,minutes:45,avgMinutes:15,firstDay:52,lastDay:60,
+         penetrate:0,penetrated:2,penetrateVagina:0,penetrateAnus:0,penetratedVagina:2,penetratedAnus:0,topRatio:0,
+         shots:0,shotInside:0,shotOutside:0,shotMouth:0,shotFacial:0,shotBreast:0,shotInsideRate:0,
+         inside:2,outside:1,inMouth:0,facial:0,breast:0,receivedTotal:3,receivedInsideRate:67,
+         receiveBJ:0,receiveHand:1,giveBJ:1,giveHand:1,
+         toys:1,lube:2,enema:0,contraceptives:0,
+         analPrep:0,analToy:0,analDouble:0,analTotal:0,analLevel:0,
+         prep:'未准备',prepReady:false,
+         fertilized:1,conceived:0,births:0,children:0,pill:1,
+         partner:'主角',pose:'正面位 · 2 次'},
+acts:['口交（施）','正面位','骑乘位']},
 soldier:{name:'雷曼',app:'雷教官',role:'军方残部',title:'原陆军中尉 · 27岁',
   tags:['强硬寡言','172cm','C-cup','战斗专家'],lv:5,exp:'80/300',expPct:27,hue:25,
   bars:[['体力',95,'var(--ok)'],['心情',55,'var(--energy)'],['好感',25,'var(--accent-lt)'],['欲情',20,'var(--lust)']],
@@ -3364,7 +3416,17 @@ soldier:{name:'雷曼',app:'雷教官',role:'军方残部',title:'原陆军中�
   preg:{state:'未怀孕',stage:'—',count:0,births:0,children:0,recover:'—'},
   body:{sex:'女',gender:'女性',orient:'女',height:'172cm',weight:'60kg',
         measure:'86-62-92',cup:'C',build:'结实',skin:'小麦'},
-  acts:['口交（施）','正面位','背后位','骑乘位']}};
+  sex:{total:1,orgasm:1,unlocked:1,minutes:25,avgMinutes:25,firstDay:59,lastDay:59,
+         penetrate:0,penetrated:1,penetrateVagina:0,penetrateAnus:0,penetratedVagina:1,penetratedAnus:0,topRatio:0,
+         shots:0,shotInside:0,shotOutside:0,shotMouth:0,shotFacial:0,shotBreast:0,shotInsideRate:0,
+         inside:1,outside:0,inMouth:0,facial:0,breast:0,receivedTotal:1,receivedInsideRate:100,
+         receiveBJ:0,receiveHand:0,giveBJ:0,giveHand:0,
+         toys:0,lube:1,enema:0,contraceptives:0,
+         analPrep:0,analToy:0,analDouble:0,analTotal:0,analLevel:0,
+         prep:'未准备',prepReady:false,
+         fertilized:1,conceived:0,births:0,children:0,pill:0,
+         partner:'主角',pose:'背后位 · 1 次'},
+acts:['口交（施）','正面位','背后位','骑乘位']}};
 
 function HUE_SVG(h){return 'data:image/svg+xml;utf8,'+encodeURIComponent(
   "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='184'>"+
@@ -3389,6 +3451,122 @@ function physiBlock(d){
     + cell('罩杯', b.cup)
     + cell('体型', b.build)
     + '</div>';
+}
+
+/**
+ * 性爱统计区块。
+ *
+ * 主角、现有后宫、后期遇到的后宫共用这一个渲染函数 ——
+ * 字段名与 core 的 sexStatsView 一一对应，所以任何一方新增字段
+ * 都会在三处同时出现，不会出现「有的角色有、有的角色没有」。
+ */
+function sexBlock(d){
+  const s = d.sex;
+  if(!s) return '';
+  const cell=(k,v,st)=>'<div class="dcell"><span class="k">'+k+'</span><span class="v"'+(st?' style="'+st+'"':'')+'>'+v+'</span></div>';
+  const bar=(k,lv)=>'<div class="kv"><span class="k">'+k+'</span><div class="tr"><div class="fl" style="width:'+Math.min(100,lv*10)+'%;background:var(--accent-lt)"></div></div><span class="v">Lv'+lv+'</span></div>';
+  const n=(x)=>x||0;
+  const dim=(x)=>n(x)?'':'color:var(--dim)';
+  const ok=(b)=>b?'color:var(--ok)':'color:var(--dim)';
+
+  let h = '<div class="sec">总览</div><div class="dgrid">'
+    + cell('累计亲密', n(s.total)+' 次', dim(s.total))
+    + cell('累计高潮', n(s.orgasm)+' 次', dim(s.orgasm))
+    + cell('解锁行为', n(s.unlocked)+' / 26', dim(s.unlocked))
+    + cell('攻受比', n(s.topRatio)+'%', dim(s.topRatio))
+    + cell('后庭准备', s.prep || '未准备', ok(s.prepReady))
+    + cell('平均时长', n(s.avgMinutes)?(n(s.avgMinutes)+' 分钟'):'—', dim(s.avgMinutes))
+    + '</div>';
+
+  if(n(s.total)===0){
+    h += '<div class="hint-line">尚无性经验 · 完整统计将在首次亲密后解锁</div>'
+      + '<div class="sec">已具备</div><div class="dgrid">'
+      + cell('口交（施）', n(s.giveBJ)+' 次','color:var(--dim)')
+      + cell('手活（施）', n(s.giveHand)+' 次','color:var(--dim)')
+      + '</div>';
+    return h;
+  }
+
+  // ---- 插入 ----
+  h += '<div class="sec">插入 / 被插入</div><div class="dgrid">'
+    + cell('插入总次数', n(s.penetrate)+' 次', dim(s.penetrate))
+    + cell('被插入总次数', n(s.penetrated)+' 次', dim(s.penetrated))
+    + cell('插入前庭', n(s.penetrateVagina)+' 次', dim(s.penetrateVagina))
+    + cell('插入后庭', n(s.penetrateAnus)+' 次', dim(s.penetrateAnus))
+    + cell('被插入前庭', n(s.penetratedVagina)+' 次', dim(s.penetratedVagina))
+    + cell('被插入后庭', n(s.penetratedAnus)+' 次', dim(s.penetratedAnus))
+    + '</div>';
+
+  // ---- 射精（自己射出去）----
+  h += '<div class="sec">射精（自己主动）</div><div class="dgrid">'
+    + cell('射精总次数', n(s.shots)+' 次', dim(s.shots))
+    + cell('其中内射', n(s.shotInside)+' 次', dim(s.shotInside))
+    + cell('外射', n(s.shotOutside)+' 次', dim(s.shotOutside))
+    + cell('口爆', n(s.shotMouth)+' 次', dim(s.shotMouth))
+    + cell('颜射', n(s.shotFacial)+' 次', dim(s.shotFacial))
+    + cell('胸射', n(s.shotBreast)+' 次', dim(s.shotBreast))
+    + cell('内射率', n(s.shotInsideRate)+'%', dim(s.shotInsideRate))
+    + '</div>';
+
+  // ---- 接受（被射）----
+  h += '<div class="sec">被射（自己接受）</div><div class="dgrid">'
+    + cell('被内射', n(s.inside)+' 次', dim(s.inside))
+    + cell('被外射', n(s.outside)+' 次', dim(s.outside))
+    + cell('被口爆', n(s.inMouth)+' 次', dim(s.inMouth))
+    + cell('被颜射', n(s.facial)+' 次', dim(s.facial))
+    + cell('被胸射', n(s.breast)+' 次', dim(s.breast))
+    + cell('被射总计', n(s.receivedTotal)+' 次', dim(s.receivedTotal))
+    + cell('被内射占比', n(s.receivedInsideRate)+'%', dim(s.receivedInsideRate))
+    + '</div>';
+
+  // ---- 主动服务 ----
+  h += '<div class="sec">主动服务</div><div class="dgrid">'
+    + cell('口交（施）', n(s.giveBJ)+' 次', dim(s.giveBJ))
+    + cell('口交（受）', n(s.receiveBJ)+' 次', dim(s.receiveBJ))
+    + cell('手活（施）', n(s.giveHand)+' 次', dim(s.giveHand))
+    + cell('手活（受）', n(s.receiveHand)+' 次', dim(s.receiveHand))
+    + cell('使用道具', n(s.toys)+' 次', dim(s.toys))
+    + cell('使用润滑剂', n(s.lube)+' 次', dim(s.lube))
+    + '</div>';
+
+  // ---- 后庭专项 ----
+  h += '<div class="sec">后庭专项</div><div class="dgrid">'
+    + cell('准备流程完成', n(s.analPrep)+' 次', dim(s.analPrep))
+    + cell('灌肠次数', n(s.enema)+' 次', dim(s.enema))
+    + cell('后庭玩具', n(s.analToy)+' 次', dim(s.analToy))
+    + cell('双穴同时', n(s.analDouble)+' 次', dim(s.analDouble))
+    + cell('后庭总次数', n(s.analTotal)+' 次', dim(s.analTotal))
+    + cell('后庭开发度', 'Lv'+n(s.analLevel), dim(s.analLevel))
+    + '</div>';
+
+  // ---- 受精与生育 ----
+  h += '<div class="sec">受精与生育</div><div class="dgrid">'
+    + cell('受精风险', n(s.fertilized)+' 次', dim(s.fertilized))
+    + cell('成功受孕', n(s.conceived)+' 次', dim(s.conceived))
+    + cell('事后避孕', n(s.pill)+' 次', dim(s.pill))
+    + cell('累计生产', n(s.births)+' 次', dim(s.births))
+    + cell('已育子女', String(n(s.children)), dim(s.children))
+    + '</div>';
+
+  // ---- 部位熟练度 ----
+  const lv=(x)=>Math.min(10, Math.floor(n(x)/6));
+  h += '<div class="sec">部位熟练度</div>'
+    + bar('口', lv(n(s.giveBJ)*4 + n(s.receiveBJ)*3))
+    + bar('前庭', lv(n(s.penetrateVagina)*3 + n(s.penetratedVagina)*3))
+    + bar('后庭', n(s.analLevel))
+    + bar('手', lv(n(s.giveHand)*4 + n(s.receiveHand)*3))
+    + bar('道具', lv(n(s.toys)*4 + n(s.lube)*2));
+
+  // ---- 偏好 ----
+  h += '<div class="sec">偏好</div><div class="dgrid">'
+    + cell('主要对象', s.partner || '—', (s.partner||'—')==='—'?'color:var(--dim)':'')
+    + cell('最常用体位', s.pose || '—', (s.pose||'—')==='—'?'color:var(--dim)':'')
+    + cell('累计时长', n(s.minutes)?(n(s.minutes)+' 分钟'):'—', dim(s.minutes))
+    + cell('首次亲密', s.firstDay!=null?('第 '+s.firstDay+' 天'):'—', s.firstDay!=null?'':'color:var(--dim)')
+    + cell('最近亲密', s.lastDay!=null?('第 '+s.lastDay+' 天'):'—', s.lastDay!=null?'':'color:var(--dim)')
+    + '</div>';
+
+  return h;
 }
 
 /** 怀孕与生育区块（按角色数据渲染） */
@@ -3428,6 +3606,7 @@ function fillDetail(id){
     +'<div class="dgrid">'+d.grid.map(([k,v])=>'<div class="dcell"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>').join('')+'</div>'
     + physiBlock(d)
     + pregBlock(d);}
+  const sx=q('#d-sex'); if(sx) sx.innerHTML=sexBlock(d);
   const ac=q('#d-acts');
   if(ac){const all=['口交（施）','口交（受）','正面位','背后位','骑乘位','后庭（施）','胸交','腿交'];
     ac.innerHTML='<div class="sec">可用行为（26 种）</div><div class="dgrid">'+all.map(a=>'<div class="dcell"><span class="k">'+a+'</span><span class="v" style="color:'+(d.acts.includes(a)?'var(--ok)':'var(--dim)')+'">'+(d.acts.includes(a)?'可用':'未解锁')+'</span></div>').join('')+'</div>';}
@@ -3514,6 +3693,12 @@ function hdt(id) {
   document.querySelectorAll('#hero-detail .pane').forEach(x => x.classList.remove('on'));
   document.getElementById(id).classList.add('on');
   event.target.classList.add('on');
+  if (id === 'h-sex') fillHeroSex();
+}
+/** 主角性爱统计：与同伴共用 sexBlock，保证字段完全一致 */
+function fillHeroSex(){
+  const el = document.getElementById('h-sex');
+  if (el && typeof sexBlock === 'function') el.innerHTML = sexBlock(HERO);
 }
 function swapTab(parentId, which) {
   event.target.parentElement.querySelectorAll('.subtab').forEach(x => x.classList.remove('on'));
@@ -4520,6 +4705,23 @@ function setToggleIcon(expanded) {
   const b = document.getElementById('ebToggleBtn');
   if (b) b.textContent = expanded ? '▾' : '▸';
 }
+/* 初始化：让左侧名册当前选中角色与详情栏内容一致（避免静态占位数据与角色数据脱节） */
+(function initDetailPane(){
+  const run = () => {
+    const sel = document.querySelector('.hitem.sel') || document.querySelector('.hitem');
+    if (sel) fillDetail(sel.dataset.id || 'sister');
+    setToggleIcon(!document.getElementById('eventbar')?.classList.contains('collapsed'));
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})();
+
+/* 主角统计面板初始化（h-sex 是默认标签，必须一进页面就有内容） */
+(function initHeroSex(){
+  const run = () => { if (typeof fillHeroSex === 'function') fillHeroSex(); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})();
 </script>
 </body>
 </html>

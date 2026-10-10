@@ -73,3 +73,4 @@ export * from "./systems/achievements.ts";
 export * from "./systems/branchEvents.ts";
 export * from "./systems/plugins.ts";
 export * from "./systems/prologue.ts";
+export * from "./systems/sexStats.ts";
