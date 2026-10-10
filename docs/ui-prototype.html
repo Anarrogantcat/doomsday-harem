@@ -55,9 +55,28 @@ border-radius:.2em;padding:.1em .5em;min-width:2.2em;text-align:center}
 
 /* 主界面 */
 #game{position:fixed;inset:0;display:none;
-grid-template-columns:var(--c-left) minmax(0,1fr) var(--c-right) var(--c-detail);
-grid-template-rows:1fr auto}
-#game{--c-left:19em;--c-right:24em;--c-detail:18em}
+grid-template-columns:
+  var(--c-left) var(--sp) minmax(0,1fr) var(--sp) var(--c-right) var(--sp) var(--c-detail);
+grid-template-rows:1fr auto;
+--c-left:19em;--c-right:24em;--c-detail:18em;--sp:5px}
+
+/* ============ 可拖动分隔条 ============ */
+.splitter{
+  background:var(--line);cursor:col-resize;position:relative;
+  transition:background-color .12s;touch-action:none;z-index:5;min-width:0;
+}
+.splitter::after{content:"";position:absolute;top:0;bottom:0;left:-3px;right:-3px}
+.splitter::before{
+  content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:2px;height:2.2em;border-radius:1px;background:var(--dim);opacity:.6;
+}
+.splitter:hover,.splitter.dragging{background:var(--accent)}
+.splitter:hover::before,.splitter.dragging::before{background:#fff;opacity:1}
+.splitter.off{display:none}
+
+/* 拖动时全局禁用选中与指针事件干扰 */
+body.col-resizing{cursor:col-resize;user-select:none}
+body.col-resizing *{cursor:col-resize !important}
 #game.on{display:grid}
 
 /* 左栏 */
@@ -198,6 +217,13 @@ display:flex;align-items:center;gap:.5em}
 .sec::after{content:"";flex:1;height:1px;background:var(--line)}
 
 /* 底栏 */
+.colreset{
+  margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--dim);
+  border-radius:.2em;padding:.1em .5em;cursor:pointer;font-family:inherit;font-size:.92em;
+  transition:all .12s;
+}
+.colreset:hover{border-color:var(--accent-lt);color:var(--fg)}
+
 .strip{grid-column:1/-1;display:flex;align-items:center;gap:1em;padding:.45em 1em;
 background:var(--panel2);border-top:1px solid var(--line);font-size:.8em}
 .st{color:var(--accent-lt);font-weight:600}
@@ -983,10 +1009,8 @@ padding:0 .3em;border-radius:.15em}
 border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-size:.72em}
 
 /* ================================================================
-   响应式布局（放最后，确保覆盖前面的列/显示规则）
+   响应式布局（只调整 CSS 变量，不改网格模板，便于拖动覆盖）
    ================================================================ */
-#game{ --c-left:19em; --c-right:24em; --c-detail:18em }
-
 @media (min-width:1800px){
   #game{ --c-left:21em; --c-right:28em; --c-detail:21em }
 }
@@ -1002,30 +1026,23 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
 
 /* <1160：隐藏详情侧栏（角色详情改用弹窗） */
 @media (max-width:1159px){
-  #game{
-    --c-detail:0em; --c-left:15em; --c-right:23em;
-    grid-template-columns:var(--c-left) minmax(0,1fr) var(--c-right);
-  }
-  .detail-side{ display:none !important }
-  .game > .detail-side{ display:none !important }
+  #game{ --c-detail:0em; --c-left:15em; --c-right:23em }
+  #game .detail-side{ display:none !important }
+  #game > .splitter[data-col="detail"]{ display:none !important }
 }
 
 /* <1000：隐藏左栏名册 */
 @media (max-width:999px){
-  #game{
-    --c-left:0em; --c-right:23em;
-    grid-template-columns:minmax(0,1fr) var(--c-right);
-  }
-  .left{ display:none !important }
+  #game{ --c-left:0em; --c-right:23em }
+  #game .left{ display:none !important }
+  #game > .splitter[data-col="left"]{ display:none !important }
 }
 
 /* <820：只剩中栏，地图走大地图弹窗 */
 @media (max-width:819px){
-  #game{
-    --c-right:0em;
-    grid-template-columns:minmax(0,1fr);
-  }
-  .right{ display:none !important }
+  #game{ --c-right:0em }
+  #game .right{ display:none !important }
+  #game > .splitter[data-col="right"]{ display:none !important }
 }
 
 /* 矮屏：压缩纵向留白 */
@@ -1267,6 +1284,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
     </div>
   </div>
 
+  <div class="splitter" data-col="left" title="拖动调整名册宽度"></div>
   <div class="center">
     <div class="ctabs">
       <button class="ctab on" onclick="ctTab(this)">叙事</button>
@@ -1323,6 +1341,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
     </div>
   </div>
 
+  <div class="splitter" data-col="right" title="拖动调整地图宽度"></div>
   <div class="right">
     <div class="rtabs">
       <div class="rtab on">地图</div>
@@ -1391,6 +1410,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
       </div>
     </div>
   </div>
+  <div class="splitter" data-col="detail" title="拖动调整详情栏宽度"></div>
   <div class="detail-side" id="dside">
     <!-- 主角（固定顶部） -->
     <div class="ds-hero">
@@ -1521,6 +1541,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
     <span class="si">防御 <b>0</b></span>
     <span class="si">探索 <b>6%</b></span>
     <span class="si">物资 <b>24</b></span>
+    <button class="colreset" onclick="resetColWidths()" title="双击分隔条 或 Ctrl+0 也可恢复">↺ 默认栏宽</button>
   </div>
 </div>
 
@@ -3267,6 +3288,101 @@ function ctTab(el) {
   document.querySelectorAll('.ctab').forEach(x => x.classList.remove('on'));
   el.classList.add('on');
 }
+/* ================================================================
+   侧栏拖动调宽
+   ================================================================ */
+const SPLIT_CONF = {
+  left:   { varName: "--c-left",   min: 9,  max: 34, invert: false, label: "名册" },
+  right:  { varName: "--c-right",  min: 13, max: 44, invert: true,  label: "地图" },
+  detail: { varName: "--c-detail", min: 11, max: 34, invert: true,  label: "详情栏" }
+};
+const SPLIT_KEY = "dh-col-widths";
+
+function emToPx(em) {
+  const fs = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  return em * fs;
+}
+function currentEm(varName) {
+  const raw = getComputedStyle(document.getElementById("game")).getPropertyValue(varName).trim();
+  const v = parseFloat(raw);
+  return isNaN(v) ? 18 : v;
+}
+function setColEm(varName, em) {
+  document.getElementById("game").style.setProperty(varName, em.toFixed(2) + "em");
+}
+
+function saveColWidths() {
+  const g = document.getElementById("game");
+  const style = g.style;
+  const out = {
+    left: style.getPropertyValue("--c-left").trim(),
+    right: style.getPropertyValue("--c-right").trim(),
+    detail: style.getPropertyValue("--c-detail").trim()
+  };
+  try { localStorage.setItem(SPLIT_KEY, JSON.stringify(out)); } catch (e) {}
+}
+function loadColWidths() {
+  let raw = null;
+  try { raw = localStorage.getItem(SPLIT_KEY); } catch (e) {}
+  if (!raw) return;
+  try {
+    const o = JSON.parse(raw);
+    const g = document.getElementById("game");
+    if (o.left) g.style.setProperty("--c-left", o.left);
+    if (o.right) g.style.setProperty("--c-right", o.right);
+    if (o.detail) g.style.setProperty("--c-detail", o.detail);
+  } catch (e) {}
+}
+function resetColWidths() {
+  const g = document.getElementById("game");
+  g.style.removeProperty("--c-left");
+  g.style.removeProperty("--c-right");
+  g.style.removeProperty("--c-detail");
+  try { localStorage.removeItem(SPLIT_KEY); } catch (e) {}
+  toastMsg("已恢复默认栏宽");
+}
+
+function initSplitters() {
+  document.querySelectorAll("#game > .splitter").forEach((sp) => {
+    sp.addEventListener("pointerdown", (e) => {
+      const col = sp.dataset.col;
+      const conf = SPLIT_CONF[col];
+      if (!conf) return;
+      const startX = e.clientX;
+      const startEm = currentEm(conf.varName);
+      const pxPerEm = emToPx(1);
+      sp.classList.add("dragging");
+      document.body.classList.add("col-resizing");
+      try { sp.setPointerCapture(e.pointerId); } catch (err) {}
+      e.preventDefault();
+
+      const onMove = (ev) => {
+        const dx = ev.clientX - startX;
+        // invert：分隔条在列的右侧时，往左拖 = 变宽
+        const deltaEm = (conf.invert ? -dx : dx) / pxPerEm;
+        let next = startEm + deltaEm;
+        next = Math.max(conf.min, Math.min(conf.max, next));
+        setColEm(conf.varName, next);
+      };
+      const onUp = () => {
+        sp.classList.remove("dragging");
+        document.body.classList.remove("col-resizing");
+        sp.removeEventListener("pointermove", onMove);
+        sp.removeEventListener("pointerup", onUp);
+        sp.removeEventListener("pointercancel", onUp);
+        saveColWidths();
+        toastMsg(conf.label + "宽度 " + currentEm(conf.varName).toFixed(1) + "em");
+      };
+      sp.addEventListener("pointermove", onMove);
+      sp.addEventListener("pointerup", onUp);
+      sp.addEventListener("pointercancel", onUp);
+    });
+
+    // 双击分隔条 = 恢复默认
+    sp.addEventListener("dblclick", (e) => { e.preventDefault(); resetColWidths(); });
+  });
+}
+
 function openFortress() {
   document.getElementById('fortress-view').classList.add('on');
   const n = document.querySelectorAll('#fortress-view .dbody > .fsec').length;
@@ -3682,8 +3798,10 @@ function mapFlash(name) {
 // 键盘方向键
 document.addEventListener("keydown", (e) => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  // Ctrl+0 / Ctrl+Shift+0：恢复默认栏宽
+  if (e.ctrlKey && e.key === "0") { e.preventDefault(); resetColWidths(); return; }
   const map = { ArrowUp:"N", ArrowDown:"S", ArrowLeft:"W", ArrowRight:"E" };
-  if (map[e.key]) { e.preventDefault(); mapMove(map[e.key]); }
+  if (map[e.key] && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); mapMove(map[e.key]); }
 });
 
 /* 小地图切换：循环 5 张 */
@@ -3722,6 +3840,9 @@ function toastMsg(t) {
   setTimeout(() => d.remove(), 2600);
 }
 
+loadColWidths();
+initSplitters();
+
 mapRender();
 mapUpdateDirs();
 
@@ -3746,7 +3867,7 @@ mapUpdateDirs();
     dragging = true;
     startY = e.clientY;
     startH = bar.offsetHeight;
-    grip.setPointerCapture(e.pointerId);
+    try { grip.setPointerCapture(e.pointerId); } catch (err) {}
     bar.classList.remove('collapsed');
     setToggleIcon(false);
     e.preventDefault();
