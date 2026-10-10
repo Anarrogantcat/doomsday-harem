@@ -1413,7 +1413,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
     </div>
     <div class="stage">
       <div class="stitle">我醒了</div>
-      <div class="smeta">主角 × 特殊AI　孤独被接住的那一刻</div>
+      <div class="smeta"><span data-hero-name>林晓</span> × 特殊AI　孤独被接住的那一刻</div>
       <div class="beat">
         <div class="bnum">—— 节拍 1/4 ——</div>
         <div class="ln">你趴在自己的桌子上睡着了。屏幕忽然自己亮起来，光标闪了两下。</div>
@@ -1573,8 +1573,8 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
     <!-- 主角（固定顶部） -->
     <div class="ds-hero">
       <div class="ds-head hero">
-        <span class="ds-name">主角</span>
-        <span class="ds-role">扶她</span>
+        <span class="ds-name" data-hero-name>林晓</span>
+        <span class="ds-role" title="生理性别">扶她</span>
         <button class="ds-expand" title="查看完整资料" onclick="document.getElementById('hero-detail').classList.add('on')">⤢</button>
       </div>
       <div class="ds-body">
@@ -2905,13 +2905,13 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
 <div class="modal" id="hero-detail">
   <div class="mbox">
     <div class="mhead">
-      <span class="mtitle">主角</span>
+      <span class="mtitle" data-hero-name>林晓</span>
       <button class="mclose" onclick="document.getElementById('hero-detail').classList.remove('on')">✕</button>
     </div>
     <div class="dhead">
       <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='184'%3E%3Cdefs%3E%3ClinearGradient id='h1' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='hsl(280,35%25,38%25)'/%3E%3Cstop offset='1' stop-color='hsl(280,30%25,22%25)'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='120' height='184' fill='url(%23h1)'/%3E%3Ccircle cx='60' cy='52' r='26' fill='hsl(280,30%25,72%25)'/%3E%3Cellipse cx='60' cy='150' rx='34' ry='52' fill='hsl(280,32%25,60%25)'/%3E%3C/svg%3E" alt="主角">
       <div class="dmeta">
-        <div class="dname">主角 <span class="tag">扶她</span></div>
+        <div class="dname"><span data-hero-name>林晓</span> <span class="tag" title="生理性别">扶她</span></div>
         <div class="dtitle">幸存者 · 28岁 · 基地建造者</div>
         <div class="dtags">
           <span class="dtag">御姐</span><span class="dtag">178cm</span>
@@ -3633,7 +3633,7 @@ const MCITY_SOUTH = {
     {id:"uni_canteen",n:"大学食堂",x:6,y:0,d:3,k:"city",desc:"后厨冷库还有没坏的冻品。"},
     {id:"uni_sports",n:"大学体育馆",x:7,y:0,d:2,k:"city",desc:"看台能俯瞰南区。"},
     {id:"mountain_foot",n:"北岭山脚",x:0,y:1,d:1,k:"road",desc:"出小区往西十分钟。上山的路从这里开始。",sub:{l:"北岭山",m:"beiling",c:"mt_foot_camp"}},
-    {id:"hero_home",n:"主角家",x:1,y:1,d:0,k:"city",desc:"城南小区六楼，一家四口住一起。"},
+    {id:"hero_home",n:"{{HERO}}家",x:1,y:1,d:0,k:"city",desc:"城南小区六楼，一家四口住一起。"},
     {id:"home_block",n:"小区楼下",x:2,y:1,d:1,k:"town",desc:"六层老楼，楼下有小卖部。"},
     {id:"univ_neigh",n:"大学路",x:3,y:1,d:1,k:"road",desc:"连接小区与大学的主路。"},
     {id:"street_east",n:"南城商业街",x:4,y:1,d:2,k:"city",desc:"店铺大半被撬开。"},
@@ -3834,7 +3834,7 @@ const MAPS = {
     {id:"ft_medbay",n:"医务室",x:3,y:1,d:0,k:"interior"},
     {id:"ft_bath",n:"公共浴室",x:4,y:1,d:0,k:"interior"},
     {id:"ft_laundry",n:"洗衣房",x:5,y:1,d:0,k:"interior"},
-    {id:"ft_room_hero",n:"主角房间",x:0,y:2,d:0,k:"interior"},
+    {id:"ft_room_hero",n:"{{HERO}}的房间",x:0,y:2,d:0,k:"interior"},
     {id:"ft_room_ai",n:"AI 机房室",x:1,y:2,d:0,k:"interior"},
     {id:"ft_room_a",n:"同伴房间 A",x:2,y:2,d:0,k:"interior"},
     {id:"ft_room_b",n:"同伴房间 B",x:3,y:2,d:0,k:"interior"},
@@ -3864,7 +3864,7 @@ const KMAP2 = { city:"🏢",town:"🏘",road:"🛣",wild:"🌳",mountain:"⛰",b
 
 /* ============ 人物注册表 ============ */
 const PEOPLE = {
-  hero:   { n:"主角",  c:"#D982EF", i:"👤", role:"自己" },
+  hero:   { n:"主角",  c:"#D982EF", i:"👤", role:"自己" },  // n 在 initHeroName() 里替换为玩家自定义名
   ai:     { n:"特殊AI", c:"#00F5EF", i:"🤖", role:"AI" },
   sister: { n:"姐姐",  c:"#FF6EC7", i:"💜", role:"同伴" },
   mother: { n:"母亲",  c:"#FFA85C", i:"🧡", role:"同伴" },
@@ -4281,9 +4281,53 @@ function toastMsg(t) {
   setTimeout(() => d.remove(), 2600);
 }
 
+/* 玩家自定义姓名（新游戏时输入；此处为原型占位） */
+let HERO_NAME = "林晓";
+
+/** 把占位符与固定文案替换成玩家自定义名 */
+function initHeroName() {
+  // 地图格名里的 {{HERO}}
+  for (const m of Object.values(MAPS)) {
+    for (const c of m.cells) {
+      if (c.n && c.n.indexOf("{{HERO}}") >= 0) {
+        c.n = c.n.split("{{HERO}}").join(HERO_NAME);
+      }
+    }
+  }
+  // 人物注册表里的主角名
+  if (PEOPLE.hero) PEOPLE.hero.n = HERO_NAME;
+  // 静态 HTML 里的 data-hero-name
+  document.querySelectorAll("[data-hero-name]").forEach((el) => {
+    el.textContent = HERO_NAME;
+  });
+  // 地图标题刷新（格名变了）
+  mapSyncName();
+}
+
+/** 改名（设置面板调用） */
+function renameHero(newName) {
+  const n = (newName ?? "").trim();
+  if (!n) { toastMsg("名字不能为空"); return; }
+  // 把地图里旧的 HERO_NAME 换回占位符，再套用新名
+  for (const m of Object.values(MAPS)) {
+    for (const c of m.cells) {
+      if (c.n && c.n.indexOf(HERO_NAME) >= 0) {
+        c.n = c.n.split(HERO_NAME).join("{{HERO}}");
+      }
+    }
+  }
+  HERO_NAME = n;
+  initHeroName();
+  mapRender();
+  mapUpdateCellInfo();
+  toastMsg("主角改名：" + n);
+}
+
 loadColWidths();
 initSplitters();
 loadInputbar();
+
+initHeroName();
 
 mapSyncName();
 mapRender();
