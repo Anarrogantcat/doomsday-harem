@@ -373,6 +373,49 @@ border-radius:.25em;padding:2px;margin:.3em 0;width:100%;container-type:inline-s
 /* 格子字号随容器宽度缩放（8 列也看得清） */
 .mcell .mc-i{font-size:clamp(.62rem, 3.2cqw, 1.05rem)}
 .mcell .mc-n{font-size:clamp(.4rem, 1.85cqw, .56rem)}
+/* 小地图：在场的人（底部小圆点） */
+.mcell .mc-ppl{
+  position:absolute;bottom:.1em;left:0;right:0;
+  display:flex;justify-content:center;gap:2px;pointer-events:none;
+}
+.mcell .mc-ppl i{
+  width:clamp(3px, .85cqw, 6px);height:clamp(3px, .85cqw, 6px);
+  border-radius:50%;display:block;box-shadow:0 0 0 1px rgba(0,0,0,.55);
+}
+.mcell .mc-bg{
+  position:absolute;font-size:clamp(.4rem, 1.4cqw, .55rem);line-height:1;
+  width:1.15em;height:1.15em;display:flex;align-items:center;justify-content:center;
+  border-radius:.15em;pointer-events:none;
+}
+.mcell .mc-bg.it{top:.1em;left:.1em;background:rgba(232,200,21,.9);color:#000}
+.mcell .mc-bg.ev{top:.1em;right:.1em;background:rgba(141,49,176,.95);color:#fff}
+.mgrid.dense .mc-ppl{bottom:auto;top:50%;transform:translateY(-50%)}
+.mgrid.dense .mc-bg{width:.95em;height:.95em}
+
+/* 当前格：人物与事件 */
+.cc-sec{font-size:.68em;color:var(--dim);letter-spacing:.06em;margin-top:.45em;
+padding-bottom:.1em;border-bottom:1px solid var(--line)}
+.cc-none{font-size:.72em;color:var(--dim);font-style:italic;padding:.2em 0}
+.cc-ppl{display:flex;flex-direction:column;gap:.2em;margin-top:.25em}
+.cc-person{
+  display:flex;align-items:center;gap:.4em;font-size:.76em;
+  padding:.22em .45em;background:rgba(0,0,0,.22);
+  border-left:3px solid var(--line);border-radius:.2em;
+}
+.cc-person i{width:.65em;height:.65em;border-radius:50%;flex-shrink:0}
+.cc-person em{font-style:normal;font-size:.85em;color:var(--dim);margin-left:auto}
+.cc-tags{display:flex;flex-wrap:wrap;gap:.25em;margin-top:.25em}
+.cc-chip{
+  font-size:.72em;padding:.18em .5em;border-radius:.2em;
+  border:1px solid var(--line);background:var(--panel2);color:var(--sub);
+}
+.cc-chip.it{border-color:var(--warn);color:var(--warn)}
+.cc-chip.ev{
+  border-color:var(--accent);color:var(--accent-lt);cursor:pointer;
+  font-family:inherit;transition:all .12s;
+}
+.cc-chip.ev:hover{background:var(--accent);color:#fff}
+
 /* 紧凑模式 */
 .mgrid.dense .mcell{aspect-ratio:1/0.6}
 .mgrid.dense .mcell .mc-n{display:none}
@@ -758,6 +801,21 @@ border-color:var(--accent-lt);border-left-color:var(--accent-lt)}
 .bgc.sub{border-left-color:var(--info)}
 .bgc.exit{border-left-color:var(--warn)}
 .bgc.picked{outline:2px solid var(--accent-lt);outline-offset:-2px}
+.bgc .bg-ppl{
+  display:flex;justify-content:center;gap:3px;
+  position:absolute;bottom:.3em;left:0;right:0;pointer-events:none;
+}
+.bgc .bg-ppl i{
+  width:.55em;height:.55em;border-radius:50%;display:block;
+  box-shadow:0 0 0 1px rgba(0,0,0,.6);
+}
+.bgc .bg-tag{
+  position:absolute;top:.25em;font-size:.62em;line-height:1;
+  width:1.3em;height:1.3em;display:flex;align-items:center;justify-content:center;
+  border-radius:.2em;pointer-events:none;
+}
+.bgc .bg-tag.it{left:.25em;background:rgba(232,200,21,.92);color:#000}
+.bgc .bg-tag.ev{right:.25em;background:rgba(141,49,176,.95);color:#fff}
 
 /* ============ 房车详情 ============ */
 .vov{display:flex;gap:1em;align-items:flex-start;padding:.6em;background:rgba(0,0,0,.25);border-radius:.35em}
@@ -3785,6 +3843,81 @@ const MAPS = {
 };
 const KMAP2 = { city:"🏢",town:"🏘",road:"🛣",wild:"🌳",mountain:"⛰",base:"🏰",military:"🛡",lab:"🔬",water:"💧",interior:"🚪",ruin:"🏚",farm:"🌾",industrial:"🏭" };
 
+/* ============ 人物注册表 ============ */
+const PEOPLE = {
+  hero:   { n:"主角",  c:"#D982EF", i:"👤", role:"自己" },
+  ai:     { n:"特殊AI", c:"#00F5EF", i:"🤖", role:"AI" },
+  sister: { n:"姐姐",  c:"#FF6EC7", i:"💜", role:"同伴" },
+  mother: { n:"母亲",  c:"#FFA85C", i:"🧡", role:"同伴" },
+  sister2:{ n:"妹妹",  c:"#6EC1FF", i:"💙", role:"同伴" },
+  trader: { n:"行商",  c:"#E8C815", i:"🎒", role:"NPC" },
+  refugee:{ n:"难民",  c:"#9aa8bf", i:"🧍", role:"NPC" },
+  bandit: { n:"匪徒",  c:"#FF4D4D", i:"🔪", role:"敌对" },
+  zombie: { n:"丧尸",  c:"#7a8a3a", i:"🧟", role:"敌对" }
+};
+
+/* ============ 地图上的动态内容 ============
+ * 每格可带：
+ *   people  在场的人（角色 id 数组）
+ *   items   可搜刮的物资（标签）
+ *   events  可触发事件
+ *   marks   静态标记（子图入口 / 出口 / 危险等）
+ */
+const CELL_DYNAMIC = {
+  // ── 要塞内部：每个房间都有人在 ──
+  ft_room_hero:  { people:["hero"],       items:[],       events:["睡觉","换装"] },
+  ft_room_ai:    { people:["ai"],         items:[],       events:["对话","查看服务器"] },
+  ft_room_a:     { people:["sister"],     items:["衣帽间"], events:["亲密","训练","聊天"] },
+  ft_room_b:     { people:["mother"],     items:["小厨房"], events:["亲密","聊天","让她做饭"] },
+  ft_room_c:     { people:["sister2"],    items:["玩偶架"], events:["亲密","陪她玩"] },
+  ft_room_empty: { people:[],             items:[],       events:["扩建"] },
+
+  ft_kitchen:    { people:["mother"],     items:["食材"],   events:["进食","一起做饭"] },
+  ft_living:     { people:["sister","sister2"], items:[],   events:["聊天","休息"] },
+  ft_bath:       { people:[],             items:[],       events:["洗澡","共浴"] },
+  ft_medbay:     { people:[],             items:["药品","绷带"], events:["治疗","体检"] },
+  ft_workshop:   { people:[],             items:["零件","钢材"], events:["制作","改装"] },
+  ft_lab:        { people:["ai"],         items:["试剂"],   events:["研究","科技"] },
+  ft_armory:     { people:[],             items:["弹药"],   events:["取装备"] },
+  ft_gym:        { people:["sister"],     items:[],       events:["训练"] },
+  ft_server:     { people:["ai"],         items:[],       events:["与 AI 独处"] },
+  ft_cell:       { people:[],             items:[],       events:["关人","审问"] },
+  ft_vault:      { people:[],             items:["物资箱"], events:["清点库存"] },
+
+  // ── 城南 ──
+  hero_home:     { people:["hero"],       items:["家常储备"], events:["睡觉","写代码"] },
+  home_block:    { people:["mother"],     items:["日用品"], events:["聊天"] },
+  south_uni:     { people:["sister2"],    items:["书籍"],   events:["自习"] },
+  south_park:    { people:[],             items:["草药"],   events:["歇脚"] },
+  res_blocks:    { people:["refugee"],    items:["罐头"],   events:["交涉","驱赶"] },
+  abandoned_mall:{ people:["zombie"],     items:["服装"],   events:["战斗","潜行"] },
+  city_hospital: { people:["zombie"],     items:["药品"],   events:["战斗","搜刮"] },
+  south_highschool:{ people:["sister"],   items:[],       events:["回忆"] },
+  old_theater:   { people:["sister"],     items:["戏服"],   events:["约会"] },
+
+  // ── 北岭山 ──
+  mt_fortress_out:{ people:["sister"],    items:[],       events:["巡逻"] },
+  mt_rv_park:    { people:[],             items:["备件"],   events:["整理房车"] },
+  mt_radio:      { people:[],             items:["电子元件"], events:["发信号"] },
+  mt_ledge:      { people:["mother"],     items:[],       events:["看风景"] },
+
+  // ── 东部郊野 ──
+  e_farm_main:   { people:["trader"],     items:["蔬菜"],   events:["交易","帮忙"] },
+  e_temp_camp:   { people:["refugee"],    items:["睡袋"],   events:["交涉"] },
+  checkpoint:    { people:["bandit"],     items:["弹药"],   events:["战斗","潜入"] },
+  e_refugee_camp:{ people:["refugee"],    items:["衣物"],   events:["招募"] }
+};
+
+/** 取某格的动态内容（含默认值） */
+function cellDyn(cellId) {
+  return CELL_DYNAMIC[cellId] || null;
+}
+/** 该格是否有人在 */
+function cellHasPeople(cellId) {
+  const d = cellDyn(cellId);
+  return !!(d && d.people && d.people.length);
+}
+
 /** 动态渲染大地图 */
 function bmRender(mapId) {
   const m = MAPS[mapId];
@@ -3838,7 +3971,16 @@ function bmTabGo(mapId) {
 let curMap = MCITY_SOUTH;
 let curCellId = "hero_home";
 curMap.id = "jc_south";
-const explored = new Set(["hero_home", "home_block", "mountain_foot", "south_park"]);
+const explored = new Set([
+  "hero_home", "home_block", "mountain_foot", "south_park",
+  // 要塞内部：自己家的房间都认识
+  "ft_entry", "ft_villa", "ft_garage", "ft_power", "ft_water", "ft_air",
+  "ft_hall", "ft_kitchen", "ft_living", "ft_medbay", "ft_bath", "ft_laundry",
+  "ft_room_hero", "ft_room_ai", "ft_room_a", "ft_room_b", "ft_room_c", "ft_room_empty",
+  "ft_workshop", "ft_lab", "ft_armory", "ft_armor_wb", "ft_robot_bay", "ft_drone_bay",
+  "ft_server", "ft_cell", "ft_nursery", "ft_vault", "ft_cold", "ft_gym",
+  "ft_tunnel", "ft_escape_shaft", "ft_safe_nook", "ft_deep_lab", "ft_reactor", "ft_self_destruct"
+]);
 
 function mapRender() {
   const g = document.getElementById("mgrid");
@@ -3855,13 +3997,85 @@ function mapRender() {
       d.className = "mcell" + (isHere ? " here" : "") + (seen ? "" : " unk") +
         (c.exit ? " exit" : "") + (c.sub ? " sub" : "");
       d.title = seen ? c.n + "（危险 " + c.d + "）" : "未探索";
-      d.innerHTML = seen
-        ? '<span class="mc-i">' + (MKIND[c.k] || "·") + '</span><span class="mc-n">' + c.n + '</span>'
-        : '<span class="mc-i">❓</span><span class="mc-n">未知</span>';
-      d.onclick = () => { curCellId = c.id; mapRender(); mapUpdateDirs(); };
+      const dyn = cellDyn(c.id);
+      if (seen) {
+        let html = '<span class="mc-i">' + (MKIND[c.k] || "·") + '</span>' +
+                   '<span class="mc-n">' + c.n + '</span>';
+        // 在场的人：底部一排小点
+        if (dyn && dyn.people && dyn.people.length) {
+          html += '<span class="mc-ppl">' + dyn.people.slice(0, 5).map((pid) => {
+            const p = PEOPLE[pid];
+            return p ? '<i style="background:' + p.c + '" title="' + p.n + '"></i>' : "";
+          }).join("") + '</span>';
+        }
+        // 可搜刮 / 事件角标
+        let badge = "";
+        if (dyn && dyn.items && dyn.items.length) badge += '<span class="mc-bg it">◆</span>';
+        if (dyn && dyn.events && dyn.events.length) badge += '<span class="mc-bg ev">!</span>';
+        html += badge;
+        d.innerHTML = html;
+      } else {
+        d.innerHTML = '<span class="mc-i">❓</span><span class="mc-n">未知</span>';
+      }
+      if (dyn && dyn.people && dyn.people.length) {
+        d.title = c.n + "　在场：" + dyn.people.map((p) => PEOPLE[p]?.n ?? p).join("、");
+      }
+      d.onclick = () => { curCellId = c.id; mapRender(); mapUpdateDirs(); mapUpdateCellInfo(); };
       g.appendChild(d);
     }
   }
+}
+
+/** 当前格信息面板（含在场的人与可用事件） */
+function mapUpdateCellInfo() {
+  const m = MAPS[curMapId];
+  const c = m?.cells.find((v) => v.id === curCellId);
+  if (!c) return;
+  const cc = document.getElementById("curcell");
+  if (!cc) return;
+  const dyn = cellDyn(c.id) || {};
+  const people = (dyn.people || []).map((pid) => PEOPLE[pid]).filter(Boolean);
+  const items = dyn.items || [];
+  const events = dyn.events || [];
+
+  let html = '<div class="cc-n">' + c.n + '</div>' +
+    '<div class="cc-d">' + (c.desc || "暂无描述") + '</div>' +
+    '<div class="cc-t">' +
+      '<span class="cc-tag d' + c.d + '">' + (c.d === 0 ? "安全" : "危险 " + c.d) + '</span>' +
+      '<span class="cc-tag">已探索</span>' +
+      (c.sub ? '<span class="cc-tag" style="border-color:var(--info);color:var(--info)">↧ ' + c.sub + '</span>' : "") +
+      (c.exit ? '<span class="cc-tag" style="border-color:var(--warn);color:var(--warn)">⇢ ' + c.exit + '</span>' : "") +
+    '</div>';
+
+  // 在场的人
+  if (people.length) {
+    html += '<div class="cc-sec">在场的人　<span style="color:var(--dim)">' + people.length + ' 位</span></div>' +
+      '<div class="cc-ppl">' + people.map((p) =>
+        '<span class="cc-person" style="border-color:' + p.c + '">' +
+        '<i style="background:' + p.c + '"></i>' + p.i + ' ' + p.n +
+        '<em>' + p.role + '</em></span>').join("") + '</div>';
+  } else {
+    html += '<div class="cc-sec">在场的人</div><div class="cc-none">这里没人</div>';
+  }
+
+  // 可搜刮
+  if (items.length) {
+    html += '<div class="cc-sec">可搜刮</div><div class="cc-tags">' +
+      items.map((x) => '<span class="cc-chip it">' + x + '</span>').join("") + '</div>';
+  }
+
+  // 可做的事件
+  if (events.length) {
+    html += '<div class="cc-sec">可进行</div><div class="cc-tags">' +
+      events.map((x) => '<button class="cc-chip ev" onclick="cellAct(\'' + x + '\')">' + x + '</button>').join("") + '</div>';
+  }
+
+  cc.innerHTML = html;
+}
+
+/** 点格子里的可进行项 */
+function cellAct(name) {
+  toastMsg("执行：" + name);
 }
 
 function mapUpdateDirs() {
@@ -3874,14 +4088,7 @@ function mapUpdateDirs() {
     el.disabled = !nb;
     el.title = nb ? ({"dN":"北","dS":"南","dW":"西","dE":"东"}[id] + " · " + nb.n) : "无路";
   }
-  const cc = document.getElementById("curcell");
-  if (cc) {
-    const tags = '<span class="cc-tag d' + c.d + '">' + (c.d === 0 ? "安全" : "危险 " + c.d) + '</span>' +
-      '<span class="cc-tag">已探索</span>' +
-      (c.sub ? '<span class="cc-tag" style="border-color:var(--info);color:var(--info)">↧ ' + c.sub + '</span>' : "") +
-      (c.exit ? '<span class="cc-tag" style="border-color:var(--warn);color:var(--warn)">⇢ ' + c.exit + '</span>' : "");
-    cc.innerHTML = '<div class="cc-n">' + c.n + '</div><div class="cc-d">' + c.desc + '</div><div class="cc-t">' + tags + '</div>';
-  }
+  mapUpdateCellInfo();
 }
 
 function mapMove(dir) {
