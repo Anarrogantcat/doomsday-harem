@@ -937,3 +937,76 @@ legend { color: var(--sub); font-size: 0.78em; padding: 0 0.4em; }
 }
 .actbtn:active:not(:disabled) { transform: scale(0.97); }
 .rv-btn:active:not(:disabled) { transform: scale(0.98); }
+
+/* ============ 亲密行为列表 ============ */
+.detail-bars.compact { gap: 0.22em; }
+.act-list { display: flex; flex-direction: column; gap: 0.28em; }
+.act-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5em;
+  width: 100%; background: var(--panel2); border: 1px solid transparent;
+  border-left: 2px solid var(--accent); border-radius: var(--radius);
+  padding: 0.45em 0.6em; cursor: pointer; text-align: left;
+  transition: background-color .14s, border-color .14s;
+}
+.act-row:hover:not(.locked) { background: var(--panel3); border-left-color: var(--accent-lt); }
+.act-row:active:not(.locked) { transform: scale(0.99); }
+.act-row.locked { opacity: .45; cursor: not-allowed; border-left-color: var(--line); }
+.act-main { display: flex; align-items: center; gap: 0.45em; min-width: 0; }
+.act-part {
+  font-size: 0.68em; padding: 0.1em 0.4em; border-radius: 0.2em;
+  background: var(--panel3); color: var(--sub); flex-shrink: 0;
+}
+.act-part.p-mouth { color: #ff9ec4; }
+.act-part.p-vagina { color: #ff7ab0; }
+.act-part.p-anus { color: #c88aff; }
+.act-part.p-hand { color: #8ad0e8; }
+.act-part.p-breast { color: #ffb88a; }
+.act-part.p-thigh { color: #a8d08a; }
+.act-part.p-foot { color: #d0c08a; }
+.act-part.p-toy { color: #ffd207; }
+.act-name {
+  font-size: 0.82em; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.act-meta {
+  display: flex; align-items: center; gap: 0.4em;
+  font-size: 0.7em; color: var(--dim); flex-shrink: 0;
+}
+.act-tier { color: var(--accent-lt); }
+.act-cost { color: var(--energy); }
+.act-lv { color: var(--ok); }
+.act-lock { color: var(--warn); font-size: 0.95em; }
+.act-divider {
+  font-size: 0.72em; color: var(--dim); text-align: center;
+  padding: 0.5em 0 0.25em; border-top: 1px dashed var(--line); margin-top: 0.3em;
+}
+
+/* ============ 熟练度与增益 ============ */
+.prof-list { display: flex; flex-direction: column; gap: 0.35em; }
+.prof-row { display: flex; align-items: center; gap: 0.45em; font-size: 0.78em; }
+.prof-name { width: 2.4em; color: var(--sub); flex-shrink: 0; }
+.prof-bar {
+  flex: 1; height: 0.35em; background: #1e2532;
+  border-radius: 0.18em; overflow: hidden;
+}
+.prof-fill {
+  height: 100%; background: linear-gradient(90deg, var(--accent), var(--lust));
+  transition: width .25s;
+}
+.prof-lv {
+  width: 2.2em; text-align: right; color: var(--accent-lt);
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+.prof-acts {
+  width: 3em; text-align: right; color: var(--dim);
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+
+.perk-list { display: flex; flex-direction: column; gap: 0.35em; }
+.perk-row {
+  display: flex; flex-direction: column; gap: 0.1em;
+  padding: 0.4em 0.55em; background: var(--panel2);
+  border-left: 2px solid var(--ok); border-radius: var(--radius);
+}
+.perk-name { font-size: 0.82em; font-weight: 600; color: var(--ok); }
+.perk-desc { font-size: 0.72em; color: var(--sub); }

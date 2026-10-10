@@ -62,3 +62,5 @@ export * from "./systems/sceneTier.ts";
 export * from "./systems/hTemplates.ts";
 export * from "./systems/settings.ts";
 export * from "./systems/heroGrowth.ts";
+export * from "./systems/sexActs.ts";
+export * from "./systems/haremGrowth.ts";

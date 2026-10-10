@@ -103,6 +103,21 @@ import {
   haremInteractToScene, allTemplateStats, type HaremInteractTemplate
 } from "../systems/hTemplates.ts";
 import {
+  type ActDef, type ActPart, type Proficiency,
+  ACTS, actDef, actsByPart, actsByDirection, actsByTier,
+  newProficiency, recordAct, partLevel, partExpForLevel, proficiencyBonus,
+  canPerform, availableActs, actStats, proficiencySummary,
+  PART_LABEL, DIRECTION_LABEL, proficiencyToJSON, proficiencyFromJSON,
+  type ProficiencyJSON
+} from "../systems/sexActs.ts";
+import {
+  type CompanionGrowth, type CompanionPerk, type PerkContext,
+  newCompanionGrowth, recordIntimacy, recordJobDay, recordBirth,
+  hasPerk, perkMultipliers, growthLevel, growthSummary,
+  PERK_DEFS, companionGrowthToJSON, companionGrowthFromJSON,
+  type CompanionGrowthJSON
+} from "../systems/haremGrowth.ts";
+import {
   type HeroGrowth, type HeroAttributes, type HeroBonuses,
   newHeroGrowth, gainExp, gainSkillExp, spendPoint, effectiveAttributes,
   emptyBonuses, attributeTotal, skillTotal, levelProgress, expForLevel,
@@ -131,6 +146,8 @@ export interface CompanionRuntime {
   wardrobe: Wardrobe;
   /** 是否已在队伍中（未加入的只存在于主线数据里） */
   joined: boolean;
+  /** 成长状态（熟练度/岗位经验/被动增益） */
+  growth: CompanionGrowth;
 }
 
 /** 主角运行时状态 */
@@ -144,6 +161,8 @@ export interface HeroRuntime {
   wardrobe: Wardrobe;
   /** 成长状态（等级/属性/技能）—— 只有主角有 */
   growth: HeroGrowth;
+  /** 性爱熟练度（按部位） */
+  proficiency: Proficiency;
 }
 
 export interface SessionOptions {
@@ -177,6 +196,7 @@ const DEFAULT_SURVIVAL: Survival = { hunger: 80, thirst: 70, stamina: 90, energy
 export function makeCompanion(def: CompanionDef, joined = true): CompanionRuntime {
   return {
     id: def.id,
+    growth: newCompanionGrowth(),
     identity: {
       name: def.name,
       title: def.title,
@@ -285,7 +305,8 @@ export class GameSession {
       lust: { ...DEFAULT_LUST, value: 20 },
       pregnancy: null,
       wardrobe: presetWardrobe("hero"),
-      growth: newHeroGrowth()
+      growth: newHeroGrowth(),
+      proficiency: newProficiency()
     };
 
     this.companions = defaultCompanions();
@@ -536,6 +557,15 @@ export class GameSession {
       v[`${c.id}_virgin`] = c.physiology.virgin;
       v[`${c.id}_exposure`] = exposure(c.wardrobe);
       v[`${c.id}_charm`] = charmOf(c.wardrobe);
+      // 成长数据（供剧本条件判断）
+      v[`${c.id}_growth`] = growthLevel(c.growth);
+      v[`${c.id}_acts`] = c.growth.totalActs;
+      v[`${c.id}_births`] = c.growth.births;
+      v[`${c.id}_perks`] = c.growth.perks.length;
+      v[`${c.id}_prof_mouth`] = partLevel(c.growth.proficiency, "mouth");
+      v[`${c.id}_prof_vagina`] = partLevel(c.growth.proficiency, "vagina");
+      v[`${c.id}_prof_anus`] = partLevel(c.growth.proficiency, "anus");
+      v[`${c.id}_prof_toy`] = partLevel(c.growth.proficiency, "toy");
     }
     for (const [k, val] of Object.entries(this.flags)) {
       if (typeof val === "number" || typeof val === "boolean" || typeof val === "string") {
@@ -678,12 +708,20 @@ export class GameSession {
     return result;
   }
 
-  /** 同伴的欲情按天累积（独立于主角） */
+  /** 同伴的欲情按天累积（独立于主角），并累计岗位经验 */
   tickCompanionLust(days: number, perDay = 5): void {
     for (const c of this.companions) {
       if (!c.joined) continue;
-      const r = tickLust(c.lust, days, perDay);
+
+      // 被动增益影响欲情增速
+      const mult = perkMultipliers(c.growth).lustRate;
+      const r = tickLust(c.lust, days, perDay * mult);
       c.lust = r.lust;
+
+      // 在岗的累计岗位经验（每天 1 点）
+      if (c.job.id) {
+        c.growth = recordJobDay(c.growth, c.job.id);
+      }
     }
   }
 
@@ -1142,6 +1180,7 @@ export class GameSession {
         // 数据缺失时退化为最小构造
         this.companions.push({
           id: g.id,
+          growth: newCompanionGrowth(),
           identity: { name: g.name, title: g.title, age: 18, heightCm: 160, tags: ["side"] },
           physiology: { sex: "female", virgin: true, pregnant: false, pregnancyProgress: 0, fertileWindow: false },
           relationship: { ...DEFAULT_RELATIONSHIP, affection: 25, loyalty: 15, bond: 1, role: "side" },
@@ -1228,6 +1267,7 @@ export class GameSession {
         // 随机招募的角色来自模板库，没有预置数据，按模板构造
         this.companions.push({
           id,
+          growth: newCompanionGrowth(),
           identity: { name: r.template.name, title: r.template.title, age: 24, heightCm: 165, tags: [r.template.trait, "recruited"] },
           physiology: { sex: "female", virgin: true, pregnant: false, pregnancyProgress: 0, fertileWindow: false },
           relationship: { ...DEFAULT_RELATIONSHIP, affection: r.affection, loyalty: 10, bond: 1, role: "side" },
@@ -2041,6 +2081,169 @@ export class GameSession {
     return allTemplateStats();
   }
 
+  // ---------- 性爱行为与熟练度 ----------
+
+  /** 主角的性爱熟练度（存在主角成长里） */
+  heroProficiency(): Proficiency {
+    return this.hero.proficiency;
+  }
+
+  /** 某同伴的熟练度 */
+  companionProficiency(id: string): Proficiency | null {
+    const c = this.companion(id);
+    return c ? c.growth.proficiency : null;
+  }
+
+  /** 判断主角是否扶她 */
+  heroIsFutanari(): boolean {
+    return this.hero.physiology.sex === "futanari";
+  }
+
+  /** 是否有可用性玩具 */
+  hasSexToy(): boolean {
+    const toys = ["dildo_double", "strap_on", "vibrator", "egg_vibe", "restraint_set"];
+    return toys.some((t) => countOf(this.storage, t) > 0 || countOf(this.backpack, t) > 0);
+  }
+
+  /**
+   * 当前可执行的性爱行为（针对某位同伴）。
+   * 返回全部行为及可用性，供 UI 展示。
+   */
+  availableSexActs(companionId: string): Array<{
+    def: ActDef;
+    usable: boolean;
+    reason?: string;
+    heroLevel: number;
+    partnerLevel: number;
+  }> {
+    const c = this.companion(companionId);
+    if (!c) return [];
+
+    const heroProf = this.heroProficiency();
+    const partnerFuta = c.physiology.sex === "futanari";
+
+    return ACTS.map((def) => {
+      const check = canPerform(def, {
+        heroFutanari: this.heroIsFutanari(),
+        partnerFutanari: partnerFuta,
+        hasToy: this.hasSexToy(),
+        proficiency: heroProf,
+        stamina: this.hero.survival.stamina
+      });
+      return {
+        def,
+        usable: check.ok,
+        reason: check.reason,
+        heroLevel: partLevel(heroProf, def.part),
+        partnerLevel: partLevel(c.growth.proficiency, def.part)
+      };
+    });
+  }
+
+  /**
+   * 执行一次性爱行为。
+   *
+   * 效果：
+   *  - 主角与同伴各自累计该部位熟练度
+   *  - 同伴欲情下降、羁绊可能提升
+   *  - 主角消耗体力、获得亲密经验
+   *  - 可能解锁同伴的被动增益
+   */
+  performSexAct(
+    companionId: string,
+    actId: string
+  ): {
+    ok: boolean;
+    reason?: string;
+    leveledParts?: ActPart[];
+    newPerks?: CompanionPerk[];
+    lustAfter?: number;
+    staminaAfter?: number;
+  } {
+    const c = this.companion(companionId);
+    if (!c) return { ok: false, reason: "同伴不存在" };
+
+    const def = actDef(actId);
+    if (!def) return { ok: false, reason: "未知行为" };
+
+    const partnerFuta = c.physiology.sex === "futanari";
+    const check = canPerform(def, {
+      heroFutanari: this.heroIsFutanari(),
+      partnerFutanari: partnerFuta,
+      hasToy: this.hasSexToy(),
+      proficiency: this.heroProficiency(),
+      stamina: this.hero.survival.stamina
+    });
+    if (!check.ok) return { ok: false, reason: check.reason };
+
+    // 体力消耗（受熟练度影响：越熟练越省力）
+    const eff = 1 - proficiencyBonus(this.heroProficiency(), def.part) * 0.4;
+    const cost = Math.max(1, Math.round(def.staminaCost * eff));
+    this.hero.survival = {
+      ...this.hero.survival,
+      stamina: Math.max(0, this.hero.survival.stamina - cost)
+    };
+
+    // 主角熟练度
+    const heroRec = recordAct(this.heroProficiency(), actId);
+    this.hero.proficiency = heroRec.proficiency;
+
+    // 同伴熟练度 + 增益
+    const ctx: PerkContext = {
+      bond: c.relationship.bond,
+      affection: c.relationship.affection,
+      loyalty: c.relationship.loyalty
+    };
+    const rec = recordIntimacy(c.growth, actId, ctx);
+    c.growth = rec.growth;
+
+    // 同伴欲情下降
+    const lustDrop = def.lustGain * (1 + proficiencyBonus(rec.growth.proficiency, def.part) * 0.5);
+    c.lust = {
+      ...c.lust,
+      value: Math.max(0, c.lust.value - lustDrop),
+      daysSinceIntimacy: 0
+    };
+
+    // 羁绊经验
+    c.relationship = gain(c.relationship, 1, 0);
+
+    // 主角亲密技能经验
+    this.giveHeroSkillExp("intimacy", def.intimacyExp);
+    this.giveHeroExp(Math.round(def.intimacyExp * 0.5));
+
+    return {
+      ok: true,
+      leveledParts: rec.leveledParts,
+      newPerks: rec.newPerks,
+      lustAfter: c.lust.value,
+      staminaAfter: this.hero.survival.stamina
+    };
+  }
+
+  /** 同伴成长总览 */
+  companionGrowth(id: string): ReturnType<typeof growthSummary> | null {
+    const c = this.companion(id);
+    return c ? growthSummary(c.growth) : null;
+  }
+
+  /** 同伴的被动增益列表 */
+  companionPerks(id: string): CompanionPerk[] {
+    const c = this.companion(id);
+    return c ? c.growth.perks : [];
+  }
+
+  /** 同伴的熟练度明细 */
+  companionProficiencyDetail(id: string): ReturnType<typeof proficiencySummary> | null {
+    const c = this.companion(id);
+    return c ? proficiencySummary(c.growth.proficiency) : null;
+  }
+
+  /** 行为统计（供 UI 显示总量） */
+  sexActStats() {
+    return actStats();
+  }
+
   // ---------- 主角成长 ----------
 
   /**
@@ -2349,7 +2552,15 @@ export class GameSession {
       ...this.flags,
       slot,
       // 主角成长（等级/属性/技能）随存档保存
-      __heroGrowth: JSON.stringify(growthToJSON(this.hero.growth))
+      __heroGrowth: JSON.stringify(growthToJSON(this.hero.growth)),
+      // 主角性爱熟练度
+      __heroProf: JSON.stringify(proficiencyToJSON(this.hero.proficiency)),
+      // 同伴成长（按 id 索引）
+      __compGrowth: JSON.stringify(
+        Object.fromEntries(
+          this.companions.map((c) => [c.id, companionGrowthToJSON(c.growth)])
+        )
+      )
     };
 
     data.entities.push({
@@ -2471,6 +2682,30 @@ export class GameSession {
         s.hero.growth = growthFromJSON(JSON.parse(growthRaw) as HeroGrowthJSON);
       } catch {
         s.hero.growth = newHeroGrowth();
+      }
+    }
+
+    // 主角性爱熟练度
+    const profRaw = data.flags["__heroProf"];
+    if (typeof profRaw === "string") {
+      try {
+        s.hero.proficiency = proficiencyFromJSON(JSON.parse(profRaw) as ProficiencyJSON);
+      } catch {
+        s.hero.proficiency = newProficiency();
+      }
+    }
+
+    // 同伴成长
+    const compRaw = data.flags["__compGrowth"];
+    if (typeof compRaw === "string") {
+      try {
+        const map = JSON.parse(compRaw) as Record<string, CompanionGrowthJSON>;
+        for (const c of s.companions) {
+          const j = map[c.id];
+          if (j) c.growth = companionGrowthFromJSON(j);
+        }
+      } catch {
+        // 忽略，保持默认
       }
     }
 

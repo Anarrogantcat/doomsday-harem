@@ -111,6 +111,7 @@ export interface GameState {
   refreshSlots: () => Promise<void>;
   backendInfo: () => string;
 
+  performSexAct: (companionId: string, actId: string) => void;
   spendHeroPoint: (attr: string) => void;
   quickBuild: (facilityId: string) => void;
   quickInstallMod: (modId: string) => void;
@@ -707,6 +708,27 @@ export const useGame = create<GameState>((set, get) => ({
   },
 
   backendInfo: () => backendLabel(),
+
+  performSexAct: (companionId, actId) => {
+    const { session, pushLog, refresh } = get();
+    const c = session.companion(companionId);
+    const def = session.sexActStats();
+    void def;
+    const r = session.performSexAct(companionId, actId);
+    if (!r.ok) {
+      pushLog(`无法进行：${r.reason ?? "未知原因"}`);
+    } else {
+      const name = c?.identity.name ?? companionId;
+      pushLog(`与 ${name} 的亲密（${actId}）`);
+      if (r.leveledParts && r.leveledParts.length > 0) {
+        pushLog(`熟练度提升：${r.leveledParts.join("、")}`);
+      }
+      for (const p of r.newPerks ?? []) {
+        pushLog(`${name} 获得增益：${p.name}（${p.description}）`);
+      }
+    }
+    refresh();
+  },
 
   spendHeroPoint: (attr) => {
     const { session, pushLog, refresh } = get();
