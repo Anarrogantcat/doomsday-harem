@@ -98,7 +98,9 @@ import {
   type HLocation, type HTimeSlot, type HTemplate, type HTemplateContext, type TemplateMatch,
   H_TEMPLATES, H_LOCATION_LABEL, H_TIME_TONE, hTemplate,
   matchTemplates, pickTemplate, templateToPrompt, templateStats,
-  templateToScene, templateFits, templateFromSceneId, H_TEMPLATE_PREFIX
+  templateToScene, templateFits, templateFromSceneId, H_TEMPLATE_PREFIX,
+  HAREM_INTERACT_TEMPLATES, haremInteractTemplate, haremInteractStats,
+  haremInteractToScene, allTemplateStats, type HaremInteractTemplate
 } from "../systems/hTemplates.ts";
 import {
   type Combatant, type CombatState, type CombatBonus, type AttackResult,
@@ -1918,6 +1920,11 @@ export class GameSession {
       if (!seen.has(sc.id)) seen.set(sc.id, sc);
     }
 
+    // 4) 后宫互交场景（同伴之间，只允许娱乐型扶她药）
+    for (const sc of this.haremInteractScenes()) {
+      if (!seen.has(sc.id)) seen.set(sc.id, sc);
+    }
+
     return [...seen.values()];
   }
 
@@ -2008,6 +2015,67 @@ export class GameSession {
   /** 模板统计（供 UI 显示） */
   hTemplateStats() {
     return templateStats();
+  }
+
+  /** 全部模板统计（含互交） */
+  allTemplateStats() {
+    return allTemplateStats();
+  }
+
+  /** 互交模板统计 */
+  haremInteractStats() {
+    return haremInteractStats();
+  }
+
+  /**
+   * 后宫互交场景（同伴之间）。
+   *
+   * 约束：
+   *  - 参与者全部是同伴，主角可选加入
+   *  - 至少 2 名好感 ≥ 60 的同伴
+   *  - 只允许娱乐型扶她药（INV-2）
+   */
+  haremInteractScenes(): Scene[] {
+    const ctx = this.hTemplateContext();
+    const locLabel = H_LOCATION_LABEL[ctx.location];
+    const joined = this.joined().filter((c) => c.id !== "ai");
+
+    // 需要至少两位好感达标的同伴
+    const eligible = joined.filter((c) => c.relationship.affection >= 60);
+    if (eligible.length < 2) return [];
+
+    const out: Scene[] = [];
+
+    for (const t of HAREM_INTERACT_TEMPLATES) {
+      // 地点与时段必须匹配
+      if (!t.locations.includes(ctx.location)) continue;
+      if (!t.times.includes(ctx.time)) continue;
+
+      // 人数必须够
+      const need = t.minParticipants;
+      if (eligible.length < need) continue;
+
+      // 道具检查
+      const needsToy = t.props.some((p) =>
+        p.includes("性玩具") || p.includes("双头龙") || p.includes("穿戴式")
+      );
+      if (needsToy && !ctx.hasToy) continue;
+
+      const needsMed = t.props.some((p) => p.includes("扶她药"));
+      if (needsMed && ctx.medStock <= 0) continue;
+
+      // 取好感最高的几位作为参与者
+      const names = [...eligible]
+        .sort((a, b) => b.relationship.affection - a.relationship.affection)
+        .slice(0, Math.min(t.maxParticipants, eligible.length))
+        .map((c) => c.identity.name);
+
+      if (names.length < t.minParticipants) continue;
+
+      out.push(haremInteractToScene(t, names, locLabel));
+    }
+
+    return out;
   }
 
   /** 某位同伴相关的可触发场景（接受 id 或显示名） */

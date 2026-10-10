@@ -59,3 +59,4 @@ export * from "./i18n/index.ts";
 export * from "./audio/index.ts";
 export * from "./systems/sceneTier.ts";
 export * from "./systems/hTemplates.ts";
+export * from "./systems/settings.ts";

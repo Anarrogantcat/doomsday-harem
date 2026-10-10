@@ -12,7 +12,7 @@ import { QuestPanel } from "../panels/QuestPanel.tsx";
 import { DefensePanel } from "../panels/DefensePanel.tsx";
 import { CompanionDataPanel } from "../panels/CompanionDataPanel.tsx";
 import { SavePanel } from "../panels/SavePanel.tsx";
-import { CheatPanel } from "../panels/CheatPanel.tsx";
+import { SettingsPanel } from "./SettingsPanel.tsx";
 import { LlmPanel } from "../panels/LlmPanel.tsx";
 import { CanvasView } from "../panels/CanvasView.tsx";
 
@@ -32,7 +32,7 @@ export const OVERLAY_TITLES: Record<string, string> = {
   canvas: "画面渲染",
   llm: "本地模型",
   save: "存档",
-  cheats: "设置与作弊"
+  cheats: "设置"
 };
 
 export function Overlay({ tab, onClose }: { tab: string | null; onClose: () => void }) {
@@ -65,7 +65,7 @@ export function Overlay({ tab, onClose }: { tab: string | null; onClose: () => v
       case "canvas": return <CanvasView mode="scene" />;
       case "llm": return <LlmPanel />;
       case "save": return <SavePanel />;
-      case "cheats": return <CheatPanel />;
+      case "cheats": return <SettingsPanel />;
       default: return <p className="sub">（未知面板）</p>;
     }
   })();

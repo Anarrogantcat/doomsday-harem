@@ -9,6 +9,7 @@ import { CompanionDetail } from "./shell/CompanionDetail.tsx";
 import { NarrationPanel, type NarrationEntry } from "./shell/NarrationPanel.tsx";
 import { StatusStrip, MessageLog } from "./shell/StatusStrip.tsx";
 import { Overlay } from "./shell/Overlay.tsx";
+import { SettingsPanel } from "./shell/SettingsPanel.tsx";
 
 const KEY_MAP: Record<string, string> = {
   i: "items", n: "quests", t: "tech", b: "base", w: "wardrobe",

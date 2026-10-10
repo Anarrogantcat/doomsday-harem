@@ -5,6 +5,9 @@ import {
   type CompanionRuntime, type Activity, type JobId,
   type Weather, type ClothingSlot, type BodyZone, type ViewConfig, DEFAULT_VIEW_CONFIG,
   type GenerationMode, StockIndex, emptyStore, indexFromJson,
+  type Settings, defaultSettings, patchDisplay as patchDisplayFn,
+  patchGameplay as patchGameplayFn, patchContent as patchContentFn,
+  patchAudio as patchAudioFn, patchCheat as patchCheatFn, patchLang as patchLangFn,
   newSlotList, upsertMeta, removeMeta, slotView, slotStats, buildMeta, packForSave, validateAndUnwrap,
   type SlotList, type SlotMeta, type SaveEnvelope,
 } from "@doomsday/core";
@@ -35,6 +38,8 @@ export interface GameState {
   /** 预生成文本库存 */
   stock: StockIndex;
   stockMsg: string;
+  /** 设置 */
+  settings: Settings;
   log: string[];
 
   // 操作
@@ -90,6 +95,15 @@ export interface GameState {
   loadStock: () => Promise<void>;
   stockStats: () => ReturnType<StockIndex["stats"]> | null;
 
+  patchDisplay: (p: Parameters<typeof patchDisplayFn>[1]) => void;
+  patchGameplay: (p: Parameters<typeof patchGameplayFn>[1]) => void;
+  patchContent: (p: Parameters<typeof patchContentFn>[1]) => void;
+  patchAudio: (p: Parameters<typeof patchAudioFn>[1]) => void;
+  patchLang: (p: Parameters<typeof patchLangFn>[1]) => void;
+  resetSettings: () => void;
+  exportSettings: () => void;
+  importSettings: () => void;
+
   saveToSlot: (slot: string) => Promise<void>;
   loadFromSlot: (slot: string) => Promise<void>;
   deleteSlot: (slot: string) => Promise<void>;
@@ -142,6 +156,7 @@ export const useGame = create<GameState>((set, get) => ({
   pipeline: new GenerationPipeline({ mode: "minor", narrator: null }),
   stock: new StockIndex(emptyStore()),
   stockMsg: "",
+  settings: defaultSettings(),
   log: [],
 
   refresh: () => set((s) => ({ version: s.version + 1 })),
@@ -519,6 +534,82 @@ export const useGame = create<GameState>((set, get) => ({
   stockStats: () => {
     const { stock } = get();
     return stock.size > 0 ? stock.stats() : null;
+  },
+
+  patchDisplay: (p) => {
+    const { settings } = get();
+    set({ settings: patchDisplayFn(settings, p) });
+    get().refresh();
+  },
+
+  patchGameplay: (p) => {
+    const { settings } = get();
+    set({ settings: patchGameplayFn(settings, p) });
+    get().refresh();
+  },
+
+  patchContent: (p) => {
+    const { settings } = get();
+    set({ settings: patchContentFn(settings, p) });
+    get().refresh();
+  },
+
+  patchAudio: (p) => {
+    const { settings } = get();
+    set({ settings: patchAudioFn(settings, p) });
+    get().refresh();
+  },
+
+  patchLang: (p) => {
+    const { settings } = get();
+    set({ settings: patchLangFn(settings, p) });
+    get().refresh();
+  },
+
+  resetSettings: () => {
+    set({ settings: defaultSettings() });
+    get().pushLog("设置已恢复默认");
+    get().refresh();
+  },
+
+  exportSettings: () => {
+    const { settings, pushLog } = get();
+    const json = JSON.stringify(settings, null, 2);
+    try {
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "doomsday-harem-settings.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      pushLog("设置已导出");
+    } catch {
+      // 无 DOM 环境时复制到剪贴板或直接打印
+      pushLog("设置导出：" + json.slice(0, 60) + "…");
+    }
+    get().refresh();
+  },
+
+  importSettings: () => {
+    const { pushLog } = get();
+    try {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "application/json";
+      input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        const text = await file.text();
+        const parsed = JSON.parse(text) as Settings;
+        set({ settings: { ...defaultSettings(), ...parsed } });
+        pushLog("设置已导入");
+        get().refresh();
+      };
+      input.click();
+    } catch (e) {
+      pushLog("设置导入失败：" + (e instanceof Error ? e.message : String(e)));
+    }
   },
 
   saveToSlot: async (slot) => {

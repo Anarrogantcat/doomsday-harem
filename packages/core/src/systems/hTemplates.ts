@@ -903,3 +903,232 @@ export function templateFromSceneId(sceneId: string): HTemplate | undefined {
   if (!sceneId.startsWith(H_TEMPLATE_PREFIX)) return undefined;
   return hTemplate(sceneId.slice(H_TEMPLATE_PREFIX.length));
 }
+// ============ 后宫互交模板（同伴之间） ============
+
+/**
+ * 后宫互交场景。
+ *
+ * 设计约束（对应 INV-2）：
+ *  - 参与者全部是同伴，主角可以是旁观者或加入者
+ *  - 只允许娱乐型扶她药，禁止怀孕型
+ *  - 互交本身不产生后代
+ */
+export interface HaremInteractTemplate extends HTemplate {
+  /** 互交类型 */
+  interactKind: "pair" | "trio" | "observe" | "teach" | "rival";
+}
+
+export const HAREM_INTERACT_TEMPLATES: HaremInteractTemplate[] = [
+  {
+    id: "hi_sisters_share",
+    name: "姐妹共侍",
+    interactKind: "pair",
+    locations: ["bedroom", "private_room"],
+    times: ["night", "lateNight"],
+    minParticipants: 2, maxParticipants: 2,
+    requirement: "姐妹二人好感均 ≥ 60",
+    props: ["双头龙"],
+    allowsMed: false,
+    tone: "默契、配合、竞争心",
+    beats: [
+      { pose: "dual_flank", action: "两人一左一右贴近主角，各自占据一侧", mood: "心照不宣的分工" },
+      { pose: "sister_lead", action: "姐姐主导节奏，妹妹跟着学", mood: "姐姐的掌控与妹妹的跟随" },
+      { pose: "toy_between", action: "双头龙连起两人，主角在中间", mood: "三人被同一件东西连着" },
+      { pose: "compete", action: "两人开始暗暗较劲，谁都不肯先退", mood: "姐妹间的竞争" },
+      { pose: "shared_end", action: "同时结束，三人叠在一起喘气", mood: "分不清彼此的满足" }
+    ],
+    guidance: "重点写「姐姐主导、妹妹跟随」的默契与暗中较劲。两人各有性格反应，不要写成一个人。",
+    tier: "minor"
+  },
+  {
+    id: "hi_mother_daughter",
+    name: "母女同席",
+    interactKind: "trio",
+    locations: ["bedroom", "bathhouse", "private_room"],
+    times: ["night", "lateNight"],
+    minParticipants: 3, maxParticipants: 3,
+    requirement: "母亲与任一女儿好感均 ≥ 70",
+    props: [],
+    allowsMed: false,
+    tone: "背德感、母亲的包容、女儿的羞耻",
+    beats: [
+      { pose: "mother_guide", action: "母亲先开始，女儿在旁边看着", mood: "被母亲教着看" },
+      { pose: "daughter_join", action: "母亲拉女儿的手加入", mood: "羞耻但无法拒绝" },
+      { pose: "roles_split", action: "母亲照顾主角，女儿被主角照顾", mood: "角色分明" },
+      { pose: "mother_watch", action: "母亲退到一旁看着女儿，表情复杂", mood: "复杂的母性" },
+      { pose: "all_together", action: "三人最终缠在一起", mood: "不再分谁是谁" }
+    ],
+    guidance: "核心是背德感与母亲的复杂心态。母亲的台词要有包容与默许，女儿要有羞耻与逐渐投入。",
+    tier: "minor"
+  },
+  {
+    id: "hi_observe",
+    name: "旁观与被看",
+    interactKind: "observe",
+    locations: ["bedroom", "living_room", "monitor_room"],
+    times: ["night", "lateNight", "noon"],
+    minParticipants: 2, maxParticipants: 3,
+    requirement: "至少两位同伴好感 ≥ 55",
+    props: ["性玩具"],
+    allowsMed: false,
+    tone: "被注视的紧张、表演欲",
+    beats: [
+      { pose: "arrange_seat", action: "一人被安排坐下，明确被告知「看着」", mood: "被指定的角色" },
+      { pose: "perform", action: "另外两人开始，动作因为被看而更刻意", mood: "表演的成分" },
+      { pose: "eye_contact", action: "表演者与旁观者对上视线", mood: "无法回避的对视" },
+      { pose: "invite_join", action: "旁观者终于忍不住起身加入", mood: "忍耐的终点" },
+      { pose: "three_way", action: "三人重新分配位置", mood: "秩序被打乱" }
+    ],
+    guidance: "关键是「被看」带来的紧张与表演欲。旁观者的心理变化要写清楚：从旁观到无法忍耐。",
+    tier: "minor"
+  },
+  {
+    id: "hi_teach",
+    name: "经验传授",
+    interactKind: "teach",
+    locations: ["bedroom", "private_room"],
+    times: ["evening", "night"],
+    minParticipants: 3, maxParticipants: 3,
+    requirement: "一位同伴羁绊 ≥ 5，另一位羁绊 ≤ 2",
+    props: ["性玩具"],
+    allowsMed: false,
+    tone: "教导、示范、新手的笨拙",
+    beats: [
+      { pose: "theory", action: "有经验的那个先讲解，说得很具体", mood: "教学式的开场" },
+      { pose: "demo", action: "她先示范给新手看，动作放慢", mood: "刻意的放慢" },
+      { pose: "guide_hand", action: "握着新手的手，一步步引导", mood: "手把手" },
+      { pose: "novice_try", action: "新手自己尝试，动作生涩", mood: "笨拙但认真" },
+      { pose: "praise", action: "有经验的给予肯定，新手放松下来", mood: "被认可的安心" }
+    ],
+    guidance: "核心是「教学」的过程感：讲解→示范→引导→尝试→肯定。新手的笨拙与逐渐熟练要写具体。",
+    tier: "minor"
+  },
+  {
+    id: "hi_rival",
+    name: "争宠",
+    interactKind: "rival",
+    locations: ["bedroom", "living_room"],
+    times: ["night"],
+    minParticipants: 2, maxParticipants: 2,
+    requirement: "两位同伴好感均 ≥ 75，且近期都被主角亲密过",
+    props: [],
+    allowsMed: false,
+    tone: "竞争、较劲、谁也不服谁",
+    beats: [
+      { pose: "confront", action: "两人当面对上，谁都不先开口", mood: "一触即发" },
+      { pose: "compete_first", action: "一人先动手，另一人立刻跟上", mood: "比谁更快" },
+      { pose: "escalate", action: "动作越来越用力，都在看主角的反应", mood: "拿主角当裁判" },
+      { pose: "truce", action: "同时意识到这样很蠢，停下来对视", mood: "尴尬的默契" },
+      { pose: "joint_end", action: "最后放弃竞争，一起把主角围住", mood: "从对手变成同伙" }
+    ],
+    guidance: "重点是竞争心理与暗中观察主角反应。台词要带刺，但最后要落到和解，不要写成敌对。",
+    tier: "minor"
+  },
+  {
+    id: "hi_bath_group",
+    name: "浴场群戏",
+    interactKind: "trio",
+    locations: ["bathhouse"],
+    times: ["evening", "night"],
+    minParticipants: 3, maxParticipants: 4,
+    requirement: "大浴场已建成，至少 3 位同伴好感 ≥ 65",
+    props: ["性玩具"],
+    allowsMed: true,
+    tone: "蒸汽、水面、多人混在一起",
+    beats: [
+      { pose: "steam_gather", action: "几人在蒸汽里聚拢，水声盖住说话声", mood: "被水汽包裹" },
+      { pose: "water_hands", action: "多只手同时从水下伸过来", mood: "分不清是谁" },
+      { pose: "toy_float", action: "玩具被拿进水里，浮在水面上", mood: "道具与水的交互" },
+      { pose: "sprawl", action: "有人在池边，有人在水里，姿势各不相同", mood: "混乱但投入" },
+      { pose: "steam_rest", action: "结束后靠着池边，蒸汽还在上升", mood: "疲惫的安静" }
+    ],
+    guidance: "多人场景要写出「分不清谁是谁」的混乱感，但每个角色仍要有独立的性格反应与台词。",
+    tier: "minor"
+  },
+  {
+    id: "hi_med_share",
+    name: "药物共享",
+    interactKind: "pair",
+    locations: ["bedroom", "private_room"],
+    times: ["night", "lateNight"],
+    minParticipants: 2, maxParticipants: 2,
+    requirement: "持有娱乐型扶她药，两人好感均 ≥ 70",
+    props: ["娱乐型扶她药"],
+    allowsMed: true,
+    tone: "身体变化、互相试探、新奇",
+    beats: [
+      { pose: "share_med", action: "两人分掉一份药，等着看对方的变化", mood: "互相观察" },
+      { pose: "compare", action: "两人比较各自的变化，语气带调侃", mood: "好奇与打趣" },
+      { pose: "mutual_test", action: "互相试探新的部位", mood: "生涩的探索" },
+      { pose: "find_rhythm", action: "两人逐渐找到配合的节奏", mood: "从笨拙到顺畅" },
+      { pose: "fade_together", action: "药效同时退去，两人都有些失落", mood: "短暂的共同经历" }
+    ],
+    guidance: "娱乐型扶她药是临时的（数小时）。重点写「身体变化」与「两人共同经历」的新奇感，药效退去后的失落。",
+    tier: "minor"
+  }
+];
+
+const HI_BY_ID = new Map(HAREM_INTERACT_TEMPLATES.map((x) => [x.id, x]));
+
+export function haremInteractTemplate(id: string): HaremInteractTemplate | undefined {
+  return HI_BY_ID.get(id);
+}
+
+/** 互交模板统计 */
+export function haremInteractStats(): {
+  total: number;
+  byKind: Record<string, number>;
+  totalBeats: number;
+} {
+  const byKind: Record<string, number> = {};
+  let totalBeats = 0;
+  for (const t of HAREM_INTERACT_TEMPLATES) {
+    byKind[t.interactKind] = (byKind[t.interactKind] ?? 0) + 1;
+    totalBeats += t.beats.length;
+  }
+  return { total: HAREM_INTERACT_TEMPLATES.length, byKind, totalBeats };
+}
+
+/** 互交模板 → Scene */
+export function haremInteractToScene(
+  t: HaremInteractTemplate,
+  names: string[],
+  locationLabel: string
+): Scene {
+  const beats: Beat[] = t.beats.map((b, i) => ({
+    id: `${t.id}_b${i + 1}`,
+    poseKey: b.pose,
+    lines: [
+      { layer: "action", text: b.action },
+      { layer: "mind", text: b.mood },
+      ...(names.length > 1
+        ? [{ layer: "speech" as const, speaker: names[0], text: "（台词占位，可用本地模型生成）" }]
+        : [])
+    ]
+  }));
+
+  return {
+    id: `hi_${t.id}`,
+    title: `${t.name}（${locationLabel}）`,
+    participants: names,
+    tone: t.tone,
+    beats
+  };
+}
+
+/** 全部模板（含互交）的统一统计 */
+export function allTemplateStats(): {
+  solo: number;
+  harem: number;
+  total: number;
+  totalBeats: number;
+} {
+  const s = templateStats();
+  const h = haremInteractStats();
+  return {
+    solo: s.total,
+    harem: h.total,
+    total: s.total + h.total,
+    totalBeats: s.totalBeats + h.totalBeats
+  };
+}
