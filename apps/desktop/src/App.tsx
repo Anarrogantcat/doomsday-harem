@@ -23,7 +23,8 @@ const KEY_MAP: Record<string, string> = {
   s: "save", c: "cheats", r: "roster", k: "canvas", o: "status", l: "mods", g: "achievements", x: "plugins", y: "prologue"
 };
 
-type CenterTab = "narration" | "fortress" | "combat";
+/** 中栏只有两个视图（原型 .ctabs：叙事 / 战斗） */
+type CenterTab = "narration" | "combat";
 
 /**
  * 大地图弹窗宿主。
@@ -226,7 +227,8 @@ export function App() {
       if (k === "arrowright") { setIndex((i) => Math.min(entries.length - 1, i + 1)); return; }
       if (k === "tab") {
         e.preventDefault();
-        setCenterTab((c) => (c === "narration" ? "fortress" : c === "fortress" ? "combat" : "narration"));
+        // 中栏只有两个视图（原型 .ctabs）
+        setCenterTab((c) => (c === "narration" ? "combat" : "narration"));
         return;
       }
       if (k === "p") { setShowStrip((v) => !v); return; }
@@ -339,34 +341,24 @@ export function App() {
         <div className="ctabs">
           {([
             ["narration", "叙事"],
-            ["fortress", "剖面"],
             ["combat", "战斗"]
           ] as Array<[CenterTab, string]>).map(([id, label]) => (
-            <div
+            <button
               key={id}
               className={"ctab" + (centerTab === id ? " on" : "")}
               onClick={() => setCenterTab(id)}
             >
               {label}{id === "combat" && session.inCombat() ? " ●" : ""}
-            </div>
+            </button>
           ))}
-          <span className="csub">
-            {session.here()?.name}　第 {session.time.day} 天
-          </span>
-          <button
-            className="ctab"
-            onClick={() => setShowStrip((v) => !v)}
-            title="切换像素条（P）"
-          >
-            {showStrip ? "隐藏画面" : "显示画面"}
-          </button>
+          <span className="chint">视图随操作自动切换</span>
         </div>
 
         {/* 舞台 */}
         <div className="stage">
           {centerTab === "combat" ? (
             <CombatView />
-          ) : centerTab === "narration" ? (
+          ) : (
             <NarrationPanel
               entries={entries}
               index={index}
@@ -376,8 +368,6 @@ export function App() {
               streamText={streamText}
               embedded
             />
-          ) : (
-            <FortressSections onOpenBase={() => setOverlay("base")} />
           )}
         </div>
 

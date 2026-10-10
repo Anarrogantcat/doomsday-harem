@@ -1,23 +1,28 @@
 import { useState } from "react";
 import {
-  TERRAIN_LABEL, DANGER_LABEL, effectiveDanger, neighbors,
-  TRAVEL_MODES, FACILITIES, facilityDef, MODS, modDef, modProgress,
-  type DangerLevel, type TravelMode
+  TRAVEL_MODES,
+  type TravelMode
 } from "@doomsday/core";
 import { useGame } from "../store/game.ts";
 import { MiniMap, CellInfo } from "./GridMap.tsx";
 
-type RightTab = "map" | "base" | "vehicle" | "actions";
+/**
+ * 右栏标签。
+ *
+ * 严格照原型 .rtabs：只有「地图」是切页，
+ * 「基地」「房车」是**打开弹窗**（原型 onclick="openFortress()/openVehicle()"）。
+ */
+type RightTab = "map";
 
-const TABS: Array<{ id: RightTab; label: string }> = [
+const TABS: Array<{ id: "map" | "base" | "vehicle"; label: string; modal?: string }> = [
   { id: "map", label: "地图" },
-  { id: "base", label: "基地" },
-  { id: "vehicle", label: "房车" },
-  { id: "actions", label: "行动" }
+  { id: "base", label: "基地", modal: "fortress" },
+  { id: "vehicle", label: "房车", modal: "vehicle" }
 ];
 
 /** 地图视图（原型 UI：网格地图 + 方向键 + 当前格） */
 function MapView() {
+  const session = useGame((s) => s.session);
   const mapId = useGame((s) => s.mapId);
   const cellId = useGame((s) => s.cellId);
   const explored = useGame((s) => s.explored);
@@ -25,8 +30,41 @@ function MapView() {
   const mapCycle = useGame((s) => s.mapCycle);
   const openBigMap = useGame((s) => s.openBigMap);
 
+  const advanceHours = useGame((s) => s.advanceHours);
+  const lootCurrent = useGame((s) => s.lootCurrent);
+  const travelMode = useGame((s) => s.session.travelMode);
+  const setTravelMode = useGame((s) => s.setTravelMode);
+
+  // 当前主线目标（原型 .obj）—— 取序章进度
+  const prologue = session.prologueInfo();
+  const goal = prologue.done ? null : {
+    title: prologue.label,
+    desc: prologue.desc,
+    percent: Math.round(prologue.progress * 100),
+    step: Math.round(prologue.progress * 100),
+    total: 100
+  };
+
   return (
-    <div className="right-view">
+    <div className="proto-rpane">
+      {/* 当前目标（原型 .obj） */}
+      {goal ? (
+        <div className="proto-obj">
+          <div className="proto-objh">当前目标</div>
+          <div className="proto-objt">{goal.title}</div>
+          <div className="proto-objd">{goal.desc}</div>
+          <div className="proto-objp">
+            <div className="proto-objbar">
+              <div className="proto-objfill" style={{ width: goal.percent + "%" }} />
+            </div>
+            <span className="proto-objpct">{goal.step}/{goal.total}</span>
+          </div>
+        </div>
+      ) : null}
+
+      {goal ? <div className="proto-dvd" /> : null}
+
+      {/* 小地图 */}
       <MiniMap
         mapId={mapId}
         cellId={cellId}
@@ -35,286 +73,52 @@ function MapView() {
         onCycleMap={mapCycle}
         onOpenBig={() => openBigMap(true)}
       />
+
+      {/* 当前格 */}
       <CellInfo mapId={mapId} cellId={cellId} />
-    </div>
-  );
-}
 
-/** 基地视图 */
-function BaseView({ onOpen }: { onOpen: () => void }) {
-  const session = useGame((s) => s.session);
-  const version = useGame((s) => s.version);
-  void version;
+      <div className="proto-dvd" />
 
-  const summary = session.baseSummary();
-
-  const byLevel = (level: "surface" | "bunker" | "resource") =>
-    FACILITIES.filter((f) => f.level === level).map((f) => ({
-      def: f,
-      tier: session.tierOf(f.id),
-      building: session.base.building === f.id
-    }));
-
-  const LEVELS = [
-    { id: "surface" as const, label: "地表", hint: "安全屋" },
-    { id: "bunker" as const, label: "山内", hint: "避难所" },
-    { id: "resource" as const, label: "深层", hint: "资源层" }
-  ];
-
-  return (
-    <div className="right-view">
-      <div className="rv-here">
-        <b>山体要塞</b>
-        <span className="sub">已建成 {summary.built}/{summary.total}　满级 {summary.maxed}</span>
+      {/* 外出行动（原型 .actlist） */}
+      <div className="proto-sec">外出行动</div>
+      <div className="proto-actlist">
+        <button className="proto-act-btn" onClick={() => openBigMap(true)}>
+          <span className="proto-ai">🚶</span>
+          <span className="proto-an">远征</span>
+          <span className="proto-ad">选目的地 · 定队伍</span>
+        </button>
+        <button className="proto-act-btn" onClick={() => advanceHours(2, "patrol")}>
+          <span className="proto-ai">🛡</span>
+          <span className="proto-an">巡逻</span>
+          <span className="proto-ad">绕据点 · 遇敌</span>
+        </button>
+        <button className="proto-act-btn" onClick={lootCurrent}>
+          <span className="proto-ai">🎒</span>
+          <span className="proto-an">搜刮</span>
+          <span className="proto-ad">翻当前区域物资</span>
+        </button>
+        <button className="proto-act-btn" onClick={() => advanceHours(1, "expedition")}>
+          <span className="proto-ai">🔭</span>
+          <span className="proto-an">侦查</span>
+          <span className="proto-ad">探明相邻未知格</span>
+        </button>
       </div>
 
-      {session.base.building && (
-        <div className="rv-building">
-          建造中：{facilityDef(session.base.building)?.name}
-          （{Math.round(summary.buildingProgress * 100)}%）
-        </div>
-      )}
+      <div className="proto-dvd" />
 
-      {LEVELS.map((lv) => {
-        const list = byLevel(lv.id);
-        const built = list.filter((x) => x.tier > 0).length;
-        return (
-          <div key={lv.id} className="rv-section">
-            <span className="sub">{lv.label} · {lv.hint}（{built}/{list.length}）</span>
-            <div className="rv-chips">
-              {list.filter((x) => x.tier > 0).map((x) => (
-                <span key={x.def.id} className="chip built" title={`Lv${x.tier}`}>
-                  {x.def.name}
-                </span>
-              ))}
-              {list.filter((x) => x.tier > 0).length === 0 && (
-                <span className="sub">（未建成）</span>
-              )}
-            </div>
-          </div>
-        );
-      })}
-
-      <BuildableList />
-      <button className="rv-open" onClick={onOpen}>打开建造面板（B）</button>
-    </div>
-  );
-}
-
-/** 可建造设施快捷列表 */
-function BuildableList() {
-  const session = useGame((s) => s.session);
-  const version = useGame((s) => s.version);
-  const quickBuild = useGame((s) => s.quickBuild);
-  const [showAll, setShowAll] = useState(false);
-  void version;
-
-  const list = session.buildableFacilities();
-  const ready = list.filter((x) => x.canBuild);
-  const shown = showAll ? list : ready.slice(0, 6);
-
-  return (
-    <div className="rv-section">
-      <span className="sub">
-        可建造（{ready.length}）{list.length > ready.length && `　共 ${list.length} 项未满级`}
-      </span>
-      <div className="rv-list">
-        {shown.map((f) => (
+      {/* 交通方式 */}
+      <div className="proto-sec">交通方式</div>
+      <div className="proto-modes">
+        {(["walk", "bike", "car", "apc"] as TravelMode["id"][]).map((m) => (
           <button
-            key={f.id}
-            className="rv-row"
-            onClick={() => f.canBuild && quickBuild(f.id)}
-            disabled={!f.canBuild}
-            title={f.description}
+            key={m}
+            className={"proto-imode" + (travelMode === m ? " proto-on" : "")}
+            onClick={() => setTravelMode(m)}
+            title={TRAVEL_MODES[m].label}
           >
-            <span className="rv-row-main">
-              {f.name}
-              <span className="rv-tier">Lv{f.currentTier}→{f.nextTier}</span>
-            </span>
-            <span className="rv-row-meta">
-              {f.hours}h
-              {f.canBuild ? (
-                <span className="rv-ok">可建</span>
-              ) : (
-                <span className="rv-lock">{REASON_LABEL[f.reason] ?? f.reason}</span>
-              )}
-            </span>
+            {TRAVEL_MODES[m].label}
           </button>
         ))}
-        {shown.length === 0 && <p className="sub">（暂无可建造设施，材料或科技不足）</p>}
-      </div>
-      {list.length > 6 && (
-        <button className="mini" onClick={() => setShowAll((v) => !v)}>
-          {showAll ? "只看可建造" : `展开全部 ${list.length} 项`}
-        </button>
-      )}
-    </div>
-  );
-}
-
-const REASON_LABEL: Record<string, string> = {
-  "max-tier": "已满级",
-  "building-other": "有在建",
-  "missing-tech": "缺科技",
-  "missing-facility": "缺前置",
-  "missing-resource": "缺材料",
-  ok: "可建"
-};
-
-/** 房车视图 */
-function VehicleView({ onOpen }: { onOpen: () => void }) {
-  const session = useGame((s) => s.session);
-  const version = useGame((s) => s.version);
-  void version;
-
-  const v = session.vehicle;
-  const installed = v.mods.map((id) => modDef(id)).filter(Boolean);
-  const prog = modProgress(v);
-
-  return (
-    <div className="right-view">
-      <div className="rv-here">
-        <b>武装房车</b>
-        <span className="sub">{installed.length}/{MODS.length} 项改装（{prog.percent}%）</span>
-      </div>
-
-      <div className="rv-stats">
-        <div><span>燃料</span><b>{v.fuel.toFixed(0)} L</b></div>
-        <div><span>电量</span><b>{v.charge.toFixed(0)}%</b></div>
-        <div><span>燃料</span><b>{v.fuel.toFixed(0)}L</b></div>
-        <div><span>可远征</span><b>{session.vehicleAvailable() ? "是" : "否"}</b></div>
-      </div>
-
-      <div className="rv-section">
-        <span className="sub">已装改装</span>
-        <div className="rv-chips">
-          {installed.map((m) => (
-            <span key={m!.id} className="chip built" title={m!.description}>
-              T{m!.tier} {m!.name}
-            </span>
-          ))}
-          {installed.length === 0 && <span className="sub">（未改装）</span>}
-        </div>
-      </div>
-
-      <InstallableList />
-      <button className="rv-open" onClick={onOpen}>打开改装面板（V）</button>
-    </div>
-  );
-}
-
-/** 可安装改装快捷列表 */
-function InstallableList() {
-  const session = useGame((s) => s.session);
-  const version = useGame((s) => s.version);
-  const quickInstallMod = useGame((s) => s.quickInstallMod);
-  const [showAll, setShowAll] = useState(false);
-  void version;
-
-  const list = session.installableMods();
-  const ready = list.filter((x) => x.canInstall);
-  const shown = showAll ? list : ready.slice(0, 6);
-
-  const MOD_REASON: Record<string, string> = {
-    already: "已装",
-    "missing-prereq": "缺前置",
-    "missing-tech": "缺科技",
-    "missing-resource": "缺材料",
-    ok: "可装"
-  };
-
-  return (
-    <div className="rv-section">
-      <span className="sub">
-        可改装（{ready.length}）{list.length > ready.length && `　共 ${list.length} 项未装`}
-      </span>
-      <div className="rv-list">
-        {shown.map((m) => (
-          <button
-            key={m.id}
-            className="rv-row"
-            onClick={() => m.canInstall && quickInstallMod(m.id)}
-            disabled={!m.canInstall}
-            title={m.description}
-          >
-            <span className="rv-row-main">
-              {m.name}
-              <span className="rv-tier">T{m.tier}</span>
-            </span>
-            <span className="rv-row-meta">
-              {m.canInstall ? (
-                <span className="rv-ok">可装</span>
-              ) : (
-                <span className="rv-lock">{MOD_REASON[m.reason] ?? m.reason}</span>
-              )}
-            </span>
-          </button>
-        ))}
-        {shown.length === 0 && <p className="sub">（暂无可安装改装）</p>}
-      </div>
-      {list.length > 6 && (
-        <button className="mini" onClick={() => setShowAll((v) => !v)}>
-          {showAll ? "只看可安装" : `展开全部 ${list.length} 项`}
-        </button>
-      )}
-    </div>
-  );
-}
-
-/** 行动视图 */
-function ActionsView() {
-  const session = useGame((s) => s.session);
-  const version = useGame((s) => s.version);
-  const advanceHours = useGame((s) => s.advanceHours);
-  const sleepDays = useGame((s) => s.sleepDays);
-  const lootCurrent = useGame((s) => s.lootCurrent);
-  const clearCurrent = useGame((s) => s.clearCurrent);
-  const rollRaid = useGame((s) => s.rollRaid);
-  const tryRecruitHere = useGame((s) => s.tryRecruitHere);
-  void version;
-
-  const pending = session.pendingNightRaids();
-
-  return (
-    <div className="right-view">
-      <div className="rv-section">
-        <span className="sub">时间</span>
-        <div className="rv-actions">
-          <button className="rv-btn" onClick={() => advanceHours(1, "idle")}>+1 小时</button>
-          <button className="rv-btn" onClick={() => advanceHours(4, "work")}>工作 4 小时</button>
-          <button className="rv-btn" onClick={() => sleepDays(1)}>睡一觉</button>
-        </div>
-      </div>
-
-      <div className="rv-section">
-        <span className="sub">区域</span>
-        <div className="rv-actions">
-          <button className="rv-btn" onClick={lootCurrent}>
-            搜刮（{session.world.regions[session.world.current]?.nodesLeft ?? 0}）
-          </button>
-          <button className="rv-btn" onClick={clearCurrent}>清理区域</button>
-          <button className="rv-btn" onClick={tryRecruitHere}>搜索幸存者</button>
-        </div>
-      </div>
-
-      <div className="rv-section">
-        <span className="sub">防御</span>
-        <div className="rv-actions">
-          <button className="rv-btn warn" onClick={rollRaid}>判定今晚</button>
-        </div>
-        {pending.length > 0 && (
-          <p className="sub warn-text">⚠ {pending.length} 位同伴今晚会夜袭</p>
-        )}
-      </div>
-
-      <div className="rv-section">
-        <span className="sub">当前状态</span>
-        <div className="rv-stats">
-          <div><span>同伴</span><b>{session.joined().length}</b></div>
-          <div><span>防御</span><b>{session.defenseLevel().label}</b></div>
-          <div><span>探索</span><b>{session.exploration().percent}%</b></div>
-          <div><span>后代</span><b>{session.offspring.length}</b></div>
-        </div>
       </div>
     </div>
   );
@@ -324,24 +128,25 @@ export function RightColumn({ onOpen }: { onOpen: (tab: string) => void }) {
   const [tab, setTab] = useState<RightTab>("map");
 
   return (
-    <aside className="rightcol">
-      <nav className="rightcol-nav">
+    <div className="proto-rpane">
+      <div className="proto-rtabs">
         {TABS.map((t) => (
-          <button
+          <div
             key={t.id}
-            className={tab === t.id ? "rtab active" : "rtab"}
-            onClick={() => setTab(t.id)}
+            className={"proto-rtab" + (tab === t.id ? " proto-on" : "")}
+            onClick={() => {
+              // 基地 / 房车：打开弹窗（不切页）
+              if (t.modal) { onOpen(t.modal); return; }
+              setTab("map");
+            }}
           >
             {t.label}
-          </button>
+          </div>
         ))}
-      </nav>
-      <div className="rightcol-body">
-        {tab === "map" && <MapView />}
-        {tab === "base" && <BaseView onOpen={() => onOpen("base")} />}
-        {tab === "vehicle" && <VehicleView onOpen={() => onOpen("vehicle")} />}
-        {tab === "actions" && <ActionsView />}
       </div>
-    </aside>
+      <div className="proto-rbody">
+        <MapView />
+      </div>
+    </div>
   );
 }
