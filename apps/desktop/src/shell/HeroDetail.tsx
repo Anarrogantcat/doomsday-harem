@@ -37,6 +37,7 @@ export function HeroDetail() {
       {/* 立绘 + 基本信息 */}
       <div className="detail-head">
         <Portrait
+          companionId="hero"
           name={h.identity.name}
           mode="full"
           mood={s.mood}

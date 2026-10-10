@@ -1180,58 +1180,23 @@ legend { color: var(--sub); font-size: 0.78em; padding: 0 0.4em; }
 .cheat-btn {
 
 
-/* ============ 成就面板 ============ */
-.ach-progress {
-  display: flex; align-items: center; gap: 0.7em; margin-bottom: 0.7em;
+
+
+/* ============ 文生图立绘 ============ */
+.gen-portrait { border-radius: var(--radius); display: block; }
+.gen-portrait-loading,
+.gen-portrait-error {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 0.4em;
+  background: var(--panel2); border: 1px dashed var(--line);
+  border-radius: var(--radius); color: var(--dim);
 }
-.ach-bar {
-  flex: 1; height: 0.6em; background: #1e2532;
-  border-radius: 0.3em; overflow: hidden;
+.gen-portrait-error { border-color: var(--warn); }
+.gp-spinner {
+  width: 1.6em; height: 1.6em; border-radius: 50%;
+  border: 2px solid var(--line); border-top-color: var(--accent-lt);
+  animation: gpSpin 0.9s linear infinite;
 }
-.ach-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--accent-lt));
-  transition: width .3s;
-}
-.ach-pct {
-  font-size: 0.85em; color: var(--accent-lt); font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.ach-rarities { display: flex; gap: 0.35em; flex-wrap: wrap; margin-bottom: 0.7em; }
-.ach-rarity-chip {
-  font-size: 0.72em; padding: 0.1em 0.5em;
-  border: 1px solid; border-radius: 0.25em;
-}
-.ach-list {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(17em, 1fr));
-  gap: 0.45em;
-}
-.ach-card {
-  display: flex; flex-direction: column; gap: 0.25em;
-  padding: 0.55em 0.7em; background: var(--panel2);
-  border: 1px solid var(--line); border-left: 3px solid var(--line);
-  border-radius: var(--radius); transition: all .12s;
-}
-.ach-card.unlocked { background: #2a3444; }
-.ach-card.locked { opacity: .55; }
-.ach-card.cheated { border-style: dashed; }
-.ach-head { display: flex; align-items: baseline; gap: 0.4em; }
-.ach-icon { font-size: 0.95em; color: var(--accent-lt); }
-.ach-name { font-size: 0.85em; font-weight: 600; flex: 1; }
-.ach-rarity { font-size: 0.68em; }
-.ach-day { font-size: 0.65em; color: var(--dim); }
-.ach-cheat {
-  font-size: 0.62em; color: var(--warn);
-  border: 1px solid var(--warn); border-radius: 0.2em; padding: 0 0.3em;
-}
-.ach-desc { font-size: 0.75em; color: var(--sub); line-height: 1.5; }
-.ach-progress-row { display: flex; align-items: center; gap: 0.4em; }
-.ach-mini-bar {
-  flex: 1; height: 0.3em; background: #1e2532;
-  border-radius: 0.15em; overflow: hidden;
-}
-.ach-mini-fill { height: 100%; background: var(--info); transition: width .25s; }
-.ach-prog-text {
-  font-size: 0.68em; color: var(--dim);
-  font-variant-numeric: tabular-nums;
-}
+@keyframes gpSpin { to { transform: rotate(360deg); } }
+.gp-text { font-size: 0.75em; color: var(--sub); }
+.gp-sub { font-size: 0.65em; color: var(--dim); text-align: center; padding: 0 0.4em; }

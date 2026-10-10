@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 /**
  * 程序化角色头像。
  *
@@ -19,8 +19,10 @@ export function avatarFor(name: string): string {
   return avatarPath(hashHue(name) % AVATAR_COUNT);
 }
 
-import { rigToDataUri, buildFromText } from "@doomsday/core";
+import { rigToDataUri, buildFromText, activePlugin } from "@doomsday/core";
 import type { Wardrobe } from "@doomsday/core";
+import { GenPortrait } from "./GenPortrait.tsx";
+import { useGame } from "../store/game.ts";
 
 export interface PortraitProps {
   name: string;
@@ -47,6 +49,10 @@ export interface PortraitProps {
   lust?: number;
   personality?: string;
   futanari?: boolean;
+  /** 角色 id（文生图需要） */
+  companionId?: string;
+  /** 罩杯 0-7 */
+  cup?: number;
 }
 
 /** 按名字散列出稳定色相 */
@@ -59,23 +65,55 @@ function hashHue(name: string): number {
 export function Portrait({
   name, mood = 60, pregnant = false, exposure = 10, size = 96, active = false,
   useSprite = true, mode = "avatar", wardrobe = null, heightCm = 168, build = 0.5 as number | string,
-  pregnancyProgress = 0, lust = 30, personality, futanari = false
+  pregnancyProgress = 0, lust = 30, personality, futanari = false,
+  companionId, cup
 }: PortraitProps) {
-  // 全身立绘模式：程序化绘制
+  // 全身立绘模式：优先文生图，失败降级程序化
+  const pluginCfg = useGame((s) => s.pluginConfig);
+  const genAvailable = activePlugin(pluginCfg, "image") !== null;
+
+  const buildNum = typeof build === "number" ? build : buildFromText(build);
+
+  const uri = useMemo(
+    () => rigToDataUri({
+      name, heightCm, build: buildNum, pregnant, pregnancyProgress,
+      wardrobe, exposure, mood, lust, personality, futanari,
+      width: size, height: Math.round(size * 1.75)
+    }),
+    [name, heightCm, buildNum, pregnant, pregnancyProgress, wardrobe, exposure, mood, lust, personality, futanari, size]
+  );
+
+  const [genFailed, setGenFailed] = useState(false);
+
   if (mode === "full") {
-    const buildNum = typeof build === "number" ? build : buildFromText(build);
-    const uri = useMemo(
-      () => rigToDataUri({
-        name, heightCm, build: buildNum, pregnant, pregnancyProgress,
-        wardrobe, exposure, mood, lust, personality, futanari,
-        width: size, height: Math.round(size * 1.75)
-      }),
-      [name, heightCm, buildNum, pregnant, pregnancyProgress, wardrobe, exposure, mood, lust, personality, futanari, size]
-    );
+    const h = Math.round(size * 1.75);
+
+    // 文生图可用且未失败 → 用它
+    if (genAvailable && !genFailed && companionId) {
+      return (
+        <div className={`rig-wrap ${active ? "active" : ""}`} style={{ width: size, height: h }}>
+          <GenPortrait
+            companionId={companionId}
+            name={name}
+            build={typeof build === "string" ? build : ""}
+            cup={cup}
+            heightCm={heightCm}
+            futanari={futanari}
+            pregnant={pregnant}
+            exposure={exposure}
+            moodText={moodTextFrom(mood, lust)}
+            width={size}
+            height={h}
+            className="rig-img"
+            onFail={() => setGenFailed(true)}
+          />
+        </div>
+      );
+    }
 
     return (
-      <div className={`rig-wrap ${active ? "active" : ""}`} style={{ width: size, height: size * 1.75 }}>
-        <img src={uri} alt={name} className="rig-img" style={{ width: size, height: size * 1.75 }} />
+      <div className={`rig-wrap ${active ? "active" : ""}`} style={{ width: size, height: h }}>
+        <img src={uri} alt={name} className="rig-img" style={{ width: size, height: h }} />
       </div>
     );
   }
@@ -155,4 +193,14 @@ export function Portrait({
       )}
     </svg>
   );
+}
+
+/** 由心情值与欲情推断心情文字（供文生图提示词） */
+function moodTextFrom(mood: number, lust: number): string {
+  if (lust > 75) return "欲情";
+  if (mood >= 80) return "开心";
+  if (mood >= 60) return "温柔";
+  if (mood >= 40) return "平静";
+  if (mood >= 25) return "疲惫";
+  return "紧张";
 }

@@ -1,0 +1,61 @@
+feat: 插件系统 —— 文生图立绘与角色语音 v0.41.0
+
+一、插件架构（packages/core/src/systems/plugins.ts）
+游戏本体不绑定任何服务，全部通过插件接入：
+- PluginManifest 声明 id/类型/提供方/地址/能力/默认参数
+- 5 个内置插件预设：
+  · ComfyUI（文生图，8188）
+  · GPT-SoVITS（音色克隆，9880）
+  · IndexTTS（零样本，7860）
+  · Edge TTS（在线，零依赖）
+  · 系统语音（Windows SAPI）
+- 配置含：启停、参数覆盖、当前生效插件、语音/立绘总开关
+- 失败静默降级，不阻断游戏
+
+二、提示词构建
+buildPortraitPrompt()：由角色数据自动生成
+- 体型：身高分档（tall/average/petite）+ 体型描述（curvy/slender/athletic）
+- 罩杯：8 档（flat → gigantic）
+- 怀孕 / 扶她 / 暴露度（影响着装标签）
+- 情绪：12 条规则支持复合词匹配（温柔/害羞/欲情/疲惫…）
+- 固定末日背景标签 + 负向提示词
+
+buildTtsRequest()：由台词与基调推断情绪（10 条规则）
+
+三、缓存策略
+- 立绘键含角色/罩杯/怀孕/暴露度档位/情绪/扶她
+  暴露度按 20 分档，避免微调就重生成
+- 语音键为内容 FNV-1a 哈希
+- 内存 + localStorage 双层；单条超 1.4MB 不持久化
+
+四、运行时（apps/desktop/src/plugins/runtime.ts）
+- ComfyUI：探测（含 GPU 信息）、列模型、构建工作流、
+  提交并轮询 /history、取图转 base64
+- GPT-SoVITS / IndexTTS：按各自 API 形态提交
+- Edge TTS / 系统语音：直接用浏览器 speechSynthesis
+- 统一入口 probePlugin / synthesize
+
+五、UI
+- 插件面板（快捷键 X）：分类展示、状态徽章、探测、
+  启用开关、设为当前、参数编辑（含模型下拉）、缓存管理
+- GenPortrait 组件：命中缓存立即显示，生成中显示进度，
+  失败回调触发降级
+- Portrait 组件接入：文生图可用时优先，失败自动回退程序化
+
+六、实测（真实环境验证）
+- ComfyUI 已启动并连通（RTX 5060 Ti）
+- 发现并修复：anything-v5 模型在 models 根目录而非
+  checkpoints 子目录，ComfyUI 认不到 → 建硬链接解决
+- 端到端生成成功：512x768 约 12s（首次）/ 2.5s（预热后）
+- 批量生成姐姐/母亲/妹妹三张，体型与气质差异正确体现
+
+七、修复
+- store 的 pluginConfig / achievements 字段此前未真正写入
+  （编辑未生效），导致页面白屏
+  Cannot read properties of undefined (reading 'imageEnabled')
+  现已补齐状态、初始值与全部方法实现
+
+测试
+- 新增 plugins 32 项（目录/配置/提示词/TTS/缓存键）
+- 总数 1200 项全部通过
+- tsc 零错误

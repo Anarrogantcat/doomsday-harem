@@ -18,7 +18,7 @@ import { CheatOverlay } from "./shell/CheatOverlay.tsx";
 const KEY_MAP: Record<string, string> = {
   i: "items", n: "quests", t: "tech", b: "base", w: "wardrobe",
   h: "harem", j: "jobs", v: "vehicle", d: "defense", m: "llm",
-  s: "save", c: "cheats", r: "roster", k: "canvas", o: "status", l: "mods", g: "achievements"
+  s: "save", c: "cheats", r: "roster", k: "canvas", o: "status", l: "mods", g: "achievements", x: "plugins"
 };
 
 type CenterTab = "narration" | "fortress" | "combat";

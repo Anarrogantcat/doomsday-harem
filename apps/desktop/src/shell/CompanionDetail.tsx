@@ -63,9 +63,10 @@ export function CompanionDetail({ id }: { id: string | null }) {
       {/* 立绘 + 基本信息 */}
       <div className="detail-head">
         <Portrait
+          companionId={c.id}
           name={c.identity.name}
           mode="full"
-          mood={60}
+          mood={c.growth.mood}
           lust={c.lust.value}
           pregnant={c.physiology.pregnant}
           pregnancyProgress={c.physiology.pregnancyProgress}
@@ -73,6 +74,7 @@ export function CompanionDetail({ id }: { id: string | null }) {
           wardrobe={c.wardrobe}
           heightCm={c.identity.heightCm}
           build={def?.build ?? 0.5}
+          cup={def?.cup ?? c.cup ?? 3}
           personality={def?.personality}
           size={104}
         />

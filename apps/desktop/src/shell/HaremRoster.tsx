@@ -20,6 +20,7 @@ function HeroCard({ selected, onSelect }: { selected: boolean; onSelect: () => v
     <button className={`rcard hero-card ${selected ? "active" : ""}`} onClick={onSelect}>
       <div className="rcard-face hero-face">
         <Portrait
+          companionId={h.id}
           name={h.identity.name}
           mode="full"
           mood={s.mood}
@@ -29,7 +30,7 @@ function HeroCard({ selected, onSelect }: { selected: boolean; onSelect: () => v
           wardrobe={h.wardrobe}
           heightCm={h.identity.heightCm}
           build={0.55}
-          cup={6}
+          cup={h.cup ?? 3}
           personality="bold"
           futanari
           size={40}

@@ -10,6 +10,10 @@ import {
   patchAudio as patchAudioFn, patchCheat as patchCheatFn, patchLang as patchLangFn,
   newSlotList, upsertMeta, removeMeta, slotView, slotStats, buildMeta, packForSave, validateAndUnwrap,
   type SlotList, type SlotMeta, type SaveEnvelope,
+  type PluginConfig, type PluginStatus, defaultPluginConfig, pluginConfigFromJSON,
+  BUILTIN_PLUGINS,
+  type AchievementState, newAchievementState, evaluateAchievements,
+  type AchievementStats, emptyStats as emptyAchStats,
 } from "@doomsday/core";
 import {
   DEFAULT_LLM_SETTINGS, createNarrator, ensureAvailable, GenerationPipeline,
@@ -40,6 +44,12 @@ export interface GameState {
   stockMsg: string;
   /** 已加载的 Mod 数 */
   modsLoaded: number;
+  /** 成就状态 */
+  achievements: AchievementState;
+  /** 插件配置 */
+  pluginConfig: PluginConfig;
+  /** 插件探测状态 */
+  pluginStatus: Record<string, PluginStatus>;
   /** 设置 */
   settings: Settings;
   /** 最近一次性爱行为的场景（供叙事区显示） */
@@ -98,6 +108,14 @@ export interface GameState {
   planReport: () => ReturnType<GenerationPipeline["planReport"]>;
   loadStock: () => Promise<void>;
   loadMods: () => Promise<void>;
+  /** 根据当前游戏状态评估成就 */
+  checkAchievements: () => number;
+  /** 更新插件配置 */
+  setPluginConfig: (patch: Partial<PluginConfig>) => void;
+  /** 设置某插件的参数 */
+  setPluginParam: (pluginId: string, key: string, value: unknown) => void;
+  /** 探测插件可用性 */
+  probePlugins: (id?: string) => Promise<void>;
   stockStats: () => ReturnType<StockIndex["stats"]> | null;
 
   patchDisplay: (p: Parameters<typeof patchDisplayFn>[1]) => void;
@@ -175,6 +193,9 @@ export const useGame = create<GameState>((set, get) => ({
   stock: new StockIndex(emptyStore()),
   stockMsg: "",
   modsLoaded: 0,
+  achievements: newAchievementState(),
+  pluginConfig: defaultPluginConfig(),
+  pluginStatus: {},
   settings: defaultSettings(),
   lastActScene: null,
   log: [],
@@ -529,6 +550,74 @@ export const useGame = create<GameState>((set, get) => ({
   planReport: () => {
     const { session, pipeline } = get();
     return pipeline.planReport(session.registry.all().map((s) => s.id));
+  },
+
+  setPluginConfig: (patch) => {
+    set((s) => ({ pluginConfig: { ...s.pluginConfig, ...patch } }));
+  },
+
+  setPluginParam: (pluginId, key, value) => {
+    set((s) => ({
+      pluginConfig: {
+        ...s.pluginConfig,
+        params: {
+          ...s.pluginConfig.params,
+          [pluginId]: { ...(s.pluginConfig.params[pluginId] ?? {}), [key]: value }
+        }
+      }
+    }));
+  },
+
+  probePlugins: async (id) => {
+    const { probePlugin } = await import("../plugins/runtime.ts");
+    const list = id ? BUILTIN_PLUGINS.filter((p) => p.id === id) : BUILTIN_PLUGINS;
+
+    const results = await Promise.all(
+      list.map(async (p) => {
+        try {
+          const r = await probePlugin(p);
+          return [p.id, (r.online ? "online" : "offline") as PluginStatus] as const;
+        } catch {
+          return [p.id, "error" as PluginStatus] as const;
+        }
+      })
+    );
+
+    set((s) => ({
+      pluginStatus: { ...s.pluginStatus, ...Object.fromEntries(results) }
+    }));
+  },
+
+  checkAchievements: () => {
+    const { session, achievements, cheat, pushLog, refresh } = get();
+    const joined = session.joined();
+
+    const stats: AchievementStats = {
+      ...emptyAchStats(),
+      daysSurvived: session.time.day,
+      haremCount: joined.length,
+      maxBondCount: joined.filter((c) => c.relationship.bond >= 5).length,
+      totalActs: joined.reduce((n, c) => n + c.growth.totalActs, 0),
+      techUnlocked: session.tech.unlocked.size,
+      baseBuilt: session.base.facilities.filter((f) => f.tier > 0).length,
+      regionsDiscovered: Object.values(session.world.regions).filter((r) => r.discovered).length,
+      regionsCleared: Object.values(session.world.regions).filter((r) => r.cleared > 0).length,
+      vehicleMods: session.vehicle.mods.length,
+      births: session.offspring.length,
+      femaleBirths: session.offspring.filter((o) => o.sex === "female").length,
+      usedCheat: cheat.enabled
+    };
+
+    const r = evaluateAchievements(achievements, stats, session.time.day, cheat.enabled);
+    set({ achievements: r.state });
+
+    if (r.newlyUnlocked.length > 0) {
+      for (const a of r.newlyUnlocked) {
+        pushLog("成就解锁：" + a.name + "（" + a.description + "）");
+      }
+      refresh();
+    }
+    return r.newlyUnlocked.length;
   },
 
   loadMods: async () => {
