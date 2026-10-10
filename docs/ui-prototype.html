@@ -404,6 +404,20 @@ padding-bottom:.1em;border-bottom:1px solid var(--line)}
 }
 .cc-person i{width:.65em;height:.65em;border-radius:50%;flex-shrink:0}
 .cc-person em{font-style:normal;font-size:.85em;color:var(--dim);margin-left:auto}
+.cc-go{
+  display:flex;align-items:center;gap:.4em;width:100%;margin-top:.45em;
+  padding:.5em .7em;font-family:inherit;font-size:.82em;cursor:pointer;
+  border-radius:.25em;border:1px solid var(--line);border-left:3px solid var(--line);
+  background:var(--panel2);color:var(--fg);transition:all .12s;text-align:left;
+}
+.cc-go span{font-size:.85em;color:var(--dim);margin-left:auto}
+.cc-go.exit{border-left-color:var(--warn);background:linear-gradient(90deg,rgba(232,200,21,.16),var(--panel2))}
+.cc-go.exit:hover{background:var(--warn);color:#000}
+.cc-go.exit:hover span{color:#000;opacity:.7}
+.cc-go.sub{border-left-color:var(--info);background:linear-gradient(90deg,rgba(0,245,239,.14),var(--panel2))}
+.cc-go.sub:hover{background:var(--info);color:#000}
+.cc-go.sub:hover span{color:#000;opacity:.7}
+
 .cc-tags{display:flex;flex-wrap:wrap;gap:.25em;margin-top:.25em}
 .cc-chip{
   font-size:.72em;padding:.18em .5em;border-radius:.2em;
@@ -454,6 +468,9 @@ font-size:.85em;transition:all .12s;display:flex;align-items:center;justify-cont
 .dbtn:active:not(:disabled){background:var(--accent);color:#fff}
 .dbtn:disabled{opacity:.25;cursor:not-allowed}
 .dbtn.center{background:var(--accent-dk);border-color:var(--accent);color:var(--fg);font-size:.7em}
+.dbtn.exitdir{border-color:var(--warn);color:var(--warn);box-shadow:0 0 .35em rgba(232,200,21,.5)}
+.dbtn.exitdir:hover:not(:disabled){background:var(--warn);color:#000}
+.mcell.exit,.mcell.sub{cursor:pointer}
 
 /* 当前格信息 */
 .curcell{padding:.4em .5em;background:rgba(0,0,0,.25);border-radius:.25em;
@@ -3615,7 +3632,7 @@ const MCITY_SOUTH = {
     {id:"uni_dorm",n:"大学宿舍楼",x:5,y:0,d:3,k:"city",desc:"楼道里散落着行李箱。"},
     {id:"uni_canteen",n:"大学食堂",x:6,y:0,d:3,k:"city",desc:"后厨冷库还有没坏的冻品。"},
     {id:"uni_sports",n:"大学体育馆",x:7,y:0,d:2,k:"city",desc:"看台能俯瞰南区。"},
-    {id:"mountain_foot",n:"北岭山脚",x:0,y:1,d:1,k:"road",desc:"出小区往西十分钟。上山的路从这里开始。",sub:"北岭山"},
+    {id:"mountain_foot",n:"北岭山脚",x:0,y:1,d:1,k:"road",desc:"出小区往西十分钟。上山的路从这里开始。",sub:{l:"北岭山",m:"beiling",c:"mt_foot_camp"}},
     {id:"hero_home",n:"主角家",x:1,y:1,d:0,k:"city",desc:"城南小区六楼，一家四口住一起。"},
     {id:"home_block",n:"小区楼下",x:2,y:1,d:1,k:"town",desc:"六层老楼，楼下有小卖部。"},
     {id:"univ_neigh",n:"大学路",x:3,y:1,d:1,k:"road",desc:"连接小区与大学的主路。"},
@@ -3654,7 +3671,7 @@ const MCITY_SOUTH = {
     {id:"farm_south",n:"城南菜地",x:4,y:5,d:1,k:"farm",desc:"一片没荒透的菜地，还有活水。"},
     {id:"orchard",n:"果园",x:5,y:5,d:1,k:"farm",desc:"果子长得又小又酸。"},
     {id:"southeast_mill",n:"东南磨坊",x:6,y:5,d:2,k:"industrial",desc:"老式磨坊，机器还能转。"},
-    {id:"south_gate",n:"城南出口",x:7,y:5,d:2,k:"road",desc:"通往市中心的公路从这里开始。",exit:"往市中心"}
+    {id:"south_gate",n:"城南出口",x:7,y:5,d:2,k:"road",desc:"通往市中心的公路从这里开始。",exit:{l:"往市中心",m:"jc_center",c:"center_gate_n",dir:"S"}}
   ]
 };
 
@@ -3686,7 +3703,7 @@ const MAPS = {
     {id:"w_market",n:"城西市场",x:0,y:2,d:3,k:"city"},
     {id:"w_school",n:"城西中学",x:1,y:2,d:2,k:"city"},
     {id:"w_factory",n:"轻工厂",x:2,y:2,d:3,k:"industrial"},
-    {id:"center_gate_n",n:"城南路口",x:3,y:2,d:2,k:"road",exit:"回城南"},
+    {id:"center_gate_n",n:"城南路口",x:3,y:2,d:2,k:"road",exit:{l:"回城南",m:"jc_south",c:"south_gate",dir:"W"}},
     {id:"central_library_br",n:"古籍分馆",x:4,y:2,d:2,k:"city"},
     {id:"central_court",n:"市法院",x:5,y:2,d:3,k:"city"},
     {id:"commercial_2",n:"商业街二期",x:6,y:2,d:3,k:"city"},
@@ -3707,7 +3724,7 @@ const MAPS = {
     {id:"central_laundry",n:"洗衣厂",x:5,y:4,d:2,k:"industrial"},
     {id:"central_gym",n:"健身会所",x:6,y:4,d:2,k:"city"},
     {id:"central_pool",n:"游泳馆",x:7,y:4,d:2,k:"water"},
-    {id:"north_gate",n:"城北出口",x:0,y:5,d:2,k:"road",exit:"往东部郊野"},
+    {id:"north_gate",n:"城北出口",x:0,y:5,d:2,k:"road",exit:{l:"往东部郊野",m:"jc_east",c:"e_gate_n",dir:"S"}},
     {id:"s_warehouse",n:"南部仓库区",x:1,y:5,d:4,k:"industrial"},
     {id:"chemical_wh",n:"化工仓库",x:2,y:5,d:5,k:"industrial"},
     {id:"s_quarry",n:"采石场",x:3,y:5,d:3,k:"wild"},
@@ -3728,7 +3745,7 @@ const MAPS = {
     {id:"e_industrial",n:"东部工业区",x:0,y:1,d:3,k:"industrial"},
     {id:"e_machine_shop",n:"机械车间",x:1,y:1,d:3,k:"industrial"},
     {id:"e_foundry",n:"铸造厂",x:2,y:1,d:4,k:"industrial"},
-    {id:"e_gate_n",n:"城北路口",x:3,y:1,d:2,k:"road",exit:"回市中心"},
+    {id:"e_gate_n",n:"城北路口",x:3,y:1,d:2,k:"road",exit:{l:"回市中心",m:"jc_center",c:"north_gate",dir:"W"}},
     {id:"e_canning",n:"罐头厂",x:4,y:1,d:3,k:"industrial"},
     {id:"e_dairy",n:"乳品厂",x:5,y:1,d:3,k:"industrial"},
     {id:"e_mill",n:"面粉厂",x:6,y:1,d:3,k:"industrial"},
@@ -3767,7 +3784,7 @@ const MAPS = {
     {id:"e_border",n:"东界碑",x:7,y:5,d:3,k:"road"}
   ]},
   beiling: { name:"北岭山", cols:6, rows:6, kind:"sub", cells:[
-    {id:"mt_foot_camp",n:"山脚营地",x:0,y:0,d:1,k:"mountain",exit:"回城南"},
+    {id:"mt_foot_camp",n:"山脚营地",x:0,y:0,d:1,k:"mountain",exit:{l:"回城南",m:"jc_south",c:"mountain_foot",dir:"W"}},
     {id:"mt_trail",n:"登山步道",x:1,y:0,d:2,k:"mountain"},
     {id:"mt_stream",n:"溪谷",x:2,y:0,d:1,k:"water"},
     {id:"mt_forestry",n:"北岭林场",x:3,y:0,d:2,k:"wild"},
@@ -3794,7 +3811,7 @@ const MAPS = {
     {id:"mt_spring_s",n:"南泉",x:0,y:4,d:1,k:"water"},
     {id:"mt_terraces",n:"梯田",x:1,y:4,d:1,k:"farm"},
     {id:"mt_workshop_out",n:"山脚工棚",x:2,y:4,d:1,k:"base"},
-    {id:"mt_fortress",n:"山体要塞",x:3,y:4,d:0,k:"base",sub:"要塞内部"},
+    {id:"mt_fortress",n:"山体要塞",x:3,y:4,d:0,k:"base",sub:{l:"要塞内部",m:"fortress_inside",c:"ft_entry"}},
     {id:"mt_back_tunnel",n:"后山暗道",x:4,y:4,d:2,k:"mountain"},
     {id:"mt_drop_shaft",n:"垂直风井",x:5,y:4,d:3,k:"mountain"},
     {id:"mt_graveyard",n:"山中墓园",x:0,y:5,d:2,k:"ruin"},
@@ -3805,7 +3822,7 @@ const MAPS = {
     {id:"mt_lookout_s",n:"南哨位",x:5,y:5,d:1,k:"base"}
   ]},
   fortress_inside: { name:"要塞内部", cols:6, rows:6, kind:"sub", cells:[
-    {id:"ft_entry",n:"防爆门厅",x:0,y:0,d:0,k:"interior",exit:"出要塞"},
+    {id:"ft_entry",n:"防爆门厅",x:0,y:0,d:0,k:"interior",exit:{l:"出要塞",m:"beiling",c:"mt_fortress",dir:"W"}},
     {id:"ft_villa",n:"地表别墅",x:1,y:0,d:0,k:"interior"},
     {id:"ft_garage",n:"车库",x:2,y:0,d:0,k:"interior"},
     {id:"ft_power",n:"动力室",x:3,y:0,d:0,k:"interior"},
@@ -3940,7 +3957,7 @@ function bmRender(mapId) {
         '<span class="bi">' + (KMAP2[c.k] || "·") + '</span>' +
         '<span class="bn">' + c.n + '</span>' +
         '<span class="bd">' + (c.d === 0 ? "安全 0" : "危险 " + c.d) + '</span>' +
-        '<span class="bx">' + (c.sub ? "↧ " + c.sub : c.exit ? "⇢ " + c.exit : (c.desc || "")) + '</span>';
+        '<span class="bx">' + (c.sub ? "↧ 进入 " + c.sub.l : c.exit ? "⇢ " + c.exit.l : (c.desc || "")) + '</span>';
       g.appendChild(d);
     }
   }
@@ -4049,6 +4066,13 @@ function mapRender() {
         d.title = c.n + "　在场：" + dyn.people.map((p) => PEOPLE[p]?.n ?? p).join("、");
       }
       d.onclick = () => { curCellId = c.id; mapRender(); mapUpdateDirs(); mapUpdateCellInfo(); };
+      // 出口 / 子图格：双击直接前往
+      if (c.exit || c.sub) {
+        d.ondblclick = () => {
+          if (c.exit) travelTo(c.exit.m, c.exit.c, c.exit.l);
+          else travelTo(c.sub.m, c.sub.c, "进入 " + c.sub.l);
+        };
+      }
       g.appendChild(d);
     }
   }
@@ -4071,9 +4095,21 @@ function mapUpdateCellInfo() {
     '<div class="cc-t">' +
       '<span class="cc-tag d' + c.d + '">' + (c.d === 0 ? "安全" : "危险 " + c.d) + '</span>' +
       '<span class="cc-tag">已探索</span>' +
-      (c.sub ? '<span class="cc-tag" style="border-color:var(--info);color:var(--info)">↧ ' + c.sub + '</span>' : "") +
-      (c.exit ? '<span class="cc-tag" style="border-color:var(--warn);color:var(--warn)">⇢ ' + c.exit + '</span>' : "") +
+      (c.sub ? '<span class="cc-tag" style="border-color:var(--info);color:var(--info)">↧ ' + c.sub.l + '</span>' : "") +
+      (c.exit ? '<span class="cc-tag" style="border-color:var(--warn);color:var(--warn)">⇢ ' + c.exit.l + '</span>' : "") +
     '</div>';
+
+  // 跨图出口 / 子图入口：醒目按钮
+  if (c.exit) {
+    const t = MAPS[c.exit.m]?.cells.find((v) => v.id === c.exit.c);
+    html += '<button class="cc-go exit" onclick="travelTo(\'' + c.exit.m + '\',\'' + c.exit.c + '\',\'' + c.exit.l + '\')">' +
+      '⇢ ' + c.exit.l + '　<span>' + (t?.n ?? "") + '</span></button>';
+  }
+  if (c.sub) {
+    const t = MAPS[c.sub.m]?.cells.find((v) => v.id === c.sub.c);
+    html += '<button class="cc-go sub" onclick="travelTo(\'' + c.sub.m + '\',\'' + c.sub.c + '\',\'进入 ' + c.sub.l + '\')">' +
+      '↧ 进入 ' + c.sub.l + '　<span>' + (t?.n ?? "") + '</span></button>';
+  }
 
   // 在场的人
   if (people.length) {
@@ -4109,22 +4145,64 @@ function cellAct(name) {
 function mapUpdateDirs() {
   const c = curMap.cells.find(v => v.id === curCellId);
   if (!c) return;
+  const DIRNAME = { dN:"北", dS:"南", dW:"西", dE:"东" };
+  const DIRKEY  = { dN:"N", dS:"S", dW:"W", dE:"E" };
   for (const [id, dx, dy] of [["dN",0,-1],["dS",0,1],["dW",-1,0],["dE",1,0]]) {
     const el = document.getElementById(id);
     if (!el) continue;
+    // 跨图出口优先
+    const ex = c.exit && c.exit.dir === DIRKEY[id] ? c.exit : null;
+    if (ex) {
+      const t = MAPS[ex.m]?.cells.find((v) => v.id === ex.c);
+      el.disabled = false;
+      el.classList.add("exitdir");
+      el.title = DIRNAME[id] + " · " + ex.l + "（" + (t?.n ?? "") + "）";
+      continue;
+    }
+    el.classList.remove("exitdir");
     const nb = curMap.cells.find(v => v.x === c.x + dx && v.y === c.y + dy);
     el.disabled = !nb;
-    el.title = nb ? ({"dN":"北","dS":"南","dW":"西","dE":"东"}[id] + " · " + nb.n) : "无路";
+    el.title = nb ? (DIRNAME[id] + " · " + nb.n) : "无路";
   }
   mapUpdateCellInfo();
+}
+
+/* 切换地图（跨图移动的统一入口） */
+function travelTo(mapId, cellId, label) {
+  if (!MAPS[mapId]) { toastMsg("目标地图不存在"); return; }
+  const target = MAPS[mapId].cells.find((c) => c.id === cellId);
+  if (!target) { toastMsg("目标格子不存在"); return; }
+  curMapId = mapId;
+  const m = MAPS[mapId];
+  curMap = { name: m.name, cols: m.cols, rows: m.rows, cells: m.cells };
+  curCellId = cellId;
+  exploredSet(mapId).add(cellId);
+  mapRender();
+  mapSyncName();
+  mapUpdateDirs();
+  mapUpdateCellInfo();
+  mapFlash(target.n);
+  toastMsg((label ? label + " → " : "进入 ") + m.name + " · " + target.n);
 }
 
 function mapMove(dir) {
   const c = curMap.cells.find(v => v.id === curCellId);
   if (!c) return;
+
+  // 1) 跨图出口优先（与 maps.ts 的 neighbor() 行为一致）
+  if (c.exit && c.exit.dir === dir) {
+    travelTo(c.exit.m, c.exit.c, c.exit.l);
+    return;
+  }
+  // 2) 子图入口（无方向，用「进入」按钮）
+  // 3) 同图相邻
   const D = { N:[0,-1], S:[0,1], W:[-1,0], E:[1,0] }[dir];
   const nb = curMap.cells.find(v => v.x === c.x + D[0] && v.y === c.y + D[1]);
-  if (!nb) return;
+  if (!nb) {
+    // 边界无路：提示是否有出口
+    if (c.sub) toastMsg("这里可以进入「" + c.sub.l + "」");
+    return;
+  }
   curCellId = nb.id;
   exploredSet(curMapId).add(nb.id);
   mapRender();
