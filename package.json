@@ -30,7 +30,7 @@
     "build:portable": "node scripts/make-portable.mjs",
     "gen:portraits": "node scripts/gen-portraits.mjs",
     "gen:stories": "node scripts/gen-stories.mjs",
-    "sign": "powershell -ExecutionPolicy Bypass -File scripts/sign.ps1",
+    "sign": "pnpm --filter @doomsday/desktop sign",
     "build:installer": "pnpm --filter @doomsday/desktop exec vite build && pnpm --filter @doomsday/desktop dist",
     "electron": "pnpm --filter @doomsday/desktop electron",
     "electron:dev": "pnpm --filter @doomsday/desktop electron:dev",

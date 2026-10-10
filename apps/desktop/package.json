@@ -10,9 +10,10 @@
     "electron": "electron .",
     "electron:dev": "cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron . --dev",
     "build:electron": "vite build",
-    "dist": "electron-builder --win",
-    "dist:dir": "electron-builder --win --dir",
-    "dist:portable": "electron-builder --win portable"
+    "dist": "electron-builder --win && powershell -ExecutionPolicy Bypass -File ../../scripts/sign-electron.ps1",
+    "dist:dir": "electron-builder --win --dir && powershell -ExecutionPolicy Bypass -File ../../scripts/sign-electron.ps1",
+    "dist:portable": "electron-builder --win portable && powershell -ExecutionPolicy Bypass -File ../../scripts/sign-electron.ps1",
+    "sign": "powershell -ExecutionPolicy Bypass -File ../../scripts/sign-electron.ps1"
   },
   "dependencies": {},
   "devDependencies": {
