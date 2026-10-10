@@ -155,6 +155,11 @@ export interface GameState {
   exportSettings: () => void;
   importSettings: () => void;
 
+  /** 新游戏（重置会话与地图） */
+  newGame: () => Promise<void>;
+  /** 退出应用（Electron 走主进程，浏览器降级为关闭提示） */
+  quitApp: () => Promise<void>;
+
   saveToSlot: (slot: string) => Promise<void>;
   loadFromSlot: (slot: string) => Promise<void>;
   deleteSlot: (slot: string) => Promise<void>;
@@ -928,6 +933,27 @@ export const useGame = create<GameState>((set, get) => ({
       : [...autos].sort((a, b) => new Date(a.savedAt).getTime() - new Date(b.savedAt).getTime())[0].slot;
     await get().saveToSlot(nextSlot);
     pushLog(`自动存档 ${nextSlot}`);
+  },
+
+  newGame: async () => {
+    const { refresh } = get();
+    // 重置会话：重建 GameSession 与地图状态
+    set({
+      session: makeSession(),
+      mapId: "jc_south",
+      cellId: "hero_home",
+      explored: buildExplored(),
+      bigMapOpen: false,
+      log: []
+    });
+    get().pushLog("新的末日开始了。");
+    refresh();
+  },
+
+  quitApp: async () => {
+    // Electron 环境下由主进程退出；浏览器只提示
+    const w = window as unknown as { close?: () => void; dh?: unknown };
+    try { w.close?.(); } catch { /* 忽略 */ }
   },
 
   refreshSlots: async () => {

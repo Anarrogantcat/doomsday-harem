@@ -328,7 +328,15 @@ export function App() {
   }
 
   return (
-    <div id="game" style={rootStyle} className={settings.gameplay.compactRoster ? "compact" : ""}>
+    <div
+      id="game"
+      style={rootStyle}
+      className={
+        "on" +
+        (settings.gameplay.compactRoster ? " compact" : "") +
+        (colWidths.left === 0 ? " no-left" : "")
+      }
+    >
       {/* ═══ 左栏：特殊AI + 后宫名册 + 快捷面板 ═══ */}
       <div className="left">
         <LeftColumn selected={selected} onSelect={setSelected} onOpen={setOverlay} />
