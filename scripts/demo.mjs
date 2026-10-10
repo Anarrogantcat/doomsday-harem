@@ -76,6 +76,26 @@ const server = createServer((req, res) => {
   res.end(readFileSync(file));
 });
 
+// 端口占用检测：避免起多个实例
+import { createConnection } from "node:net";
+
+function portInUse(port) {
+  return new Promise((resolve) => {
+    const sock = createConnection({ port, host: "127.0.0.1" });
+    sock.once("connect", () => { sock.destroy(); resolve(true); });
+    sock.once("error", () => resolve(false));
+    setTimeout(() => { sock.destroy(); resolve(false); }, 500);
+  });
+}
+
+if (await portInUse(PORT)) {
+  console.error(`✗ 端口 ${PORT} 已被占用`);
+  console.error("  可能是之前启动的实例没关。可执行：");
+  console.error(`    Get-NetTCPConnection -LocalPort ${PORT} -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }`);
+  console.error("  或换端口：node scripts/demo.mjs --port 4180");
+  process.exit(1);
+}
+
 server.listen(PORT, "127.0.0.1", () => {
   const url = `http://127.0.0.1:${PORT}/`;
   console.log("");
@@ -89,7 +109,7 @@ server.listen(PORT, "127.0.0.1", () => {
   console.log("    W H M S  服装 / 后宫 / 模型 / 存档");
   console.log("    ← →      翻页    Esc  关闭面板");
   console.log("");
-  console.log("  按 Ctrl+C 停止");
+  console.log(`  进程号 ${process.pid}（Ctrl+C 停止）`);
   console.log("");
 
   if (AUTO_OPEN) {
@@ -100,8 +120,12 @@ server.listen(PORT, "127.0.0.1", () => {
   }
 });
 
-process.on("SIGINT", () => {
-  console.log("\n已停止");
-  server.close();
-  process.exit(0);
-});
+function shutdown(reason) {
+  console.log(`\n已停止（${reason}）`);
+  server.close(() => process.exit(0));
+  // 兜底：500ms 内没关干净就强制退出
+  setTimeout(() => process.exit(0), 500);
+}
+
+process.on("SIGINT", () => shutdown("Ctrl+C"));
+process.on("SIGTERM", () => shutdown("terminated"));

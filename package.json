@@ -1,7 +1,7 @@
 {
   "name": "doomsday-harem",
   "private": true,
-  "version": "0.37.0",
+  "version": "0.37.1",
   "type": "module",
   "workspaces": [
     "packages/*",
@@ -26,7 +26,8 @@
     "pregenerate": "node scripts/pregenerate.mjs",
     "pregenerate:dry": "node scripts/pregenerate.mjs --dry",
     "build:demo": "pnpm --filter @doomsday/desktop exec vite build --config vite.demo.config.ts",
-    "demo:open": "node scripts/demo.mjs --open"
+    "demo:open": "node scripts/demo.mjs --open",
+    "cleanup:servers": "node scripts/cleanup-servers.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
