@@ -1,111 +1,215 @@
-import { useState } from "react";
-import { StatusBar } from "./panels/StatusBar.tsx";
-import { HaremPanel } from "./panels/HaremPanel.tsx";
-import { JobBoard } from "./panels/JobBoard.tsx";
-import { TechTreePanel } from "./panels/TechTreePanel.tsx";
-import { WardrobePanel } from "./panels/WardrobePanel.tsx";
-import { InventoryPanel } from "./panels/InventoryPanel.tsx";
-import { BasePanel } from "./panels/BasePanel.tsx";
-import { WorldPanel } from "./panels/WorldPanel.tsx";
-import { VehiclePanel } from "./panels/VehiclePanel.tsx";
-import { QuestPanel } from "./panels/QuestPanel.tsx";
-import { DefensePanel } from "./panels/DefensePanel.tsx";
-import { CompanionDataPanel } from "./panels/CompanionDataPanel.tsx";
-import { CanvasView } from "./panels/CanvasView.tsx";
-import { SavePanel } from "./panels/SavePanel.tsx";
-import { ScenePlayer } from "./panels/ScenePlayer.tsx";
-import { CheatPanel } from "./panels/CheatPanel.tsx";
-import { LlmPanel } from "./panels/LlmPanel.tsx";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { renderScene, type Scene } from "@doomsday/core";
+import { buildSceneContext } from "@doomsday/llm";
 import { useGame } from "./store/game.ts";
+import { HaremRoster } from "./shell/HaremRoster.tsx";
+import { FortressSection } from "./shell/FortressSection.tsx";
+import { CombatView } from "./shell/CombatView.tsx";
+import { CompanionDetail } from "./shell/CompanionDetail.tsx";
+import { NarrationPanel, type NarrationEntry } from "./shell/NarrationPanel.tsx";
+import { StatusStrip, MessageLog } from "./shell/StatusStrip.tsx";
+import { Overlay } from "./shell/Overlay.tsx";
 
-type Tab = "status" | "map" | "canvas" | "vehicle" | "quests" | "defense" | "harem" | "roster" | "jobs" | "tech" | "base" | "wardrobe" | "items" | "scenes" | "llm" | "save" | "cheats";
+const KEY_MAP: Record<string, string> = {
+  i: "items", n: "quests", t: "tech", b: "base", w: "wardrobe",
+  h: "harem", j: "jobs", v: "vehicle", d: "defense", m: "llm",
+  s: "save", c: "cheats", r: "roster", k: "canvas", o: "status"
+};
 
-const TABS: Array<{ id: Tab; label: string }> = [
-  { id: "status", label: "状态" },
-  { id: "map", label: "地图" },
-  { id: "canvas", label: "画面" },
-  { id: "vehicle", label: "房车" },
-  { id: "quests", label: "主线" },
-  { id: "defense", label: "防御" },
-  { id: "harem", label: "后宫" },
-  { id: "roster", label: "角色" },
-  { id: "jobs", label: "岗位" },
-  { id: "tech", label: "科技" },
-  { id: "base", label: "基地" },
-  { id: "wardrobe", label: "服装" },
-  { id: "items", label: "物品" },
-  { id: "scenes", label: "场景" },
-  { id: "llm", label: "模型" },
-  { id: "save", label: "存档" },
-  { id: "cheats", label: "设置" }
-];
-
-function CanvasPlayground() {
-  const [mode, setMode] = useState<"map" | "battle" | "scene">("map");
-  return (
-    <section className="panel">
-      <h2>画面　<span className="sub">Canvas 渲染后端</span></h2>
-      <div className="controls">
-        <button className={mode === "map" ? "tab active" : "tab"} onClick={() => setMode("map")}>世界地图</button>
-        <button className={mode === "battle" ? "tab active" : "tab"} onClick={() => setMode("battle")}>战斗布阵</button>
-        <button className={mode === "scene" ? "tab active" : "tab"} onClick={() => setMode("scene")}>场景像素</button>
-      </div>
-      <CanvasView mode={mode} />
-      <p className="hint">
-        渲染后端实现 core 的 View 接口，订阅同一场景状态机。
-        切换画风（像素/插画/Live2D）或换用 Phaser 只需替换此组件，上层逻辑不变。
-        像素层可完全关闭，文字照常输出。
-      </p>
-    </section>
-  );
-}
+type CenterTab = "narration" | "fortress" | "combat";
 
 export function App() {
-  const [tab, setTab] = useState<Tab>("world");
-  const cheatBadge = useGame((s) => s.cheatBadge());
   const session = useGame((s) => s.session);
   const version = useGame((s) => s.version);
-  void version;
+  const log = useGame((s) => s.log);
+  const pipeline = useGame((s) => s.pipeline);
+  const narrator = useGame((s) => s.narrator);
 
-  const h = Math.floor(session.time.minute / 60);
-  const m = session.time.minute % 60;
+  const [overlay, setOverlay] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [centerTab, setCenterTab] = useState<CenterTab>("narration");
+  const [entries, setEntries] = useState<NarrationEntry[]>([]);
+  const [index, setIndex] = useState(0);
+  const [generating, setGenerating] = useState(false);
+  const [streamText, setStreamText] = useState("");
+  const counter = useMemo(() => ({ n: 0 }), []);
+
+  // 默认选中好感最高的同伴
+  useEffect(() => {
+    if (selected) return;
+    const joined = session.joined();
+    if (joined.length === 0) return;
+    const top = [...joined].sort((a, b) => b.relationship.affection - a.relationship.affection)[0];
+    setSelected(top.id);
+  }, [session, selected, version]);
+
+  // 日志 → 叙事条目
+  useEffect(() => {
+    if (log.length === 0) return;
+    const latest = log[0];
+    setEntries((prev) => {
+      if (prev.length > 0 && prev[prev.length - 1].text === latest) return prev;
+      const next = [...prev, { id: ++counter.n, kind: "event" as const, title: "事件", text: latest }];
+      setIndex(next.length - 1);
+      return next.slice(-200);
+    });
+  }, [log, counter]);
+
+  // 可触发场景 → 叙事条目
+  useEffect(() => {
+    const scenes = session.availableScenes();
+    if (scenes.length === 0) return;
+    const scene = scenes[0];
+    setEntries((prev) => {
+      if (prev.some((e) => e.scene?.id === scene.id && e.kind === "narration")) return prev;
+      const text = renderScene(scene, { detail: "standard", showLayerTags: false });
+      const next = [...prev, {
+        id: ++counter.n,
+        kind: "narration" as const,
+        title: scene.title,
+        meta: `${scene.participants.join(" × ")}　${scene.tone}`,
+        text,
+        scene
+      }];
+      return next.slice(-200);
+    });
+  }, [session, version, counter]);
+
+  const current = entries[index];
+  const canGenerate = !!current?.scene && !!narrator;
+
+  const doGenerate = useCallback(async () => {
+    if (!current?.scene) return;
+    const scene: Scene = current.scene;
+    setGenerating(true);
+    setStreamText("");
+    const partnerName = scene.participants.find((p) => p !== "主角") ?? "";
+    const partner = session.findCompanion(partnerName);
+    const ctx = buildSceneContext(session, {
+      scene,
+      dominant: partner?.id,
+      props: (() => {
+        const p = ["双头龙", "娱乐型扶她药"];
+        if (partner) {
+          const o = session.outfitOf(partner.id);
+          if (o) p.push(`着装：${o.describe}（暴露度 ${o.exposure}）`);
+        }
+        return p;
+      })(),
+      beatCount: 3
+    });
+
+    try {
+      const r = await pipeline.getSceneStream(scene.id, scene, ctx, (d) => setStreamText((t) => t + d));
+      const text = renderScene(r.scene, { detail: "detailed", showLayerTags: false });
+      setEntries((prev) => {
+        const next = [...prev, {
+          id: ++counter.n,
+          kind: r.source === "model" ? ("generated" as const) : ("system" as const),
+          title: `${scene.title}（${r.source === "model" ? "模型生成" : "手写兜底"}）`,
+          meta: r.tierNote,
+          text,
+          scene: r.scene
+        }];
+        setIndex(next.length - 1);
+        return next.slice(-200);
+      });
+    } catch (e) {
+      setEntries((prev) => [...prev, {
+        id: ++counter.n, kind: "system" as const,
+        title: "生成失败", text: e instanceof Error ? e.message : String(e)
+      }]);
+    } finally {
+      setGenerating(false);
+      setStreamText("");
+    }
+  }, [current, session, pipeline, counter]);
+
+  // 快捷键
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT") return;
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      const k = e.key.toLowerCase();
+      if (k === "escape") { setOverlay(null); return; }
+      if (k === "arrowleft") { setIndex((i) => Math.max(0, i - 1)); return; }
+      if (k === "arrowright") { setIndex((i) => Math.min(entries.length - 1, i + 1)); return; }
+      if (k === "tab") {
+        e.preventDefault();
+        setCenterTab((c) => (c === "narration" ? "fortress" : c === "fortress" ? "combat" : "narration"));
+        return;
+      }
+      if (KEY_MAP[k]) {
+        e.preventDefault();
+        setOverlay((cur) => (cur === KEY_MAP[k] ? null : KEY_MAP[k]));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [entries.length]);
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <span className="title">Doomsday Harem</span>
-        <span className="sub">
-          第 {session.time.day} 天 {String(h).padStart(2, "0")}:{String(m).padStart(2, "0")}
-        </span>
-        <nav>
-          {TABS.map((t) => (
-            <button key={t.id} className={tab === t.id ? "tab active" : "tab"} onClick={() => setTab(t.id)}>
-              {t.label}
-            </button>
-          ))}
-        </nav>
-        {cheatBadge && <span className="badge">{cheatBadge}</span>}
-      </header>
+    <div className="game">
+      <div className="game-body">
+        <HaremRoster selected={selected} onSelect={setSelected} />
 
-      <main className="content">
-        {tab === "status" && <StatusBar />}
-        {tab === "map" && <WorldPanel />}
-        {tab === "canvas" && <CanvasPlayground />}
-        {tab === "vehicle" && <VehiclePanel />}
-        {tab === "quests" && <QuestPanel />}
-        {tab === "defense" && <DefensePanel />}
-        {tab === "harem" && <HaremPanel />}
-        {tab === "roster" && <CompanionDataPanel />}
-        {tab === "jobs" && <JobBoard />}
-        {tab === "tech" && <TechTreePanel />}
-        {tab === "base" && <BasePanel />}
-        {tab === "wardrobe" && <WardrobePanel />}
-        {tab === "items" && <InventoryPanel />}
-        {tab === "scenes" && <ScenePlayer />}
-        {tab === "llm" && <LlmPanel />}
-        {tab === "save" && <SavePanel />}
-        {tab === "cheats" && <CheatPanel />}
-      </main>
+        <main className="stage">
+          <div className="stage-tabs">
+            <button
+              className={centerTab === "narration" ? "stagetab active" : "stagetab"}
+              onClick={() => setCenterTab("narration")}
+            >
+              叙事（Tab 切换）
+            </button>
+            <button
+              className={centerTab === "fortress" ? "stagetab active" : "stagetab"}
+              onClick={() => setCenterTab("fortress")}
+            >
+              要塞剖面
+            </button>
+            <button
+              className={centerTab === "combat" ? "stagetab active" : "stagetab"}
+              onClick={() => setCenterTab("combat")}
+            >
+              战斗{session.inCombat() ? "（进行中）" : ""}
+            </button>
+            <span className="sub">
+              {session.here()?.name}　第 {session.time.day} 天
+            </span>
+          </div>
+
+          <div className="stage-body">
+            {centerTab === "combat" ? (
+              <CombatView />
+            ) : centerTab === "narration" ? (
+              <NarrationPanel
+                entries={entries}
+                index={index}
+                onIndex={setIndex}
+                onGenerate={doGenerate}
+                generating={generating}
+                streamText={streamText}
+                embedded
+              />
+            ) : (
+              <FortressSection onOpenBase={() => setOverlay("base")} />
+            )}
+          </div>
+        </main>
+
+        <aside className="rightcol">
+          <CompanionDetail id={selected} />
+        </aside>
+      </div>
+
+      <StatusStrip />
+      <MessageLog />
+      <Overlay tab={overlay} onClose={() => setOverlay(null)} />
+
+      <div className="keyhint">
+        Tab 切换　I 物品　N 主线　T 科技　B 基地　W 服装　H 后宫　M 模型　S 存档　←/→ 翻页　Esc 关闭
+      </div>
     </div>
   );
 }

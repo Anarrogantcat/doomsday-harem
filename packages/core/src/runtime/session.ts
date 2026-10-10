@@ -94,6 +94,12 @@ import {
   specialtyBonus, bestJobFor, describeCompanion,
   PERSONALITY_LABEL, PERSONALITY_TRAITS
 } from "../systems/companions.ts";
+import {
+  type Combatant, type CombatState, type CombatBonus, type AttackResult,
+  newCombatant, startCombat, mulberry32 as combatRng, attack as combatAttack,
+  applyDamage, addLog, playerAttack, charmEnemy, enemyTurn, advanceRound,
+  checkOver, playerFromBonuses
+} from "../systems/combat.ts";
 import { mulberry32 } from "../systems/inventory.ts";
 import { newSave, type SaveData, type SavedEntity, type SavedRelation, type SavedJob, type SavedTech } from "../save/serialize.ts";
 import { VERSION } from "../version.ts";
@@ -219,6 +225,10 @@ export class GameSession {
   quests: Record<string, QuestState>;
   /** 防御状态（名声/血腥值/围墙破损/被掳走） */
   defense: DefenseJSON;
+  /** 当前战斗（null 表示不在战斗中） */
+  combat: CombatState | null;
+  /** 本次战斗的逃跑尝试次数（影响随机源，使重复尝试结果不同） */
+  private fleeAttempts = 0;
 
   private opts: {
     heroName: string;
@@ -277,6 +287,7 @@ export class GameSession {
     this.vehicle = newVehicle();
     this.quests = newQuestStates();
     this.defense = newDefenseState();
+    this.combat = null;
   }
 
   /**
@@ -1345,6 +1356,199 @@ export class GameSession {
       added++;
     }
     return added;
+  }
+
+  // ---------- 战斗 ----------
+
+  /** 从科技加成与装备构造主角战斗数值 */
+  heroCombatant(): Combatant {
+    const b = this.baseBonuses();
+    const bonus: CombatBonus = {
+      meleeDmg: (b["meleeDmg"] ?? 0) + (b["trainingRate"] ?? 0) * 0.3,
+      dodge: (b["cover"] ?? 0) / 200,
+      critRate: (b["critRate"] ?? 0) + (b["precisionStrike"] ?? 0) * 0.1,
+      critDmg: (b["critDmg"] ?? 0) > 0 ? 2 : 1.5
+    };
+    const weapon = countOf(this.storage, "rifle") > 0 || countOf(this.backpack, "rifle") > 0;
+    const armor = countOf(this.storage, "armor_plate") > 0 || this.tierOf("armory") > 0;
+    return playerFromBonuses({
+      hp: Math.round(this.hero.survival.stamina),
+      hpMax: 100,
+      stamina: Math.round(this.hero.survival.stamina),
+      staminaMax: 100,
+      defense: armor ? 6 : 3,
+      attack: 10 + (weapon ? 6 : 0)
+    }, bonus);
+  }
+
+  /** 从同伴构造战斗单位（仅忠诚 ≥ 30 且未怀孕晚期者参战） */
+  alliesCombatant(): Combatant[] {
+    return this.joined()
+      .filter((c) => c.id !== "ai")
+      .filter((c) => c.relationship.loyalty >= 30)
+      .filter((c) => !(c.physiology.pregnant && c.physiology.pregnancyProgress >= 21))
+      .slice(0, 3)
+      .map((c) => {
+        const job = c.job.id;
+        const atk = job === "patrol" || job === "training" ? 14 : 8;
+        const def = job === "medical" ? 5 : 3;
+        return newCombatant({
+          id: c.id,
+          name: c.identity.name,
+          hp: 40 + c.relationship.bond * 8,
+          hpMax: 40 + c.relationship.bond * 8,
+          stamina: 30,
+          staminaMax: 30,
+          attack: atk,
+          defense: def,
+          dodge: 0.05 + c.relationship.bond * 0.01,
+          humanoid: true
+        });
+      });
+  }
+
+  /** 从事件生成敌人 */
+  enemiesFromRaid(kind: RaidKind, count: number): Combatant[] {
+    const def = raidDef(kind);
+    if (!def) return [];
+    const out: Combatant[] = [];
+    const n = Math.min(count, 6);
+    for (let i = 0; i < n; i++) {
+      const strong = def.strength / 100;
+      const humanoid = kind === "bandits" || kind === "military" || kind === "wanderers";
+      out.push(newCombatant({
+        id: `${kind}_${i + 1}`,
+        name: kind === "bandits" ? `匪徒 ${i + 1}`
+          : kind === "military" ? `武装人员 ${i + 1}`
+          : kind === "horde" ? `丧尸 ${i + 1}`
+          : kind === "mutant" ? `变异兽 ${i + 1}`
+          : kind === "wildlife" ? `野兽 ${i + 1}`
+          : `敌人 ${i + 1}`,
+        hp: Math.round(30 + strong * 70),
+        hpMax: Math.round(30 + strong * 70),
+        stamina: 30,
+        staminaMax: 30,
+        attack: Math.round(8 + strong * 18),
+        defense: Math.round(2 + strong * 8),
+        dodge: 0.03 + strong * 0.08,
+        critRate: 0.05 + strong * 0.1,
+        critDmg: 1.5,
+        humanoid
+      }));
+    }
+    return out;
+  }
+
+  /** 开始战斗 */
+  beginCombat(kind: RaidKind, count = 3): boolean {
+    if (this.combat && !this.combat.over) return false;
+    const enemies = this.enemiesFromRaid(kind, count);
+    if (enemies.length === 0) return false;
+    this.combat = startCombat(this.heroCombatant(), enemies, this.alliesCombatant());
+    this.fleeAttempts = 0;
+    return true;
+  }
+
+  /** 战斗随机源（按回合数派生，保证可复现） */
+  private combatRandom(): () => number {
+    const seed = this.time.day * 100000 + this.time.minute * 10 + (this.combat?.round ?? 0);
+    return combatRng(seed);
+  }
+
+  /** 玩家攻击 */
+  combatPlayerAttack(enemyId: string): CombatState | null {
+    if (!this.combat || this.combat.over) return this.combat;
+    this.combat = playerAttack(this.combat, enemyId, this.combatRandom());
+    if (!this.combat.over) {
+      this.combat = enemyTurn(this.combat, this.combatRandom());
+      if (!this.combat.over) this.combat = advanceRound(this.combat);
+    }
+    this.applyCombatOutcome();
+    return this.combat;
+  }
+
+  /** 玩家魅惑（仅人形） */
+  combatCharm(enemyId: string): CombatState | null {
+    if (!this.combat || this.combat.over) return this.combat;
+    this.combat = charmEnemy(this.combat, enemyId, this.combatRandom());
+    if (!this.combat.over) {
+      this.combat = enemyTurn(this.combat, this.combatRandom());
+      if (!this.combat.over) this.combat = advanceRound(this.combat);
+    }
+    this.applyCombatOutcome();
+    return this.combat;
+  }
+
+  /** 防御（跳过回合，恢复少量体力） */
+  combatDefend(): CombatState | null {
+    if (!this.combat || this.combat.over) return this.combat;
+    this.combat = addLog(this.combat, "主角选择防御，稳住阵型");
+    this.combat = enemyTurn(this.combat, this.combatRandom());
+    if (!this.combat.over) this.combat = advanceRound(this.combat);
+    this.applyCombatOutcome();
+    return this.combat;
+  }
+
+  /** 逃跑 */
+  combatFlee(): { ok: boolean; state: CombatState | null } {
+    if (!this.combat || this.combat.over) return { ok: false, state: this.combat };
+    // 逃跑尝试次数参与随机源，使同一回合的重复尝试产生不同结果
+    this.fleeAttempts++;
+    const rng = mulberry32(
+      this.time.day * 1000003 + this.time.minute * 7919 +
+      this.combat.round * 31 + this.combat.log.length + this.fleeAttempts * 7919
+    );
+    const lvl = this.defenseLevel();
+    const chance = 0.35 + lvl.safety * 0.003;
+    if (rng() < chance) {
+      this.combat = { ...this.combat, over: true, victory: false, log: [...this.combat.log, "成功脱离战斗"] };
+      this.combat = null;
+      return { ok: true, state: null };
+    }
+    this.combat = addLog(this.combat, "逃跑失败");
+    this.combat = enemyTurn(this.combat, this.combatRandom());
+    this.applyCombatOutcome();
+    return { ok: false, state: this.combat };
+  }
+
+  /** 结束战斗并结算 */
+  private applyCombatOutcome(): void {
+    const c = this.combat;
+    if (!c || !c.over) return;
+
+    // 主角体力同步
+    this.hero.survival = {
+      ...this.hero.survival,
+      stamina: Math.max(0, Math.min(100, c.player.hp))
+    };
+
+    if (c.victory) {
+      // 战利品
+      const rng = this.combatRandom();
+      this.addToStorage("ammo_9mm", Math.round(rng() * 20) + 5);
+      if (rng() < 0.4) this.addToStorage("steel_bar", Math.round(rng() * 3) + 1);
+      this.defense = { ...this.defense, reputation: Math.min(100, this.defense.reputation + 2) };
+    } else {
+      // 失败：同伴受伤、物资损失
+      this.defense = { ...this.defense, blood: Math.min(100, this.defense.blood + 10) };
+      for (const a of c.allies) {
+        if (a.hp <= 0) {
+          const comp = this.companion(a.id);
+          if (comp) comp.lust = { ...comp.lust, daysSinceIntimacy: 0 };
+        }
+      }
+    }
+    this.combat = null;
+  }
+
+  /** 结束战斗（放弃） */
+  endCombat(): void {
+    this.combat = null;
+  }
+
+  /** 是否在战斗中 */
+  inCombat(): boolean {
+    return this.combat !== null && !this.combat.over;
   }
 
   // ---------- 防御 ----------

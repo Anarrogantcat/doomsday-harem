@@ -92,6 +92,13 @@ export interface GameState {
   refreshSlots: () => Promise<void>;
   backendInfo: () => string;
 
+  beginCombat: (kind: string, count?: number) => void;
+  combatAttack: (enemyId: string) => void;
+  combatCharm: (enemyId: string) => void;
+  combatDefend: () => void;
+  combatFlee: () => void;
+  endCombat: () => void;
+
   applyCheatAll: () => void;
   cheatMaxRelations: () => void;
   cheatClearLust: () => void;
@@ -573,6 +580,55 @@ export const useGame = create<GameState>((set, get) => ({
   },
 
   backendInfo: () => backendLabel(),
+
+  beginCombat: (kind, count = 3) => {
+    const { session, pushLog, refresh } = get();
+    const ok = session.beginCombat(kind as never, count);
+    pushLog(ok ? `进入战斗：${kind}` : "已有战斗进行中");
+    refresh();
+  },
+
+  combatAttack: (enemyId) => {
+    const { session, pushLog, refresh } = get();
+    const before = session.combat?.log.length ?? 0;
+    session.combatPlayerAttack(enemyId);
+    const after = session.combat?.log ?? [];
+    for (const line of after.slice(before)) pushLog(line);
+    if (!session.combat) pushLog("战斗结束");
+    refresh();
+  },
+
+  combatCharm: (enemyId) => {
+    const { session, pushLog, refresh } = get();
+    const before = session.combat?.log.length ?? 0;
+    session.combatCharm(enemyId);
+    const after = session.combat?.log ?? [];
+    for (const line of after.slice(before)) pushLog(line);
+    refresh();
+  },
+
+  combatDefend: () => {
+    const { session, pushLog, refresh } = get();
+    const before = session.combat?.log.length ?? 0;
+    session.combatDefend();
+    const after = session.combat?.log ?? [];
+    for (const line of after.slice(before)) pushLog(line);
+    refresh();
+  },
+
+  combatFlee: () => {
+    const { session, pushLog, refresh } = get();
+    const r = session.combatFlee();
+    pushLog(r.ok ? "成功脱离战斗" : "逃跑失败");
+    refresh();
+  },
+
+  endCombat: () => {
+    const { session, pushLog, refresh } = get();
+    session.endCombat();
+    pushLog("战斗结束");
+    refresh();
+  },
 
   applyCheatAll: () => {
     const { session, pushLog, refresh } = get();
