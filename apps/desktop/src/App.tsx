@@ -15,6 +15,7 @@ import { Overlay } from "./shell/Overlay.tsx";
 import { SettingsPanel } from "./shell/SettingsPanel.tsx";
 import { CheatOverlay } from "./shell/CheatOverlay.tsx";
 import { MainMenu } from "./shell/MainMenu.tsx";
+import { BigMap } from "./shell/GridMap.tsx";
 
 const KEY_MAP: Record<string, string> = {
   i: "items", n: "quests", t: "tech", b: "base", w: "wardrobe",
@@ -23,6 +24,32 @@ const KEY_MAP: Record<string, string> = {
 };
 
 type CenterTab = "narration" | "fortress" | "combat";
+
+/**
+ * 大地图弹窗宿主。
+ *
+ * 从 store 直接取状态，避免把 7 个 prop 一路透传进 App。
+ */
+function BigMapHost() {
+  const mapId = useGame((s) => s.mapId);
+  const cellId = useGame((s) => s.cellId);
+  const explored = useGame((s) => s.explored);
+  const open = useGame((s) => s.bigMapOpen);
+  const setMapId = useGame((s) => s.setMapId);
+  const mapTravel = useGame((s) => s.mapTravel);
+  const openBigMap = useGame((s) => s.openBigMap);
+  return (
+    <BigMap
+      mapId={mapId}
+      cellId={cellId}
+      explored={explored}
+      open={open}
+      onClose={() => openBigMap(false)}
+      onSelectMap={setMapId}
+      onGo={(m, c) => mapTravel(m, c, "前往")}
+    />
+  );
+}
 
 export function App() {
   const session = useGame((s) => s.session);
@@ -273,6 +300,8 @@ export function App() {
       <MessageLog />
       <Overlay tab={overlay} onClose={() => setOverlay(null)} />
       <CheatOverlay />
+      {/* 大地图弹窗（原型 UI） */}
+      <BigMapHost />
 
       <div className="keyhint">
         Tab 切换视图　P 画面　I 物品　N 主线　T 科技　B 基地　W 服装　M 模型　L Mod　S 存档　←/→ 翻页　Esc 关闭

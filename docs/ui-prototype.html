@@ -3883,11 +3883,6 @@ function bmTab(el, paneId) {
   const t = document.getElementById(paneId);
   if (t) t.classList.add('on');
 }
-function bmPick(el, name) {
-  const box = el.closest('.bmpane');
-  box.querySelectorAll('.bgc').forEach(x => x.classList.remove('picked'));
-  el.classList.add('picked');
-}
 function vtab(el, paneId) {
   el.parentElement.querySelectorAll('.vtab').forEach(x => x.classList.remove('on'));
   el.classList.add('on');

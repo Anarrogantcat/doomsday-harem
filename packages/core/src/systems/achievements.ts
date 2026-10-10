@@ -149,7 +149,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "family_mother", name: "母亲", description: "母亲加入", category: "family", rarity: "common" },
   { id: "family_sister2", name: "妹妹", description: "妹妹加入", category: "family", rarity: "common" },
   { id: "family_all", name: "一家人", description: "家庭成员全部加入", category: "family", rarity: "rare" },
-  { id: "family_first", name: "初次", description: "与家庭成员完成第一次", category: "family", rarity: "uncommon" },
+  { id: "family_first", name: "血脉初章", description: "与家庭成员完成第一次", category: "family", rarity: "uncommon" },
   { id: "pregnant_1", name: "新生命", description: "第一次怀孕", category: "family", rarity: "uncommon" },
   { id: "birth_1", name: "诞生", description: "第一个后代出生", category: "family", rarity: "rare" },
   { id: "birth_10", name: "人丁", description: "10 个后代", category: "family", rarity: "epic", target: 10 },

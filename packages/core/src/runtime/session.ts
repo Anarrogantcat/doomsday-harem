@@ -214,6 +214,13 @@ export interface CompanionRuntime {
   wardrobe: Wardrobe;
   /** 是否已在队伍中（未加入的只存在于主线数据里） */
   joined: boolean;
+  /**
+   * 是否有过伴侣（L-5）。
+   *
+   * 与 physiology.virgin 互补：virgin 是生理事实，
+   * hadPartner 是履历。全队上限 3 人（L-4）。
+   */
+  hadPartner: boolean;
   /** 成长状态（熟练度/岗位经验/被动增益） */
   growth: CompanionGrowth;
   /** 性爱统计（与主角同结构） */
@@ -278,11 +285,23 @@ export function makeCompanion(def: CompanionDef, joined = true): CompanionRuntim
     },
     physiology: {
       sex: "female",
-      virgin: def.origin === "family" || def.origin === "mainline" || def.origin === "side",
+      /**
+       * 处女判定（L-4 / L-5）。
+       *
+       * 此前写法是 `origin === "family" || "mainline" || "side"` ——
+       * 对 21 人**全部**返回 true，与「母亲生育 3 次」
+       * 「单亲妈妈有 19 岁女儿」直接矛盾。
+       *
+       * 现在改为读取角色定义：默认处女，
+       * 仅 mother / singlemom / neighbor 三人（有过伴侣）为 false。
+       */
+      virgin: def.virgin ?? true,
       pregnant: false,
       pregnancyProgress: 0,
       fertileWindow: false
     },
+    /** 是否有过伴侣（L-5：「人妻」= 有过伴侣的女性） */
+    hadPartner: def.hadPartner ?? false,
     relationship: {
       ...DEFAULT_RELATIONSHIP,
       affection: def.initial.affection,
@@ -1316,6 +1335,7 @@ export class GameSession {
           job: { id: null, bonus: 0, daysOnJob: 0 },
           wardrobe: presetWardrobe("sister2"),
           joined: true,
+          hadPartner: false,
           sexStats: newSexStats()
         });
       }
@@ -1404,6 +1424,7 @@ export class GameSession {
           job: { id: null, bonus: 0, daysOnJob: 0 },
           wardrobe: presetWardrobe("sister2"),
           joined: true,
+          hadPartner: false,
           sexStats: newSexStats()
         });
       }

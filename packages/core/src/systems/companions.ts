@@ -146,10 +146,33 @@ export interface CompanionDef {
   origin: "family" | "mainline" | "side" | "ai";
   age: number;
   heightCm: number;
-  /** 体型描述 */
+  /** 体型描述（L-8：全员出众） */
   build: string;
   /** 罩杯数值 0-7（A=0），用于立绘 */
   cup?: number;
+  /**
+   * 面容描述（R-1 新增）。
+   *
+   * 此前只有 build（身材）没有相貌字段，立绘与 LLM 描写都缺料。
+   * 格式约定：「发色 / 眼眸 · 面容气质 · 印象」
+   */
+  face?: string;
+  /**
+   * 是否有过伴侣（L-5）。
+   *
+   * 「人妻」放宽为「有过伴侣的女性」——
+   * mother / singlemom / neighbor 三人为 true，正好卡满上限 3。
+   */
+  hadPartner?: boolean;
+  /**
+   * 是否处女（L-4）。
+   *
+   * **默认 true**。仅 `hadPartner: true` 的三人为 false。
+   * 敌人同样适用：未与主角发生过关系前为处女。
+   */
+  virgin?: boolean;
+  /** 旧伴侣结局（L-2：必须不可逆措辞） */
+  partnerFate?: string;
   personality: Personality;
   /** 岗位专长与加成 */
   specialties: Array<{ job: Specialty; bonus: number }>;
@@ -175,10 +198,13 @@ export const COMPANIONS: CompanionDef[] = [
     id: "mother", name: "母亲", title: "单亲母亲 / 居家设计师",
     origin: "family", age: 45, heightCm: 172,
     build: "成熟丰腴型，E-cup，腰臀比 0.7，保养极好",
+    face: "栗色微卷长发 / 琥珀色眼 · 温柔成熟的面容，眼角有淡细纹 · 一眼就觉得可靠",
     personality: "warm",
     specialties: [{ job: "kitchen", bonus: 0.20 }, { job: "logistics", bonus: 0.10 }],
     initial: { affection: 50, loyalty: 40, bond: 3 },
     initialLust: 40, startsJoined: true,
+    hadPartner: true, virgin: false,
+    partnerFate: "丈夫在爆发初期去世",
     wardrobePreset: "mother",
     note: "主角处女的夺取者（用双头龙主动破处）"
   },
@@ -186,10 +212,13 @@ export const COMPANIONS: CompanionDef[] = [
     id: "sister", name: "姐姐", title: "企业项目经理",
     origin: "family", age: 26, heightCm: 174,
     build: "御姐型，D-cup，蜂腰翘臀大长腿",
+    face: "黑长直 / 凤眼上挑 · 冷艳凌厉，笑时才软下来 · 压迫感强",
     personality: "bold",
     specialties: [{ job: "logistics", bonus: 0.15 }, { job: "patrol", bonus: 0.10 }],
     initial: { affection: 60, loyalty: 50, bond: 3 },
     initialLust: 92, startsJoined: true,
+    // 互相破处的一方 —— 她用自己的处女换走主角的处男，故此刻仍是处女
+    virgin: true,
     wardrobePreset: "sister",
     note: "转变前已有多年特殊感情；互相破处（她用自己的处女换走主角的处男）"
   },
@@ -197,10 +226,12 @@ export const COMPANIONS: CompanionDef[] = [
     id: "sister2", name: "妹妹", title: "大学生",
     origin: "family", age: 19, heightCm: 162,
     build: "清纯可爱型，C-cup，纤细柔软",
+    face: "浅棕齐肩发 / 圆鹿眼 · 白净软糯，脸颊有酒窝 · 让人想护着",
     personality: "shy",
     specialties: [{ job: "greenhouse", bonus: 0.10 }, { job: "archive", bonus: 0.05 }],
     initial: { affection: 40, loyalty: 30, bond: 2 },
     initialLust: 85, startsJoined: true,
+    virgin: true,
     wardrobePreset: "sister2",
     note: "随机性加入；早已知晓姐姐与主角的互动"
   },
@@ -222,7 +253,8 @@ export const COMPANIONS: CompanionDef[] = [
   {
     id: "teacher", name: "大学女教师", title: "带着学生躲了两个月",
     origin: "mainline", age: 34, heightCm: 166,
-    build: "温婉知性，C-cup，气质柔和",
+    build: "温婉知性，D-cup，身形匀停有致",
+    face: "深褐盘发 / 桃花眼 · 温婉知性，说话时轻微垂眼 · 很有耐心的样子",
     personality: "warm",
     specialties: [{ job: "training", bonus: 0.25 }, { job: "archive", bonus: 0.20 }],
     initial: { affection: 25, loyalty: 20, bond: 1 },
@@ -233,7 +265,8 @@ export const COMPANIONS: CompanionDef[] = [
   {
     id: "pharmacist", name: "女药剂师", title: "连锁药店店长",
     origin: "mainline", age: 31, heightCm: 164,
-    build: "干练精瘦，B-cup，手脚麻利",
+    build: "干练精悍，C-cup，身形紧实腰线利落",
+    face: "利落短发 / 细长眼 · 职场干练，戴着细框眼镜 · 精于计算的冷静",
     personality: "practical",
     specialties: [{ job: "lab", bonus: 0.35 }, { job: "medical", bonus: 0.15 }],
     initial: { affection: 25, loyalty: 20, bond: 1 },
@@ -243,7 +276,8 @@ export const COMPANIONS: CompanionDef[] = [
   {
     id: "nun", name: "修女", title: "教堂志愿者（非神职）",
     origin: "mainline", age: 29, heightCm: 163,
-    build: "素净，B-cup，被袍子遮住的身形",
+    build: "清素外袍下身形极好，D-cup，腰细腿长",
+    face: "亚麻色长发 / 浅灰眼 · 素净出尘，很少与人直视 · 静得不像活人",
     personality: "devout",
     specialties: [{ job: "archive", bonus: 0.25 }, { job: "morale", bonus: 0.15 }],
     initial: { affection: 25, loyalty: 25, bond: 1 },
@@ -253,7 +287,8 @@ export const COMPANIONS: CompanionDef[] = [
   {
     id: "idol", name: "前偶像", title: "过气女团成员",
     origin: "mainline", age: 27, heightCm: 165,
-    build: "身材管理极好，C-cup，习惯性微笑",
+    build: "身材管理极好，D-cup，比例极佳",
+    face: "挑染棕发 / 琥珀猫眼 · 上镜脸，习惯性微笑 · 笑不到眼底",
     personality: "artistic",
     specialties: [{ job: "morale", bonus: 0.30 }, { job: "archive", bonus: 0.15 }],
     initial: { affection: 25, loyalty: 20, bond: 1 },
@@ -263,7 +298,8 @@ export const COMPANIONS: CompanionDef[] = [
   {
     id: "mechanic", name: "女机械师", title: "修车厂老板",
     origin: "mainline", age: 36, heightCm: 168,
-    build: "结实有力，A-cup，手臂有肌肉线条",
+    build: "结实有力且曲线分明，C-cup，手臂有肌肉线条但不粗",
+    face: "马尾短发 / 深棕眼 · 英气，脸上偶尔有机油痕 · 爽利不扭捏",
     personality: "practical",
     specialties: [{ job: "craft", bonus: 0.35 }, { job: "drive", bonus: 0.20 }],
     initial: { affection: 25, loyalty: 20, bond: 1 },
@@ -273,7 +309,8 @@ export const COMPANIONS: CompanionDef[] = [
   {
     id: "hunter", name: "女猎人", title: "山里长大的护林员",
     origin: "mainline", age: 30, heightCm: 170,
-    build: "紧致匀称，B-cup，晒成小麦色",
+    build: "紧致匀称，C-cup，腰腹有薄肌",
+    face: "黑色高马尾 / 琥珀眼 · 晒成小麦色，眉峰利落 · 山里人的沉默",
     personality: "reserved",
     specialties: [{ job: "patrol", bonus: 0.30 }, { job: "greenhouse", bonus: 0.15 }],
     initial: { affection: 20, loyalty: 25, bond: 1 },
@@ -283,7 +320,8 @@ export const COMPANIONS: CompanionDef[] = [
   {
     id: "pianist", name: "女钢琴家", title: "音乐学院教授",
     origin: "mainline", age: 38, heightCm: 167,
-    build: "优雅修长，B-cup，手指很长",
+    build: "优雅修长，C-cup，肩颈线条漂亮",
+    face: "乌黑长发 / 深灰眼 · 优雅修长，手指很长 · 常年弹琴的专注",
     personality: "artistic",
     specialties: [{ job: "morale", bonus: 0.20 }, { job: "training", bonus: 0.10 }],
     initial: { affection: 25, loyalty: 20, bond: 1 },
@@ -293,7 +331,8 @@ export const COMPANIONS: CompanionDef[] = [
   {
     id: "pilot", name: "女飞行员", title: "民航副驾驶",
     origin: "mainline", age: 33, heightCm: 169,
-    build: "挺拔，B-cup，有飞行员的站姿",
+    build: "挺拔，C-cup，站姿有飞行员的板正",
+    face: "栗色短马尾 / 灰蓝眼 · 挺直腰背，下颌线清晰 · 天生的制服感",
     personality: "reserved",
     specialties: [{ job: "drive", bonus: 0.30 }, { job: "logistics", bonus: 0.15 }],
     initial: { affection: 20, loyalty: 25, bond: 1 },
@@ -303,7 +342,8 @@ export const COMPANIONS: CompanionDef[] = [
   {
     id: "baker", name: "女烘焙师", title: "街角面包店店主",
     origin: "mainline", age: 32, heightCm: 161,
-    build: "圆润温暖，C-cup，手臂有面粉痕",
+    build: "圆润温暖，D-cup，手腕有面粉痕",
+    face: "亚麻色编发 / 栗色眼 · 圆润温暖，笑起来脸颊饱满 · 甜香的气味",
     personality: "warm",
     specialties: [{ job: "kitchen", bonus: 0.25 }, { job: "morale", bonus: 0.15 }],
     initial: { affection: 25, loyalty: 20, bond: 1 },
@@ -311,19 +351,23 @@ export const COMPANIONS: CompanionDef[] = [
     questId: "q_baker", wardrobePreset: "sister"
   },
   {
-    id: "neighbor", name: "邻居人妻", title: "对门住户 / 丈夫失踪",
+    id: "neighbor", name: "邻居人妻", title: "对门住户 / 丈夫已在爆发初期去世",
     origin: "mainline", age: 35, heightCm: 163,
-    build: "柔软，D-cup，习惯性低头",
+    build: "柔软，D-cup，居家感十足",
+    face: "深色低盘发 / 浅褐眼 · 柔软，习惯性低头 · 藏着事的安静",
     personality: "shy",
     specialties: [{ job: "kitchen", bonus: 0.15 }, { job: "greenhouse", bonus: 0.10 }],
     initial: { affection: 25, loyalty: 20, bond: 1 },
     initialLust: 35, startsJoined: false,
-    questId: "q_neighbor", wardrobePreset: "mother"
+    questId: "q_neighbor", wardrobePreset: "mother",
+    hadPartner: true, virgin: false,
+    partnerFate: "丈夫在爆发初期去世"
   },
   {
     id: "colleague", name: "前同事", title: "转变前的公司同事",
     origin: "mainline", age: 29, heightCm: 166,
-    build: "干练，B-cup，衬衫扣到最上面",
+    build: "干练，C-cup，衬衫扣到最上面",
+    face: "利落低马尾 / 深色眼 · 干练，衬衫扣到最上面 · 只认识「原来的他」",
     personality: "practical",
     specialties: [{ job: "logistics", bonus: 0.20 }, { job: "archive", bonus: 0.15 }],
     initial: { affection: 25, loyalty: 20, bond: 1 },
@@ -334,7 +378,8 @@ export const COMPANIONS: CompanionDef[] = [
   {
     id: "librarian", name: "女图书管理员", title: "市图书馆古籍部",
     origin: "mainline", age: 30, heightCm: 160,
-    build: "清瘦文静，A-cup，戴眼镜",
+    build: "文静匀称，C-cup，肩背线条柔，腰身纤而有形",
+    face: "黑色长发垂肩 / 浅褐眼 · 文静秀气，戴银框眼镜 · 书页的气味",
     personality: "shy",
     specialties: [{ job: "archive", bonus: 0.25 }, { job: "lab", bonus: 0.15 }],
     initial: { affection: 25, loyalty: 25, bond: 1 },
@@ -344,7 +389,8 @@ export const COMPANIONS: CompanionDef[] = [
   {
     id: "heiress", name: "富二代御姐", title: "家族企业继承人",
     origin: "mainline", age: 29, heightCm: 176,
-    build: "高挑，C-cup，皮肤保养到不真实",
+    build: "高挑，D-cup，皮肤保养到不真实",
+    face: "深栗长卷发 / 深绿眼 · 高挑冷艳，皮肤保养到不真实 · 天生的居高临下",
     personality: "proud",
     specialties: [{ job: "logistics", bonus: 0.30 }, { job: "morale", bonus: 0.15 }],
     initial: { affection: 15, loyalty: 15, bond: 1 },
@@ -355,7 +401,8 @@ export const COMPANIONS: CompanionDef[] = [
   {
     id: "surgeon", name: "女外科医生", title: "三甲医院主治",
     origin: "mainline", age: 37, heightCm: 168,
-    build: "利落，B-cup，有消毒水味",
+    build: "利落，C-cup，身形紧绷有力",
+    face: "黑色利落短发 / 冷静的黑眼 · 利落，身上有消毒水味 · 手极稳",
     personality: "practical",
     specialties: [{ job: "medical", bonus: 0.40 }, { job: "lab", bonus: 0.20 }],
     initial: { affection: 25, loyalty: 20, bond: 1 },
@@ -365,12 +412,15 @@ export const COMPANIONS: CompanionDef[] = [
   {
     id: "singlemom", name: "单亲妈妈", title: "母亲的老同学",
     origin: "mainline", age: 42, heightCm: 162,
-    build: "疲惫但挺拔，C-cup，手上有茧",
+    build: "成熟挺拔，D-cup，看得出保养过",
+    face: "浅棕发低扎 / 温润的褐眼 · 疲惫但挺拔，手上有茧 · 撑着的慈软",
     personality: "warm",
     specialties: [{ job: "greenhouse", bonus: 0.20 }, { job: "kitchen", bonus: 0.15 }],
     initial: { affection: 25, loyalty: 25, bond: 1 },
     initialLust: 25, startsJoined: false,
     questId: "q_singlemom", wardrobePreset: "mother",
+    hadPartner: true, virgin: false,
+    partnerFate: "丈夫在爆发初期去世",
     note: "附带女儿"
   },
 
@@ -378,7 +428,8 @@ export const COMPANIONS: CompanionDef[] = [
   {
     id: "student", name: "女学生", title: "教师带来的学生",
     origin: "side", age: 18, heightCm: 158,
-    build: "青涩纤细，B-cup，习惯跟着老师",
+    build: "青涩纤细，C-cup，身量正在长开",
+    face: "黑色及肩发 / 清澈的杏眼 · 青涩纤细，习惯跟着老师 · 依赖感很强",
     personality: "shy",
     specialties: [{ job: "archive", bonus: 0.15 }, { job: "lab", bonus: 0.10 }],
     initial: { affection: 25, loyalty: 15, bond: 1 },
@@ -389,7 +440,8 @@ export const COMPANIONS: CompanionDef[] = [
   {
     id: "daughter", name: "女儿", title: "单亲妈妈的女儿",
     origin: "side", age: 19, heightCm: 160,
-    build: "早熟的少女感，B-cup，护母心强",
+    build: "早熟的少女感，C-cup，护母心切",
+    face: "浅棕卷发 / 与她母亲相似的褐眼 · 早熟的少女感 · 护母心强",
     personality: "shy",
     specialties: [{ job: "greenhouse", bonus: 0.10 }, { job: "patrol", bonus: 0.10 }],
     initial: { affection: 25, loyalty: 20, bond: 1 },

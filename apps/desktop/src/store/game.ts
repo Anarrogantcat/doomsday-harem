@@ -21,6 +21,10 @@ import {
   type LlmSettings, type ModelStatus, type Narrator,
 } from "@doomsday/llm";
 import { getBackend, backendLabel } from "../save/backend.ts";
+import { buildExplored, INITIAL_EXPLORED } from "../shell/GridMap.tsx";
+import {
+  ALL_MAPS, getMap, getCell, neighbor as mapNeighbor
+} from "@doomsday/core";
 
 // 剧本由 scripts/gen-scripts.mjs 在构建前内联为模块
 const SCRIPT_SOURCES: string[] = allScriptTexts();
@@ -56,6 +60,21 @@ export interface GameState {
   lastActScene: import("@doomsday/core").Scene | null;
   log: string[];
 
+  // ---------- 网格地图状态（原型 UI 移植）----------
+  /**
+   * 当前地图 id 与格 id。
+   *
+   * 为什么与 session.world 分开：session.world 是旧的「区域图」
+   * （REGIONS，节点式）；这里是新的「网格图」（maps.ts，216 格坐标制）。
+   * 两者语义不同，强行合并会破坏既有存档。
+   */
+  mapId: string;
+  cellId: string;
+  /** 已探索格：地图 id → 格 id 集合 */
+  explored: Record<string, Set<string>>;
+  /** 大地图弹窗开关 */
+  bigMapOpen: boolean;
+
   // 操作
   refresh: () => void;
   pushLog: (line: string) => void;
@@ -86,6 +105,15 @@ export interface GameState {
   demolishFacility: (facilityId: string) => void;
   travelTo: (regionId: string, mode?: "walk" | "bike" | "car" | "apc") => void;
   setTravelMode: (mode: "walk" | "bike" | "car" | "apc") => void;
+
+  // 网格地图操作
+  mapMove: (dir: "N" | "S" | "E" | "W") => void;
+  mapTravel: (mapId: string, cellId: string, label?: string) => void;
+  mapCycle: () => void;
+  setMapId: (id: string) => void;
+  setCellId: (id: string) => void;
+  openBigMap: (open: boolean) => void;
+  mapReset: () => void;
   lootCurrent: () => void;
   clearCurrent: () => void;
   installVehicleMod: (modId: string) => void;
@@ -199,6 +227,12 @@ export const useGame = create<GameState>((set, get) => ({
   settings: defaultSettings(),
   lastActScene: null,
   log: [],
+
+  // 网格地图：起步在主角家（城南），与原型一致
+  mapId: "jc_south",
+  cellId: "hero_home",
+  explored: buildExplored(),
+  bigMapOpen: false,
 
   refresh: () => set((s) => ({ version: s.version + 1 })),
 
@@ -400,6 +434,83 @@ export const useGame = create<GameState>((set, get) => ({
     session.setTravelMode(mode);
     pushLog(`交通方式：${mode}`);
     refresh();
+  },
+
+  // ---------- 网格地图操作 ----------
+
+  /** 同图移动或跨图跳转（由 maps.ts 的 neighbor() 决定） */
+  mapMove: (dir) => {
+    const { mapId, cellId, explored, pushLog, refresh } = get();
+    const n = mapNeighbor(mapId, cellId, dir);
+    if (!n) { pushLog("这个方向走不通"); return; }
+
+    if (n.kind === "exit") {
+      // 跨图：走出口
+      get().mapTravel(n.map, n.cellId, n.label);
+      return;
+    }
+
+    // 同图相邻
+    const next = new Set(explored[mapId] ?? []);
+    next.add(n.cell.id);
+    const wasNew = !(explored[mapId] ?? new Set()).has(n.cell.id);
+    set({
+      cellId: n.cell.id,
+      explored: { ...explored, [mapId]: next }
+    });
+    if (wasNew) pushLog(`发现新地点：${n.cell.name}（${getCell(mapId, n.cell.id)?.desc ?? ""}）`);
+    refresh();
+  },
+
+  /** 跨图跳转 */
+  mapTravel: (toMapId, toCellId, label) => {
+    const { explored, pushLog, refresh } = get();
+    const m = getMap(toMapId);
+    const c = getCell(toMapId, toCellId);
+    if (!m || !c) { pushLog("目标地点不存在"); return; }
+    const next = new Set(explored[toMapId] ?? []);
+    const wasNew = !next.has(toCellId);
+    next.add(toCellId);
+    set({
+      mapId: toMapId,
+      cellId: toCellId,
+      explored: { ...explored, [toMapId]: next }
+    });
+    pushLog(`${label ? label + "：" : ""}抵达 ${m.name} · ${c.name}`);
+    if (wasNew) pushLog(`首次进入：${c.desc}`);
+    refresh();
+  },
+
+  /** 循环切换地图（小地图的 ⇄ 按钮） */
+  mapCycle: () => {
+    const { mapId, explored, pushLog, refresh } = get();
+    const idx = ALL_MAPS.findIndex((m) => m.id === mapId);
+    const next = ALL_MAPS[(idx + 1) % ALL_MAPS.length];
+    // 优先停在有出口的格，否则第一个格
+    const start = next.cells.find((c) => c.exits?.length) ?? next.cells[0];
+    const set_ = new Set(explored[next.id] ?? []);
+    set_.add(start.id);
+    set({
+      mapId: next.id,
+      cellId: start.id,
+      explored: { ...explored, [next.id]: set_ }
+    });
+    pushLog(`切换地图：${next.name}`);
+    refresh();
+  },
+
+  setMapId: (id) => { if (getMap(id)) set({ mapId: id }); },
+  setCellId: (id) => { if (getCell(get().mapId, id)) set({ cellId: id }); },
+  openBigMap: (open) => set({ bigMapOpen: open }),
+
+  /** 重置地图到初始状态（新游戏） */
+  mapReset: () => {
+    set({
+      mapId: "jc_south",
+      cellId: "hero_home",
+      explored: buildExplored(),
+      bigMapOpen: false
+    });
   },
 
   lootCurrent: () => {

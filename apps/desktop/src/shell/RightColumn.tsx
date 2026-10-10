@@ -1,10 +1,11 @@
 import { useState } from "react";
 import {
-  REGIONS, TERRAIN_LABEL, DANGER_LABEL, effectiveDanger, neighbors,
+  TERRAIN_LABEL, DANGER_LABEL, effectiveDanger, neighbors,
   TRAVEL_MODES, FACILITIES, facilityDef, MODS, modDef, modProgress,
   type DangerLevel, type TravelMode
 } from "@doomsday/core";
 import { useGame } from "../store/game.ts";
+import { MiniMap, CellInfo } from "./GridMap.tsx";
 
 type RightTab = "map" | "base" | "vehicle" | "actions";
 
@@ -15,89 +16,26 @@ const TABS: Array<{ id: RightTab; label: string }> = [
   { id: "actions", label: "行动" }
 ];
 
-/** 地图视图 */
+/** 地图视图（原型 UI：网格地图 + 方向键 + 当前格） */
 function MapView() {
-  const session = useGame((s) => s.session);
-  const version = useGame((s) => s.version);
-  const travelTo = useGame((s) => s.travelTo);
-  const setTravelMode = useGame((s) => s.setTravelMode);
-  void version;
-
-  const w = session.world;
-  const ns = neighbors(w);
-  const here = session.here();
-  const danger = effectiveDanger(w, w.current);
+  const mapId = useGame((s) => s.mapId);
+  const cellId = useGame((s) => s.cellId);
+  const explored = useGame((s) => s.explored);
+  const mapMove = useGame((s) => s.mapMove);
+  const mapCycle = useGame((s) => s.mapCycle);
+  const openBigMap = useGame((s) => s.openBigMap);
 
   return (
     <div className="right-view">
-      <div className="rv-here">
-        <b>{here?.name ?? "?"}</b>
-        <span className="sub">
-          {here ? TERRAIN_LABEL[here.terrain] : ""}　
-          <span className={danger >= 4 ? "danger-text" : ""}>{DANGER_LABEL[danger as DangerLevel]}</span>
-        </span>
-      </div>
-
-      <div className="rv-section">
-        <span className="sub">交通方式</span>
-        <div className="rv-modes">
-          {(["walk", "bike", "car", "apc"] as TravelMode["id"][]).map((m) => {
-            const mode = TRAVEL_MODES[m];
-            const disabled = (m === "car" || m === "apc") && !session.vehicleAvailable();
-            return (
-              <button
-                key={m}
-                className={session.travelMode === m ? "mini active" : "mini"}
-                onClick={() => setTravelMode(m)}
-                disabled={disabled}
-                title={disabled ? "需要车库" : `${mode.speed}km/h`}
-              >
-                {mode.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="rv-section">
-        <span className="sub">可达区域（{ns.length}）</span>
-        <div className="rv-list">
-          {ns.map((n) => {
-            const plan = session.planTravelTo(n.def.id);
-            const st = w.regions[n.def.id];
-            const d = effectiveDanger(w, n.def.id);
-            return (
-              <button
-                key={n.def.id}
-                className="rv-row"
-                onClick={() => travelTo(n.def.id)}
-                disabled={!plan.reachable}
-                title={plan.reason ?? ""}
-              >
-                <span className="rv-row-main">
-                  {st?.discovered ? n.def.name : "未发现区域"}
-                </span>
-                <span className="rv-row-meta">
-                  {n.km}km · {plan.hours.toFixed(1)}h
-                  <span className={`rv-danger d${d}`}>{DANGER_LABEL[d as DangerLevel]}</span>
-                </span>
-              </button>
-            );
-          })}
-          {ns.length === 0 && <p className="sub">（无可达区域）</p>}
-        </div>
-      </div>
-
-      <div className="rv-section">
-        <span className="sub">已发现区域</span>
-        <div className="rv-chips">
-          {REGIONS.filter((r) => w.regions[r.id]?.discovered).map((r) => (
-            <span key={r.id} className={r.id === w.current ? "chip active" : "chip"}>
-              {r.name}
-            </span>
-          ))}
-        </div>
-      </div>
+      <MiniMap
+        mapId={mapId}
+        cellId={cellId}
+        explored={explored}
+        onMove={mapMove}
+        onCycleMap={mapCycle}
+        onOpenBig={() => openBigMap(true)}
+      />
+      <CellInfo mapId={mapId} cellId={cellId} />
     </div>
   );
 }
