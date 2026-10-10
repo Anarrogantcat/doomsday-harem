@@ -18,6 +18,11 @@ export function CompanionDetail({ id }: { id: string | null }) {
   const undress = useGame((s) => s.undress);
   const equipClothing = useGame((s) => s.equipClothing);
   const performSexAct = useGame((s) => s.performSexAct);
+  const performEnemaStep = useGame((s) => s.performEnemaStep);
+  const completeAnalPrep = useGame((s) => s.completeAnalPrep);
+  const trainCompanion = useGame((s) => s.trainCompanion);
+  const restCompanion = useGame((s) => s.restCompanion);
+  const healCompanion = useGame((s) => s.healCompanion);
   const [tab, setTab] = useState<DetailTab>("info");
   void version;
 
@@ -42,6 +47,13 @@ export function CompanionDetail({ id }: { id: string | null }) {
   const profDetail = session.companionProficiencyDetail(c.id);
   const perks = session.companionPerks(c.id);
   const acts = session.availableSexActs(c.id);
+  const prepSteps = session.analPrepSteps(c.id);
+  const prepLevel = session.analPrepLevel(c.id);
+  const enemaInfo = session.enemaInfo();
+  const prepDone = prepLevel >= enemaInfo.steps;
+  const skills = session.companionSkills(c.id);
+  const sharedBonus = session.companionBonuses(c.id);
+  const nextStep = prepSteps.find((s) => !s.done);
 
   const usable = acts.filter((a) => a.usable);
   const locked = acts.filter((a) => !a.usable);
@@ -179,6 +191,63 @@ export function CompanionDetail({ id }: { id: string | null }) {
             熟练度越高，体力消耗越低、效果越强。
           </div>
 
+          {/* 后庭准备流程 */}
+          <div className="detail-line">
+            <span className="sub">
+              后庭准备　
+              <span className={prepDone ? "rv-ok" : "rv-lock"}>
+                {prepLevel}/{enemaInfo.steps}
+              </span>
+            </span>
+
+            {!prepDone && nextStep && (
+              <div className="prep-next">
+                <div className="prep-step-head">
+                  <span className="prep-step-name">{nextStep.name}</span>
+                  <button
+                    className="prep-do"
+                    onClick={() => performEnemaStep(c.id, nextStep.id)}
+                    title={nextStep.narrative}
+                  >
+                    执行
+                  </button>
+                </div>
+                <div className="prep-step-desc">{nextStep.description}</div>
+                {nextStep.requiresItem && (
+                  <div className="prep-item">需要：{nextStep.requiresItem}</div>
+                )}
+              </div>
+            )}
+
+            {prepDone && (
+              <div className="prep-done">✓ 准备完成，可进行后庭行为</div>
+            )}
+
+            <div className="prep-steps">
+              {prepSteps.map((s, i) => (
+                <div
+                  key={s.id}
+                  className={`prep-step ${s.done ? "done" : s.available ? "current" : "locked"}`}
+                  title={s.narrative}
+                >
+                  <span className="prep-idx">{i + 1}</span>
+                  <span className="prep-name">{s.name}</span>
+                  {s.done && <span className="prep-mark">✓</span>}
+                </div>
+              ))}
+            </div>
+
+            {!prepDone && (
+              <button
+                className="mini"
+                onClick={() => completeAnalPrep(c.id)}
+                title="需持有灌肠器具与润滑剂"
+              >
+                一键完成准备
+              </button>
+            )}
+          </div>
+
           <div className="act-list">
             {usable.map((a) => (
               <button
@@ -222,11 +291,93 @@ export function CompanionDetail({ id }: { id: string | null }) {
       {tab === "growth" && (
         <>
           {growthSum && (
-            <div className="detail-rows">
-              <div><span>成长等级</span><b>{growthSum.level}</b></div>
-              <div><span>累计亲密</span><b>{growthSum.totalActs} 次</b></div>
-              <div><span>生育</span><b>{growthSum.births} 次</b></div>
-              <div><span>被动增益</span><b>{growthSum.perkCount} 项</b></div>
+            <>
+              <div className="detail-rows">
+                <div>
+                  <span>等级</span>
+                  <b>{growthSum.level}</b>
+                </div>
+                <div>
+                  <span>经验</span>
+                  <b>{growthSum.exp}/{growthSum.expNeed}</b>
+                </div>
+                <div>
+                  <span>亲密度</span>
+                  <b>
+                    {growthSum.intimacyLabel}
+                    <span className="tier-badge">T{growthSum.intimacyTier}</span>
+                  </b>
+                </div>
+                <div><span>战力</span><b>{growthSum.power}</b></div>
+              </div>
+
+              <div className="detail-bars">
+                <div className="dbar">
+                  <span className="dbar-label">心情</span>
+                  <div className="dbar-track">
+                    <div className="dbar-fill mood" style={{ width: `${growthSum.mood}%` }} />
+                  </div>
+                  <span className="dbar-value">{Math.round(growthSum.mood)}</span>
+                </div>
+                <div className="dbar">
+                  <span className="dbar-label">体力</span>
+                  <div className="dbar-track">
+                    <div className="dbar-fill stam"
+                      style={{ width: `${(growthSum.stamina / growthSum.staminaMax) * 100}%` }} />
+                  </div>
+                  <span className="dbar-value">
+                    {Math.round(growthSum.stamina)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="growth-grid">
+                <div><span>累计亲密</span><b>{growthSum.totalActs} 次</b></div>
+                <div><span>生育</span><b>{growthSum.births} 次</b></div>
+                <div><span>参战</span><b>{growthSum.defensesFought} 次</b></div>
+                <div><span>外出</span><b>{growthSum.expeditions} 次</b></div>
+                <div><span>训练</span><b>{growthSum.trainingHours} h</b></div>
+                <div><span>受伤</span><b>{growthSum.injuries > 0 ? growthSum.injuries : "无"}</b></div>
+              </div>
+
+              <div className="train-actions">
+                <button className="mini" onClick={() => trainCompanion(c.id, 4, "combat")}>训练战斗 4h</button>
+                <button className="mini" onClick={() => trainCompanion(c.id, 4, "cooking")}>训练烹饪 4h</button>
+                <button className="mini" onClick={() => restCompanion(c.id, 6)}>休息 6h</button>
+                {growthSum.injuries > 0 && (
+                  <button className="mini" onClick={() => healCompanion(c.id)}>治疗</button>
+                )}
+              </div>
+            </>
+          )}
+
+          <div className="detail-line">
+            <span className="sub">技能</span>
+            <div className="companion-skill-list">
+              {skills.map((s) => (
+                <div key={s.id} className="cskill-row" title={s.description}>
+                  <span className="cskill-name">{s.name}</span>
+                  <div className="cskill-bar">
+                    <div className="cskill-fill"
+                      style={{ width: `${s.level >= 10 ? 100 : (s.exp / Math.max(1, s.need)) * 100}%` }} />
+                  </div>
+                  <span className="cskill-lv">Lv{s.level}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {Object.keys(sharedBonus).length > 0 && (
+            <div className="detail-line">
+              <span className="sub">共享加成（来自基地与科技）</span>
+              <div className="growth-grid">
+                {Object.entries(sharedBonus).slice(0, 8).map(([k, v]) => (
+                  <div key={k}>
+                    <span>{k}</span>
+                    <b>{typeof v === "number" ? v.toFixed(1) : v}</b>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

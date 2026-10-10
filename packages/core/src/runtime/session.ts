@@ -111,11 +111,31 @@ import {
   type ProficiencyJSON
 } from "../systems/sexActs.ts";
 import {
+  type ShareState, type BonusCategory, type BonusDef,
+  BONUS_DEFS, bonusDef, bonusesByCategory, newShareState, toggleShare,
+  setCategoryShare, isShared, sharedKeys, companionBonuses, heroBonuses,
+  companionAttributeBonus, shareStats, SHARE_RATIO, HERO_RATIO,
+  CATEGORY_LABEL, CATEGORY_DESC, shareToJSON, shareFromJSON,
+  type ShareJSON
+} from "../systems/bonusSharing.ts";
+import {
+  type SceneVariant, type ActSceneSpec, type EnemaStep,
+  ACT_SCENES, actScene, actSceneStats, actSceneToScene, actSceneToPrompt,
+  ENEMA_STEPS, enemaTotalGain, enemaRequiredItems, pickVariant,
+  VARIANT_LABEL
+} from "../systems/actScenes.ts";
+import {
   type CompanionGrowth, type CompanionPerk, type PerkContext,
   newCompanionGrowth, recordIntimacy, recordJobDay, recordBirth,
   hasPerk, perkMultipliers, growthLevel, growthSummary,
   PERK_DEFS, companionGrowthToJSON, companionGrowthFromJSON,
-  type CompanionGrowthJSON
+  type CompanionGrowthJSON,
+  trainCompanion, restCompanion as restCompanionGrowth, healInjury,
+  adjustMood, spendStamina, refreshIntimacyTier, computeIntimacyTier,
+  companionSkillTotal, companionPower, companionSkillExp,
+  COMPANION_SKILL_DEFS, INTIMACY_TIER_LABEL,
+  gainCompanionExp, gainCompanionSkillExp,
+  type CompanionSkill
 } from "../systems/haremGrowth.ts";
 import {
   type HeroGrowth, type HeroAttributes, type HeroBonuses,
@@ -264,6 +284,10 @@ export class GameSession {
   defense: DefenseJSON;
   /** 当前战斗（null 表示不在战斗中） */
   combat: CombatState | null;
+  /** 后庭准备进度：同伴 id → 已完成步骤数 */
+  analPrep: Record<string, number>;
+  /** 加成共享授权（玩家决定哪些加成惠及后宫） */
+  share: ShareState;
   /** 本次战斗的逃跑尝试次数（影响随机源，使重复尝试结果不同） */
   private fleeAttempts = 0;
 
@@ -327,6 +351,8 @@ export class GameSession {
     this.quests = newQuestStates();
     this.defense = newDefenseState();
     this.combat = null;
+    this.analPrep = {};
+    this.share = newShareState();
   }
 
   /**
@@ -2081,6 +2107,365 @@ export class GameSession {
     return allTemplateStats();
   }
 
+  // ---------- 加成共享（后宫可享受，但低于主角） ----------
+
+  /** 全部加成定义 */
+  bonusDefs(): BonusDef[] {
+    return BONUS_DEFS;
+  }
+
+  /** 按分类列出加成 */
+  bonusesByCategory(c: BonusCategory): BonusDef[] {
+    return bonusesByCategory(c);
+  }
+
+  /** 是否已授权给后宫 */
+  isSharedWithHarem(key: string): boolean {
+    return isShared(this.share, key);
+  }
+
+  /** 切换某项授权的共享 */
+  toggleShare(key: string): void {
+    this.share = toggleShare(this.share, key);
+  }
+
+  /** 批量设置某分类 */
+  setCategoryShare(c: BonusCategory, on: boolean): void {
+    this.share = setCategoryShare(this.share, c, on);
+  }
+
+  /** 已授权的键 */
+  sharedKeys(): string[] {
+    return sharedKeys(this.share);
+  }
+
+  /** 授权统计 */
+  shareStats() {
+    return shareStats(this.share);
+  }
+
+  /**
+   * 后宫实际获得的加成。
+   * numeric 类按 SHARE_RATIO 折算，unlock 类全额。
+   */
+  haremBonuses(): Record<string, number> {
+    const raw = this.baseBonuses();
+    return companionBonuses(raw, this.share);
+  }
+
+  /** 主角获得的加成（全额） */
+  heroFullBonuses(): Record<string, number> {
+    return heroBonuses(this.baseBonuses());
+  }
+
+  /** 后宫从共享加成获得的属性提升 */
+  haremAttributeBonus(): Partial<HeroAttributes> {
+    return companionAttributeBonus(this.haremBonuses());
+  }
+
+  /**
+   * 主角与后宫的加成对比。
+   * 供 UI 展示「后宫低于主角」的设计。
+   */
+  bonusComparison(): Array<{
+    key: string;
+    label: string;
+    category: BonusCategory;
+    raw: number;
+    heroValue: number;
+    haremValue: number;
+    shared: boolean;
+    appliesTo: string;
+  }> {
+    const raw = this.baseBonuses();
+    const harem = this.haremBonuses();
+
+    return BONUS_DEFS.map((def) => {
+      const v = raw[def.key] ?? 0;
+      const hv = harem[def.key] ?? 0;
+      return {
+        key: def.key,
+        label: def.label,
+        category: def.category,
+        raw: v,
+        heroValue: v * HERO_RATIO,
+        haremValue: hv,
+        shared: isShared(this.share, def.key),
+        appliesTo: def.appliesTo
+      };
+    }).filter((x) => x.raw !== 0 || x.shared);
+  }
+
+  // ---------- 后庭准备流程 ----------
+
+  /**
+   * 该同伴的后庭准备状态。
+   * 0 = 未准备，1 = 已灌肠清洗，2 = 已扩张（可进行后庭行为）
+   */
+  analPrepLevel(companionId: string): number {
+    return this.analPrep[companionId] ?? 0;
+  }
+
+  /** 后庭准备步骤清单与完成状态 */
+  analPrepSteps(companionId: string): Array<EnemaStep & { done: boolean; available: boolean }> {
+    const level = this.analPrepLevel(companionId);
+    return ENEMA_STEPS.map((s, i) => ({
+      ...s,
+      done: level > i,
+      available: level >= i
+    }));
+  }
+
+  /**
+   * 执行一步后庭准备。
+   *
+   * 每一步消耗对应道具，累积后庭熟练度。
+   * 全部完成后 analPrepLevel 达到 2，才能进行后庭行为。
+   */
+  performEnemaStep(
+    companionId: string,
+    stepId: string
+  ): {
+    ok: boolean;
+    reason?: string;
+    nextLevel?: number;
+    proficiencyGain?: number;
+    completed?: boolean;
+  } {
+    const c = this.companion(companionId);
+    if (!c) return { ok: false, reason: "同伴不存在" };
+
+    const idx = ENEMA_STEPS.findIndex((s) => s.id === stepId);
+    if (idx < 0) return { ok: false, reason: "未知步骤" };
+
+    const level = this.analPrepLevel(companionId);
+    if (idx !== level) {
+      return {
+        ok: false,
+        reason: idx < level ? "该步骤已完成" : "需要先完成前一步"
+      };
+    }
+
+    const step = ENEMA_STEPS[idx];
+
+    // 检查道具
+    if (step.requiresItem) {
+      const have = countOf(this.storage, step.requiresItem) + countOf(this.backpack, step.requiresItem);
+      if (have <= 0) {
+        const name = itemDef(step.requiresItem)?.name ?? step.requiresItem;
+        return { ok: false, reason: `缺少${name}` };
+      }
+      // 消耗（灌肠液/清洁剂为消耗品；器具不消耗）
+      const consumable = step.requiresItem === "enema_solution"
+        || step.requiresItem === "anal_cleanser"
+        || step.requiresItem === "warming_lube"
+        || step.requiresItem === "numbing_lube";
+      if (consumable) {
+        const r1 = remove(this.storage, step.requiresItem, 1);
+        if (r1.removed > 0) this.storage = r1.container;
+        else {
+          const r2 = remove(this.backpack, step.requiresItem, 1);
+          this.backpack = r2.container;
+        }
+      }
+    }
+
+    // 累积后庭熟练度
+    const rec = recordAct(c.growth.proficiency, "anal_prep");
+    c.growth = { ...c.growth, proficiency: rec.proficiency };
+
+    const nextLevel = idx + 1;
+    this.analPrep[companionId] = nextLevel;
+
+    return {
+      ok: true,
+      nextLevel,
+      proficiencyGain: step.proficiencyGain,
+      completed: nextLevel >= ENEMA_STEPS.length
+    };
+  }
+
+  /** 一键完成全部准备（作弊器 / 已熟练时） */
+  completeAnalPrep(companionId: string): { ok: boolean; reason?: string } {
+    const c = this.companion(companionId);
+    if (!c) return { ok: false, reason: "同伴不存在" };
+
+    // 检查必需道具
+    const need = enemaRequiredItems();
+    for (const id of need) {
+      const have = countOf(this.storage, id) + countOf(this.backpack, id);
+      if (have <= 0) {
+        const name = itemDef(id)?.name ?? id;
+        return { ok: false, reason: `缺少${name}` };
+      }
+    }
+
+    this.analPrep[companionId] = ENEMA_STEPS.length;
+
+    // 熟练度一次性给足
+    let prof = c.growth.proficiency;
+    for (let i = 0; i < enemaTotalGain(); i++) {
+      prof = recordAct(prof, "anal_prep").proficiency;
+    }
+    c.growth = { ...c.growth, proficiency: prof };
+
+    return { ok: true };
+  }
+
+  /** 准备流程总收益（供 UI 显示） */
+  enemaInfo() {
+    return {
+      steps: ENEMA_STEPS.length,
+      totalGain: enemaTotalGain(),
+      items: enemaRequiredItems()
+    };
+  }
+
+  // ---------- 性爱行为的场景叙事 ----------
+
+  /**
+   * 生成某行为的场景。
+   *
+   * 差分判定依据：对方累计亲密次数、部位熟练度、是否怀孕、是否有旁观者。
+   */
+  actSceneFor(
+    companionId: string,
+    actId: string,
+    observers = 0
+  ): Scene | null {
+    const c = this.companion(companionId);
+    if (!c) return null;
+
+    const spec = actScene(actId);
+    if (!spec) return null;
+
+    const def = actDef(actId);
+    const prof = def ? partLevel(c.growth.proficiency, def.part) : 0;
+
+    const variant = pickVariant({
+      partnerActs: c.growth.totalActs,
+      partnerProficiency: prof,
+      pregnant: c.physiology.pregnant,
+      observers
+    });
+
+    return actSceneToScene(spec, this.hero.identity.name, c.identity.name, variant);
+  }
+
+  /** 生成给模型的提示词骨架 */
+  actScenePrompt(companionId: string, actId: string, observers = 0): string | null {
+    const c = this.companion(companionId);
+    if (!c) return null;
+    const spec = actScene(actId);
+    if (!spec) return null;
+
+    const def = actDef(actId);
+    const prof = def ? partLevel(c.growth.proficiency, def.part) : 0;
+    const variant = pickVariant({
+      partnerActs: c.growth.totalActs,
+      partnerProficiency: prof,
+      pregnant: c.physiology.pregnant,
+      observers
+    });
+
+    return actSceneToPrompt(spec, c.identity.name, variant);
+  }
+
+  /** 行为场景统计 */
+  actSceneStats() {
+    return actSceneStats();
+  }
+
+  // ---------- 后宫成长操作 ----------
+
+  /** 训练某位同伴（消耗时间，提升技能与等级） */
+  trainCompanion(companionId: string, hours: number, skillId: string): {
+    ok: boolean; reason?: string;
+  } {
+    const c = this.companion(companionId);
+    if (!c) return { ok: false, reason: "同伴不存在" };
+    if (hours <= 0) return { ok: false, reason: "训练时长无效" };
+    if (c.growth.injuries > 0) return { ok: false, reason: "有伤在身，需先治疗" };
+
+    const cost = Math.round(hours * 3);
+    if (c.growth.stamina < cost) {
+      return { ok: false, reason: `体力不足（需 ${cost}）` };
+    }
+
+    c.growth = trainCompanion(c.growth, hours, skillId);
+    c.growth = spendStamina(c.growth, cost).growth;
+
+    return { ok: true };
+  }
+
+  /** 让同伴休息 */
+  restCompanion(companionId: string, hours: number): { ok: boolean } {
+    const c = this.companion(companionId);
+    if (!c) return { ok: false };
+    c.growth = restCompanionGrowth(c.growth, hours);
+    return { ok: true };
+  }
+
+  /** 治疗同伴的伤 */
+  healCompanion(companionId: string, amount = 1): { ok: boolean; reason?: string } {
+    const c = this.companion(companionId);
+    if (!c) return { ok: false, reason: "同伴不存在" };
+    if (c.growth.injuries <= 0) return { ok: false, reason: "没有需要治疗的伤" };
+
+    // 需要医疗用品
+    const kits = countOf(this.storage, "bandage") + countOf(this.backpack, "bandage")
+      + countOf(this.storage, "surgical_kit") + countOf(this.backpack, "surgical_kit");
+    if (kits <= 0) return { ok: false, reason: "缺少医疗用品" };
+
+    c.growth = healInjury(c.growth, amount);
+    c.growth = adjustMood(c.growth, 5);
+    return { ok: true };
+  }
+
+  /** 刷新同伴的亲密度层级 */
+  refreshIntimacyTier(companionId: string): void {
+    const c = this.companion(companionId);
+    if (!c) return;
+    c.growth = refreshIntimacyTier(c.growth, c.relationship.bond);
+  }
+
+  /** 同伴的加成（共享后） */
+  companionBonuses(companionId: string): Record<string, number> {
+    const c = this.companion(companionId);
+    if (!c) return {};
+    // 岗位专长可提升共享比例
+    const bonus = this.haremBonuses();
+    const jobBonus = c.job.id ? 1 + c.job.bonus / 100 : 1;
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(bonus)) {
+      out[k] = v * jobBonus;
+    }
+    return out;
+  }
+
+  /** 同伴战力 */
+  companionPower(companionId: string): number {
+    const c = this.companion(companionId);
+    if (!c) return 0;
+    return companionPower(c.growth);
+  }
+
+  /** 同伴技能总览 */
+  companionSkills(companionId: string): Array<{
+    id: string; name: string; level: number; exp: number; need: number; description: string;
+  }> {
+    const c = this.companion(companionId);
+    if (!c) return [];
+    return c.growth.skills.map((s) => ({
+      id: s.id,
+      name: s.name,
+      level: s.level,
+      exp: s.exp,
+      need: s.level >= 10 ? 0 : companionSkillExp(s.level),
+      description: s.description
+    }));
+  }
+
   // ---------- 性爱行为与熟练度 ----------
 
   /** 主角的性爱熟练度（存在主角成长里） */
@@ -2122,6 +2507,8 @@ export class GameSession {
     const heroProf = this.heroProficiency();
     const partnerFuta = c.physiology.sex === "futanari";
 
+    const prep = this.analPrepLevel(companionId);
+
     return ACTS.map((def) => {
       const check = canPerform(def, {
         heroFutanari: this.heroIsFutanari(),
@@ -2130,10 +2517,22 @@ export class GameSession {
         proficiency: heroProf,
         stamina: this.hero.survival.stamina
       });
+
+      let usable = check.ok;
+      let reason = check.reason;
+
+      // 后庭行为需要准备完成
+      if (usable && def.part === "anus" && def.id !== "anal_prep") {
+        if (prep < ENEMA_STEPS.length) {
+          usable = false;
+          reason = `需先完成准备（${prep}/${ENEMA_STEPS.length}）`;
+        }
+      }
+
       return {
         def,
-        usable: check.ok,
-        reason: check.reason,
+        usable,
+        reason,
         heroLevel: partLevel(heroProf, def.part),
         partnerLevel: partLevel(c.growth.proficiency, def.part)
       };
@@ -2175,6 +2574,22 @@ export class GameSession {
       stamina: this.hero.survival.stamina
     });
     if (!check.ok) return { ok: false, reason: check.reason };
+
+    // 后庭行为必须先完成准备流程
+    if (def.part === "anus" && def.id !== "anal_prep") {
+      const prep = this.analPrepLevel(companionId);
+      if (prep < ENEMA_STEPS.length) {
+        const done = ENEMA_STEPS[prep]?.name ?? "准备";
+        return {
+          ok: false,
+          reason: `需先完成后庭准备（下一步：${done}）`
+        };
+      }
+      // 准备完成后消耗清洁用品
+      const cleanser = countOf(this.storage, "anal_soothing_cream")
+        + countOf(this.backpack, "anal_soothing_cream");
+      void cleanser;
+    }
 
     // 体力消耗（受熟练度影响：越熟练越省力）
     const eff = 1 - proficiencyBonus(this.heroProficiency(), def.part) * 0.4;
@@ -2555,6 +2970,10 @@ export class GameSession {
       __heroGrowth: JSON.stringify(growthToJSON(this.hero.growth)),
       // 主角性爱熟练度
       __heroProf: JSON.stringify(proficiencyToJSON(this.hero.proficiency)),
+      // 后庭准备进度
+      __analPrep: JSON.stringify(this.analPrep),
+      // 加成共享授权
+      __share: JSON.stringify(shareToJSON(this.share)),
       // 同伴成长（按 id 索引）
       __compGrowth: JSON.stringify(
         Object.fromEntries(
@@ -2692,6 +3111,26 @@ export class GameSession {
         s.hero.proficiency = proficiencyFromJSON(JSON.parse(profRaw) as ProficiencyJSON);
       } catch {
         s.hero.proficiency = newProficiency();
+      }
+    }
+
+    // 加成共享授权
+    const shareRaw = data.flags["__share"];
+    if (typeof shareRaw === "string") {
+      try {
+        s.share = shareFromJSON(JSON.parse(shareRaw) as ShareJSON);
+      } catch {
+        s.share = newShareState();
+      }
+    }
+
+    // 后庭准备进度
+    const prepRaw = data.flags["__analPrep"];
+    if (typeof prepRaw === "string") {
+      try {
+        s.analPrep = JSON.parse(prepRaw) as Record<string, number>;
+      } catch {
+        s.analPrep = {};
       }
     }
 

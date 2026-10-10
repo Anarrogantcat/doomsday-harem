@@ -4,13 +4,15 @@ import {
   RENDER_STYLE_LABEL, RENDER_STYLE_DESC, INTENSITY_LABEL, INTENSITY_DESC,
   TIME_SCALE_LABEL, MODE_LABEL, CHANNEL_LABEL, LOCALE_LABEL,
   type SettingsTab, type RenderStyle, type ContentIntensity, type TimeScale,
-  type GenerationMode, type AudioChannel, type Locale, type DetailLevel
+  type GenerationMode, type AudioChannel, type Locale, type DetailLevel,
+  CATEGORY_LABEL, CATEGORY_DESC, SHARE_RATIO,
+  type BonusCategory
 } from "@doomsday/core";
 import { useGame } from "../store/game.ts";
 import { AboutTab } from "./AboutTab.tsx";
 import { CheatPanel } from "../panels/CheatPanel.tsx";
 
-const TABS: SettingsTab[] = ["display", "gameplay", "content", "audio", "lang", "cheat", "about"];
+const TABS: SettingsTab[] = ["display", "gameplay", "content", "sharing", "audio", "lang", "cheat", "about"];
 
 const RENDER_STYLES: RenderStyle[] = ["text", "pixel", "illustration", "live2d"];
 const INTENSITIES: ContentIntensity[] = ["tasteful", "explicit", "unrestrained"];
@@ -18,6 +20,7 @@ const TIME_SCALES: TimeScale[] = ["slow", "normal", "fast"];
 const MODES: GenerationMode[] = ["off", "minor", "all"];
 const LOCALES: Locale[] = ["zh-CN", "en-US", "ja-JP"];
 const CHANNELS: AudioChannel[] = ["bgm", "ambient", "sfx", "voice"];
+const BONUS_CATS: BonusCategory[] = ["survival", "combat", "facility", "comfort", "special"];
 const DETAILS: DetailLevel[] = ["brief", "standard", "detailed", "exhaustive"];
 const DETAIL_LABEL: Record<DetailLevel, string> = {
   brief: "简洁", standard: "标准", detailed: "详细", exhaustive: "极详"
@@ -73,6 +76,95 @@ function Slider({ value, min, max, step, onChange, format }: {
       />
       <span className="slider-value">{format ? format(value) : value}</span>
     </div>
+  );
+}
+
+/** 加成共享面板：玩家决定哪些加成惠及后宫 */
+function SharingPanel() {
+  const session = useGame((s) => s.session);
+  const version = useGame((s) => s.version);
+  const toggleShare = useGame((s) => s.toggleShare);
+  const setCategoryShare = useGame((s) => s.setCategoryShare);
+  void version;
+
+  const stats = session.shareStats();
+  const comparison = session.bonusComparison();
+
+  return (
+    <section className="setgroup">
+      <h3>加成共享</h3>
+      <div className="growth-note">
+        主角获得 100% 加成；后宫默认只享受 {(SHARE_RATIO * 100).toFixed(0)}%，
+        且需要你逐项授权。主角专属项（研究、制作）无法共享。
+      </div>
+
+      <div className="share-summary">
+        已授权 <b>{stats.shared}</b> / {stats.total} 项
+      </div>
+
+      {BONUS_CATS.map((cat) => {
+        const catStats = stats.byCategory[cat];
+        const list = session.bonusesByCategory(cat);
+        const allOn = catStats.shared === catStats.total;
+        return (
+          <div key={cat} className="share-cat">
+            <div className="share-cat-head">
+              <span className="share-cat-name">{CATEGORY_LABEL[cat]}</span>
+              <span className="share-cat-desc">{CATEGORY_DESC[cat]}</span>
+              <span className="share-cat-count">
+                {catStats.shared}/{catStats.total}
+              </span>
+              <button
+                className="mini"
+                onClick={() => setCategoryShare(cat, !allOn)}
+              >
+                {allOn ? "全部取消" : "全部授权"}
+              </button>
+            </div>
+
+            <div className="share-list">
+              {list.map((b) => {
+                const shared = session.isSharedWithHarem(b.key);
+                const locked = b.appliesTo === "none";
+                const cmp = comparison.find((x) => x.key === b.key);
+                return (
+                  <label
+                    key={b.key}
+                    className={`share-row ${locked ? "locked" : ""} ${shared ? "on" : ""}`}
+                    title={locked ? "主角专属，无法共享" : b.description}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={shared}
+                      disabled={locked}
+                      onChange={() => toggleShare(b.key)}
+                    />
+                    <span className="share-label">{b.label}</span>
+                    <span className="share-values">
+                      {locked ? (
+                        <span className="share-locked">主角专属</span>
+                      ) : cmp ? (
+                        <>
+                          <span className="share-hero">主角 {Math.round(cmp.heroValue)}</span>
+                          <span className="share-harem">后宫 {Math.round(cmp.haremValue)}</span>
+                        </>
+                      ) : (
+                        <span className="share-dim">未建成</span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      <p className="hint">
+        授权是可选的 —— 你可以让后宫只享受生存与舒适类加成，
+        而把战斗与特殊类留给自己。已授权状态随存档保存。
+      </p>
+    </section>
   );
 }
 
@@ -228,6 +320,8 @@ export function SettingsPanel() {
             )}
           </section>
         )}
+
+        {tab === "sharing" && <SharingPanel />}
 
         {tab === "audio" && (
           <section className="setgroup">

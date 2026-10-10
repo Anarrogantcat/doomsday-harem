@@ -40,6 +40,8 @@ export interface GameState {
   stockMsg: string;
   /** 设置 */
   settings: Settings;
+  /** 最近一次性爱行为的场景（供叙事区显示） */
+  lastActScene: import("@doomsday/core").Scene | null;
   log: string[];
 
   // 操作
@@ -112,6 +114,13 @@ export interface GameState {
   backendInfo: () => string;
 
   performSexAct: (companionId: string, actId: string) => void;
+  toggleShare: (key: string) => void;
+  setCategoryShare: (category: string, on: boolean) => void;
+  trainCompanion: (companionId: string, hours: number, skillId: string) => void;
+  restCompanion: (companionId: string, hours: number) => void;
+  healCompanion: (companionId: string) => void;
+  performEnemaStep: (companionId: string, stepId: string) => void;
+  completeAnalPrep: (companionId: string) => void;
   spendHeroPoint: (attr: string) => void;
   quickBuild: (facilityId: string) => void;
   quickInstallMod: (modId: string) => void;
@@ -162,6 +171,7 @@ export const useGame = create<GameState>((set, get) => ({
   stock: new StockIndex(emptyStore()),
   stockMsg: "",
   settings: defaultSettings(),
+  lastActScene: null,
   log: [],
 
   refresh: () => set((s) => ({ version: s.version + 1 })),
@@ -709,6 +719,72 @@ export const useGame = create<GameState>((set, get) => ({
 
   backendInfo: () => backendLabel(),
 
+  toggleShare: (key) => {
+    const { session, refresh } = get();
+    session.toggleShare(key);
+    refresh();
+  },
+
+  setCategoryShare: (category, on) => {
+    const { session, pushLog, refresh } = get();
+    session.setCategoryShare(category as never, on);
+    pushLog(`${on ? "授权" : "取消"}「${category}」类加成给后宫`);
+    refresh();
+  },
+
+  trainCompanion: (companionId, hours, skillId) => {
+    const { session, pushLog, refresh } = get();
+    const c = session.companion(companionId);
+    const r = session.trainCompanion(companionId, hours, skillId);
+    pushLog(
+      r.ok
+        ? `${c?.identity.name ?? companionId} 训练 ${hours} 小时（${skillId}）`
+        : `无法训练：${r.reason}`
+    );
+    refresh();
+  },
+
+  restCompanion: (companionId, hours) => {
+    const { session, pushLog, refresh } = get();
+    const c = session.companion(companionId);
+    session.restCompanion(companionId, hours);
+    pushLog(`${c?.identity.name ?? companionId} 休息 ${hours} 小时`);
+    refresh();
+  },
+
+  healCompanion: (companionId) => {
+    const { session, pushLog, refresh } = get();
+    const c = session.companion(companionId);
+    const r = session.healCompanion(companionId);
+    pushLog(
+      r.ok
+        ? `${c?.identity.name ?? companionId} 的伤已处理`
+        : `无法治疗：${r.reason}`
+    );
+    refresh();
+  },
+
+  performEnemaStep: (companionId, stepId) => {
+    const { session, pushLog, refresh } = get();
+    const r = session.performEnemaStep(companionId, stepId);
+    if (!r.ok) {
+      pushLog(`无法执行：${r.reason ?? "未知原因"}`);
+    } else {
+      pushLog(
+        `准备步骤完成（${r.nextLevel}/${session.enemaInfo().steps}）` +
+        (r.completed ? "　后庭准备就绪" : "")
+      );
+    }
+    refresh();
+  },
+
+  completeAnalPrep: (companionId) => {
+    const { session, pushLog, refresh } = get();
+    const r = session.completeAnalPrep(companionId);
+    pushLog(r.ok ? "后庭准备已全部完成" : `无法完成：${r.reason}`);
+    refresh();
+  },
+
   performSexAct: (companionId, actId) => {
     const { session, pushLog, refresh } = get();
     const c = session.companion(companionId);
@@ -719,12 +795,19 @@ export const useGame = create<GameState>((set, get) => ({
       pushLog(`无法进行：${r.reason ?? "未知原因"}`);
     } else {
       const name = c?.identity.name ?? companionId;
-      pushLog(`与 ${name} 的亲密（${actId}）`);
+      const actName = session.actSceneStats ? actId : actId;
+      pushLog(`与 ${name} 的亲密（${actName}）`);
       if (r.leveledParts && r.leveledParts.length > 0) {
         pushLog(`熟练度提升：${r.leveledParts.join("、")}`);
       }
       for (const p of r.newPerks ?? []) {
         pushLog(`${name} 获得增益：${p.name}（${p.description}）`);
+      }
+      // 生成场景叙事
+      const scene = session.actSceneFor(companionId, actId);
+      if (scene) {
+        set({ lastActScene: scene });
+        pushLog(`场景：${scene.title}`);
       }
     }
     refresh();

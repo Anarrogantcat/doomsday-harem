@@ -64,3 +64,5 @@ export * from "./systems/settings.ts";
 export * from "./systems/heroGrowth.ts";
 export * from "./systems/sexActs.ts";
 export * from "./systems/haremGrowth.ts";
+export * from "./systems/actScenes.ts";
+export * from "./systems/bonusSharing.ts";

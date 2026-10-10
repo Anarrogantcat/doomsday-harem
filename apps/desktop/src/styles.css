@@ -1010,3 +1010,112 @@ legend { color: var(--sub); font-size: 0.78em; padding: 0 0.4em; }
 }
 .perk-name { font-size: 0.82em; font-weight: 600; color: var(--ok); }
 .perk-desc { font-size: 0.72em; color: var(--sub); }
+
+/* ============ 后庭准备流程 ============ */
+.prep-next {
+  display: flex; flex-direction: column; gap: 0.2em;
+  padding: 0.5em 0.6em; background: var(--panel2);
+  border-left: 2px solid var(--warn); border-radius: var(--radius);
+}
+.prep-step-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5em; }
+.prep-step-name { font-size: 0.85em; font-weight: 600; color: var(--warn); }
+.prep-do {
+  font-size: 0.75em; padding: 0.2em 0.7em;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: var(--radius); cursor: pointer;
+}
+.prep-do:hover { background: var(--accent-lt); }
+.prep-step-desc { font-size: 0.72em; color: var(--sub); line-height: 1.5; }
+.prep-item { font-size: 0.68em; color: var(--dim); }
+.prep-done {
+  font-size: 0.8em; color: var(--ok); padding: 0.4em 0.6em;
+  background: rgba(12,215,28,.08); border-left: 2px solid var(--ok);
+  border-radius: var(--radius);
+}
+.prep-steps { display: flex; flex-direction: column; gap: 0.15em; }
+.prep-step {
+  display: flex; align-items: center; gap: 0.45em;
+  font-size: 0.72em; padding: 0.25em 0.45em; border-radius: 0.2em;
+}
+.prep-step.done { color: var(--ok); }
+.prep-step.current { color: var(--warn); background: rgba(232,200,21,.08); }
+.prep-step.locked { color: var(--dim); }
+.prep-idx {
+  width: 1.2em; text-align: center; font-variant-numeric: tabular-nums;
+  opacity: .7;
+}
+.prep-name { flex: 1; }
+.prep-mark { color: var(--ok); }
+
+/* ============ 加成共享面板 ============ */
+.share-summary {
+  font-size: 0.85em; color: var(--sub);
+  padding: 0.5em 0.6em; background: var(--panel2);
+  border-radius: var(--radius); margin: 0.6em 0;
+}
+.share-summary b { color: var(--accent-lt); font-size: 1.1em; }
+.share-cat {
+  margin-bottom: 0.9em; padding: 0.6em;
+  background: var(--panel2); border-radius: var(--radius);
+  border-left: 2px solid var(--accent);
+}
+.share-cat-head {
+  display: flex; align-items: center; gap: 0.5em; margin-bottom: 0.45em;
+}
+.share-cat-name { font-size: 0.88em; font-weight: 600; }
+.share-cat-desc { font-size: 0.72em; color: var(--dim); flex: 1; }
+.share-cat-count {
+  font-size: 0.78em; color: var(--accent-lt);
+  font-variant-numeric: tabular-nums;
+}
+.share-list { display: flex; flex-direction: column; gap: 0.15em; }
+.share-row {
+  display: flex; align-items: center; gap: 0.5em;
+  padding: 0.3em 0.4em; border-radius: 0.2em;
+  font-size: 0.78em; cursor: pointer;
+  transition: background-color .12s;
+}
+.share-row:hover:not(.locked) { background: var(--panel3); }
+.share-row.on { background: rgba(141,49,176,.10); }
+.share-row.locked { opacity: .45; cursor: not-allowed; }
+.share-label { flex: 1; }
+.share-values {
+  display: flex; gap: 0.6em; font-size: 0.92em;
+  font-variant-numeric: tabular-nums;
+}
+.share-hero { color: var(--fg); }
+.share-harem { color: var(--accent-lt); }
+.share-locked { color: var(--dim); font-size: 0.92em; }
+.share-dim { color: var(--dim); }
+
+/* ============ 同伴成长扩展 ============ */
+.growth-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.3em 0.7em;
+  font-size: 0.78em; padding: 0.5em; background: var(--panel2);
+  border-radius: var(--radius);
+}
+.growth-grid > div { display: flex; justify-content: space-between; }
+.growth-grid span { color: var(--sub); }
+
+.tier-badge {
+  display: inline-block; font-size: 0.72em; padding: 0.1em 0.5em;
+  border-radius: 0.25em; border: 1px solid var(--accent);
+  color: var(--accent-lt); margin-left: 0.4em;
+}
+
+.companion-skill-list { display: flex; flex-direction: column; gap: 0.4em; }
+.cskill-row { display: flex; align-items: center; gap: 0.5em; font-size: 0.78em; }
+.cskill-name { width: 3em; color: var(--sub); flex-shrink: 0; }
+.cskill-bar {
+  flex: 1; height: 0.32em; background: #1e2532;
+  border-radius: 0.16em; overflow: hidden;
+}
+.cskill-fill {
+  height: 100%; background: var(--info); transition: width .25s;
+}
+.cskill-lv {
+  width: 2em; text-align: right; color: var(--accent-lt);
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+
+.train-actions { display: flex; gap: 0.35em; flex-wrap: wrap; }
