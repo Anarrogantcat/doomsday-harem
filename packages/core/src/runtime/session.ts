@@ -1265,6 +1265,24 @@ export class GameSession {
     this.vehicle = installAll(this.vehicle);
 
     // 资源给足（覆盖全部科技与配方所需）
+    const granted = this.giveCheatMaterials();
+
+    // 怀孕/欲情等状态类作弊由 UI 单独控制
+
+    return {
+      techUnlocked: this.tech.unlocked.size,
+      companionsMaxed: this.companions.length,
+      baseBuilt: this.base.facilities.filter((f) => f.tier > 0).length,
+      vehicleMods: this.vehicle.mods.length,
+      itemsGranted: granted
+    };
+  }
+
+  /**
+   * 作弊：只给材料，不改科技/基地/房车状态。
+   * 供测试与「只想补材料」的场景使用。
+   */
+  giveCheatMaterials(): number {
     let granted = 0;
     const stock: Record<string, number> = {
       copper_wire: 999, magnet: 999, pvc_pipe: 999, filter_mesh: 999,
@@ -1296,16 +1314,7 @@ export class GameSession {
       const got = this.addToStorage(id, n);
       if (got > 0) granted++;
     }
-
-    // 怀孕/欲情等状态类作弊由 UI 单独控制
-
-    return {
-      techUnlocked: this.tech.unlocked.size,
-      companionsMaxed: this.companions.length,
-      baseBuilt: this.base.facilities.filter((f) => f.tier > 0).length,
-      vehicleMods: this.vehicle.mods.length,
-      itemsGranted: granted
-    };
+    return granted;
   }
 
   /** 作弊：全体同伴好感拉满 */
@@ -2020,6 +2029,115 @@ export class GameSession {
   /** 全部模板统计（含互交） */
   allTemplateStats() {
     return allTemplateStats();
+  }
+
+  /**
+   * 当前可建造的设施列表（含消耗与阻塞原因）。
+   * 供 UI 直接展示，不必打开建造面板。
+   */
+  buildableFacilities(): Array<{
+    id: string;
+    name: string;
+    level: string;
+    category: string;
+    description: string;
+    currentTier: number;
+    nextTier: number;
+    maxTier: number;
+    canBuild: boolean;
+    reason: string;
+    cost: Record<string, number>;
+    missing: Record<string, number>;
+    hours: number;
+  }> {
+    const levelOrder: Record<string, number> = { surface: 0, bunker: 1, resource: 2 };
+    const out: Array<{
+      id: string; name: string; level: string; category: string; description: string;
+      currentTier: number; nextTier: number; maxTier: number;
+      canBuild: boolean; reason: string;
+      cost: Record<string, number>; missing: Record<string, number>; hours: number;
+    }> = [];
+
+    for (const def of FACILITIES) {
+      const cur = this.tierOf(def.id);
+      if (cur >= def.maxTier) continue; // 已满级
+
+      const check = this.buildCheck(def.id);
+      if (!check) continue;
+
+      out.push({
+        id: def.id,
+        name: def.name,
+        level: def.level,
+        category: def.category,
+        description: def.description,
+        currentTier: cur,
+        nextTier: check.nextTier,
+        maxTier: def.maxTier,
+        canBuild: check.ok,
+        reason: check.reason,
+        cost: check.cost,
+        missing: check.missingResource,
+        hours: check.hours
+      });
+    }
+
+    out.sort((a, b) => {
+      if (a.canBuild !== b.canBuild) return a.canBuild ? -1 : 1;
+      const la = levelOrder[a.level] ?? 9;
+      const lb = levelOrder[b.level] ?? 9;
+      if (la !== lb) return la - lb;
+      return a.name.localeCompare(b.name);
+    });
+
+    return out;
+  }
+
+  /** 当前可改装的房车部件 */
+  installableMods(): Array<{
+    id: string;
+    name: string;
+    tier: number;
+    description: string;
+    installed: boolean;
+    canInstall: boolean;
+    reason: string;
+    missing: Record<string, number>;
+  }> {
+    const techs = [...this.tech.unlocked];
+    return MODS.map((def) => {
+      const installed = this.vehicle.mods.includes(def.id);
+      const check = checkMod(
+        this.vehicle, def, techs,
+        (cost) => missingFor(this.mergedStorage(), cost)
+      );
+      return {
+        id: def.id,
+        name: def.name,
+        tier: def.tier,
+        description: def.description,
+        installed,
+        canInstall: check.ok,
+        reason: installed ? "already" : check.reason,
+        missing: check.missingResource
+      };
+    }).sort((a, b) => {
+      if (a.installed !== b.installed) return a.installed ? -1 : 1;
+      if (a.canInstall !== b.canInstall) return a.canInstall ? -1 : 1;
+      return a.tier - b.tier;
+    });
+  }
+
+  /** 直接建造（右栏快捷操作） */
+  quickBuild(facilityId: string): { ok: boolean; reason?: string } {
+    const r = this.beginBuild(facilityId);
+    return r.ok ? { ok: true } : { ok: false, reason: r.reason };
+  }
+
+  /** 直接安装房车改装（右栏快捷操作） */
+  quickInstallMod(modId: string): { ok: boolean; reason?: string } {
+    const r = this.installVehicleMod(modId);
+    return r.ok ? { ok: true } : { ok: false, reason: r.reason };
   }
 
   /** 互交模板统计 */

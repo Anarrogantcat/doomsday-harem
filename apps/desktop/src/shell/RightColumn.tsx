@@ -157,10 +157,71 @@ function BaseView({ onOpen }: { onOpen: () => void }) {
         );
       })}
 
+      <BuildableList />
       <button className="rv-open" onClick={onOpen}>打开建造面板（B）</button>
     </div>
   );
 }
+
+/** 可建造设施快捷列表 */
+function BuildableList() {
+  const session = useGame((s) => s.session);
+  const version = useGame((s) => s.version);
+  const quickBuild = useGame((s) => s.quickBuild);
+  const [showAll, setShowAll] = useState(false);
+  void version;
+
+  const list = session.buildableFacilities();
+  const ready = list.filter((x) => x.canBuild);
+  const shown = showAll ? list : ready.slice(0, 6);
+
+  return (
+    <div className="rv-section">
+      <span className="sub">
+        可建造（{ready.length}）{list.length > ready.length && `　共 ${list.length} 项未满级`}
+      </span>
+      <div className="rv-list">
+        {shown.map((f) => (
+          <button
+            key={f.id}
+            className="rv-row"
+            onClick={() => f.canBuild && quickBuild(f.id)}
+            disabled={!f.canBuild}
+            title={f.description}
+          >
+            <span className="rv-row-main">
+              {f.name}
+              <span className="rv-tier">Lv{f.currentTier}→{f.nextTier}</span>
+            </span>
+            <span className="rv-row-meta">
+              {f.hours}h
+              {f.canBuild ? (
+                <span className="rv-ok">可建</span>
+              ) : (
+                <span className="rv-lock">{REASON_LABEL[f.reason] ?? f.reason}</span>
+              )}
+            </span>
+          </button>
+        ))}
+        {shown.length === 0 && <p className="sub">（暂无可建造设施，材料或科技不足）</p>}
+      </div>
+      {list.length > 6 && (
+        <button className="mini" onClick={() => setShowAll((v) => !v)}>
+          {showAll ? "只看可建造" : `展开全部 ${list.length} 项`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+const REASON_LABEL: Record<string, string> = {
+  "max-tier": "已满级",
+  "building-other": "有在建",
+  "missing-tech": "缺科技",
+  "missing-facility": "缺前置",
+  "missing-resource": "缺材料",
+  ok: "可建"
+};
 
 /** 房车视图 */
 function VehicleView({ onOpen }: { onOpen: () => void }) {
@@ -198,7 +259,66 @@ function VehicleView({ onOpen }: { onOpen: () => void }) {
         </div>
       </div>
 
+      <InstallableList />
       <button className="rv-open" onClick={onOpen}>打开改装面板（V）</button>
+    </div>
+  );
+}
+
+/** 可安装改装快捷列表 */
+function InstallableList() {
+  const session = useGame((s) => s.session);
+  const version = useGame((s) => s.version);
+  const quickInstallMod = useGame((s) => s.quickInstallMod);
+  const [showAll, setShowAll] = useState(false);
+  void version;
+
+  const list = session.installableMods();
+  const ready = list.filter((x) => x.canInstall);
+  const shown = showAll ? list : ready.slice(0, 6);
+
+  const MOD_REASON: Record<string, string> = {
+    already: "已装",
+    "missing-prereq": "缺前置",
+    "missing-tech": "缺科技",
+    "missing-resource": "缺材料",
+    ok: "可装"
+  };
+
+  return (
+    <div className="rv-section">
+      <span className="sub">
+        可改装（{ready.length}）{list.length > ready.length && `　共 ${list.length} 项未装`}
+      </span>
+      <div className="rv-list">
+        {shown.map((m) => (
+          <button
+            key={m.id}
+            className="rv-row"
+            onClick={() => m.canInstall && quickInstallMod(m.id)}
+            disabled={!m.canInstall}
+            title={m.description}
+          >
+            <span className="rv-row-main">
+              {m.name}
+              <span className="rv-tier">T{m.tier}</span>
+            </span>
+            <span className="rv-row-meta">
+              {m.canInstall ? (
+                <span className="rv-ok">可装</span>
+              ) : (
+                <span className="rv-lock">{MOD_REASON[m.reason] ?? m.reason}</span>
+              )}
+            </span>
+          </button>
+        ))}
+        {shown.length === 0 && <p className="sub">（暂无可安装改装）</p>}
+      </div>
+      {list.length > 6 && (
+        <button className="mini" onClick={() => setShowAll((v) => !v)}>
+          {showAll ? "只看可安装" : `展开全部 ${list.length} 项`}
+        </button>
+      )}
     </div>
   );
 }

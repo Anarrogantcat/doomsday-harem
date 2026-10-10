@@ -111,6 +111,9 @@ export interface GameState {
   refreshSlots: () => Promise<void>;
   backendInfo: () => string;
 
+  quickBuild: (facilityId: string) => void;
+  quickInstallMod: (modId: string) => void;
+
   beginCombat: (kind: string, count?: number) => void;
   combatAttack: (enemyId: string) => void;
   combatCharm: (enemyId: string) => void;
@@ -703,6 +706,28 @@ export const useGame = create<GameState>((set, get) => ({
   },
 
   backendInfo: () => backendLabel(),
+
+  quickBuild: (facilityId) => {
+    const { session, pushLog, refresh } = get();
+    const r = session.quickBuild(facilityId);
+    if (r.ok) {
+      pushLog(`开工建造：${facilityId}`);
+    } else {
+      pushLog(`无法建造：${r.reason ?? "未知原因"}`);
+    }
+    refresh();
+  },
+
+  quickInstallMod: (modId) => {
+    const { session, pushLog, refresh } = get();
+    const r = session.quickInstallMod(modId);
+    if (r.ok) {
+      pushLog(`安装改装：${modId}`);
+    } else {
+      pushLog(`无法安装：${r.reason ?? "未知原因"}`);
+    }
+    refresh();
+  },
 
   beginCombat: (kind, count = 3) => {
     const { session, pushLog, refresh } = get();

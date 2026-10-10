@@ -817,3 +817,11 @@ legend { color: var(--sub); font-size: 0.78em; padding: 0 0.4em; }
   border-top: 1px dashed var(--line); padding-top: 0.8em;
 }
 .nw-hint b { color: var(--accent-lt); }
+
+/* ============ 右栏快捷操作 ============ */
+.rv-tier {
+  font-size: 0.85em; color: var(--accent-lt); margin-left: 0.4em;
+  font-variant-numeric: tabular-nums;
+}
+.rv-ok { color: var(--ok); }
+.rv-lock { color: var(--dim); }

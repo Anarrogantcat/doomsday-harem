@@ -1,0 +1,34 @@
+feat: 右栏快捷建造/改装 + 桌面安装包验证 v0.31.0
+
+一、桌面安装包（验证通过）
+运行 pnpm exec tauri build --bundles nsis，产出：
+- Doomsday Harem_0.30.0_x64-setup.exe（2.18 MB）— NSIS 安装包
+- doomsday-harem.exe（6.54 MB）— 独立可执行文件
+工具链：Tauri 2.12.1 + cargo 1.99.0 + MSVC
+注：安装包细节待后续按需求完善，本轮仅验证可打包
+
+二、右栏快捷建造/改装（不必打开面板）
+GameSession 新增：
+- buildableFacilities()：列出全部未满级设施
+  · 含当前/下一等级、消耗、工时、阻塞原因、缺料明细
+  · 可建造的排前面，同组按层级排序
+- installableMods()：列出全部未安装改装
+  · 含等级、前置、阻塞原因
+  · 已安装的排前面
+- quickBuild(facilityId)：直接开工（复用 beginBuild）
+- quickInstallMod(modId)：直接安装（复用 installVehicleMod）
+- giveCheatMaterials()：从 applyCheatAll 抽出「只给材料」的独立方法
+  （供测试与只想补材料的场景）
+
+右栏 UI：
+- 基地 Tab 底部加「可建造」列表，点击即开工
+- 房车 Tab 底部加「可改装」列表，点击即安装
+- 每项显示等级变化（Lv0→1）与状态标签（可建/缺材料/缺科技/缺前置）
+- 超过 6 项可展开全部
+
+三、测试
+- 新增 rightcol.test.ts 12 项
+- 总数 850 项全部通过
+- tsc 零错误
+
+注：库存生成进行中（143/281，63512 字）
