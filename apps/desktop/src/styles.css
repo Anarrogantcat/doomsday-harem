@@ -1178,43 +1178,119 @@ legend { color: var(--sub); font-size: 0.78em; padding: 0 0.4em; }
 }
 .cheat-actions { display: flex; flex-direction: column; gap: 0.2em; }
 .cheat-btn {
+  display: flex; flex-direction: column; gap: 0.05em;
+  width: 100%; text-align: left;
+  background: transparent; border: 1px solid transparent;
+  border-radius: 0.25em; padding: 0.35em 0.5em; cursor: pointer;
+  transition: background-color .12s, border-color .12s;
+}
+.cheat-btn:hover { background: var(--panel3); border-color: var(--accent); }
+.cheat-btn:active { transform: scale(0.99); }
+.cheat-btn-name { font-size: 0.8em; color: var(--fg); }
+.cheat-btn-desc { font-size: 0.68em; color: var(--dim); line-height: 1.4; }
 
-/* ============ 科技树双轨 ============ */
-.scope-dot { margin-left: 0.35em; font-size: 0.85em; }
-.scope-dot.shared { color: var(--info); }
-.scope-dot.personal { color: var(--accent-lt); }
-.scope-badge {
-  display: inline-block; font-size: 0.72em; padding: 0.1em 0.45em;
-  border-radius: 0.25em; white-space: nowrap;
+/* ============ 作弊悬浮按钮 ============ */
+.cheat-fab {
+  position: fixed; z-index: 200;
+  display: flex; align-items: center; gap: 0.35em;
+  padding: 0.5em 0.85em;
+  background: var(--accent); color: #fff;
+  border: 1px solid var(--accent-lt); border-radius: 1.6em;
+  font-size: 0.85em; font-weight: 600; cursor: grab;
+  box-shadow: 0 0.3em 1em rgba(0,0,0,.5);
+  user-select: none; -webkit-user-select: none;
+  touch-action: none;
+  transition: box-shadow .15s, background-color .15s;
 }
-.scope-badge.shared { color: var(--info); border: 1px solid var(--info); }
-.scope-badge.personal { color: var(--accent-lt); border: 1px solid var(--accent); }
-.node-name { font-weight: 500; }
+.cheat-fab:hover { background: var(--accent-lt); }
+.cheat-fab.active { background: var(--accent-dk); }
+.cheat-fab.dragging {
+  cursor: grabbing; transition: none;
+  box-shadow: 0 0.6em 1.8em rgba(0,0,0,.7);
+}
+.fab-icon { font-size: 1.05em; }
+.fab-label { letter-spacing: 0.05em; }
 
-.research-team {
-  margin-top: 0.4em; padding: 0.5em;
-  background: var(--panel2); border-radius: var(--radius);
-  border-left: 2px solid var(--info);
+/* ============ 作弊悬浮窗 ============ */
+.cheat-win {
+  position: fixed; z-index: 190;
+  width: min(46em, 82vw); height: min(40em, 78vh);
+  display: flex; flex-direction: column;
+  background: var(--bg); border: 2px solid var(--accent);
+  border-radius: 0.5em; overflow: hidden;
+  box-shadow: 0 1.2em 3.5em rgba(0,0,0,.75);
 }
-.rt-head {
-  display: flex; justify-content: space-between; align-items: baseline;
-  font-size: 0.82em; margin-bottom: 0.35em;
+.cw-head {
+  display: flex; align-items: center; gap: 0.6em;
+  padding: 0.5em 0.75em;
+  background: linear-gradient(90deg, var(--accent), var(--accent-dk));
+  cursor: grab; user-select: none; -webkit-user-select: none;
+  touch-action: none;
 }
-.rt-rate { color: var(--info); font-variant-numeric: tabular-nums; }
-.rt-bonus { color: var(--ok); font-size: 0.9em; }
-.rt-list { display: flex; flex-direction: column; gap: 0.15em; }
-.rt-row {
-  display: flex; align-items: center; gap: 0.5em;
-  font-size: 0.74em; padding: 0.2em 0.35em; border-radius: 0.2em;
+.cw-head:active { cursor: grabbing; }
+.cw-title { font-size: 0.9em; font-weight: 700; color: #fff; }
+.cw-sub { font-size: 0.72em; color: rgba(255,255,255,.75); flex: 1; }
+.cw-btns { display: flex; gap: 0.35em; }
+.cw-all {
+  background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35);
+  color: #fff; border-radius: 0.3em; padding: 0.2em 0.7em;
+  font-size: 0.78em; font-weight: 600; cursor: pointer;
 }
-.rt-row.on { background: rgba(0,245,239,.06); }
-.rt-row.off { opacity: .5; }
-.rt-name { flex: 1; }
-.rt-skills { color: var(--dim); }
-.rt-contrib { color: var(--ok); font-variant-numeric: tabular-nums; }
-.rt-row.off .rt-contrib { color: var(--dim); }
-.research-note {
-  font-size: 0.75em; color: var(--accent-lt); padding: 0.4em 0.5em;
-  background: rgba(141,49,176,.08); border-left: 2px solid var(--accent);
-  border-radius: var(--radius); margin-top: 0.4em;
+.cw-all:hover { background: rgba(255,255,255,.3); }
+.cw-close {
+  background: transparent; border: none; color: #fff;
+  font-size: 1em; cursor: pointer; padding: 0 0.3em; line-height: 1;
 }
+.cw-close:hover { color: var(--warn); }
+.cw-snap {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  gap: 1px; background: var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.cw-snap-cell { background: var(--panel2); padding: 0.35em 0.2em; text-align: center; }
+.cw-snap-cell b {
+  display: block; font-size: 0.95em; color: var(--accent-lt);
+  font-variant-numeric: tabular-nums;
+}
+.cw-snap-cell span { font-size: 0.65em; color: var(--dim); }
+.cw-msg {
+  font-size: 0.75em; color: var(--ok); padding: 0.35em 0.7em;
+  background: rgba(12,215,28,.08); border-bottom: 1px solid var(--line);
+  white-space: pre-wrap; max-height: 4em; overflow-y: auto;
+}
+.cw-cats {
+  display: flex; gap: 0.15em; padding: 0.35em 0.5em;
+  flex-wrap: wrap; border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.cw-cat {
+  background: transparent; border: 1px solid transparent;
+  color: var(--sub); border-radius: 0.25em;
+  padding: 0.2em 0.5em; font-size: 0.78em; cursor: pointer;
+}
+.cw-cat:hover { color: var(--fg); background: var(--panel2); }
+.cw-cat.active { background: var(--accent); color: #fff; }
+.cw-filter {
+  margin: 0.4em 0.6em 0;
+  background: #1c2330; border: 1px solid var(--line); color: var(--fg);
+  border-radius: var(--radius); padding: 0.35em 0.6em; font-size: 0.8em;
+}
+.cw-body {
+  flex: 1; overflow-y: auto; padding: 0.5em 0.6em;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(14em, 1fr));
+  gap: 0.25em; align-content: start;
+}
+.cw-act {
+  display: flex; flex-direction: column; gap: 0.05em;
+  background: var(--panel2); border: 1px solid transparent;
+  border-left: 2px solid var(--accent);
+  border-radius: 0.25em; padding: 0.35em 0.5em;
+  cursor: pointer; text-align: left;
+  transition: background-color .12s, border-color .12s;
+}
+.cw-act:hover { background: var(--panel3); border-left-color: var(--accent-lt); }
+.cw-act:active { transform: scale(0.99); }
+.cw-act-name { font-size: 0.78em; color: var(--fg); }
+.cw-act-desc { font-size: 0.66em; color: var(--dim); line-height: 1.35; }
+
+

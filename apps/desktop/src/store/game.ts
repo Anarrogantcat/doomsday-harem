@@ -161,7 +161,7 @@ function makeSession(): GameSession {
 export const useGame = create<GameState>((set, get) => ({
   session: makeSession(),
   version: 0,
-  cheat: { ...DEFAULT_CHEAT },
+  cheat: { ...defaultSettings().cheat },
   llm: { ...DEFAULT_LLM_SETTINGS },
   narrator: null,
   pixelConfig: { ...DEFAULT_VIEW_CONFIG },
@@ -965,12 +965,16 @@ export const useGame = create<GameState>((set, get) => ({
   },
 
   setCheat: (patch) => {
-    set((s) => ({ cheat: { ...s.cheat, ...patch } }));
+    // 同步到 settings.cheat（设置面板与悬浮窗共用同一份状态）
+    set((s) => ({
+      cheat: { ...s.cheat, ...patch },
+      settings: patchCheatFn(s.settings, patch)
+    }));
     const { cheat, session, refresh, pushLog } = get();
-    // 作弊器开启即全开：接入全部系统
+    // 作弊器开启即全开：执行全部作弊项
     if (cheat.enabled) {
-      const r = session.applyCheatAll();
-      pushLog(`作弊器已启用：科技 ${r.techUnlocked}　同伴 ${r.companionsMaxed}　设施 ${r.baseBuilt}　改装 ${r.vehicleMods}`);
+      const r = session.runCheatAll();
+      pushLog(`作弊器已启用：${r.message}`);
     }
     refresh();
   },

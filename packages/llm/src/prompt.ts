@@ -393,6 +393,22 @@ export function classifyLines(
       // 否则当作叙述+台词处理（落到下面的 inline 分支）
     }
 
+    // 多引号行：`大学女教师「第一句」「第二句」`
+    // 模型常把同一人的多句台词连写，需拆成多条
+    const multiQuote = rawLine.match(/^([^「」\n]{1,6})\s*((?:[「『][^」』]*[」』])+)$/);
+    if (multiQuote) {
+      const nm = multiQuote[1].trim();
+      const isKnown = knownSpeakers.includes(nm);
+      if (isKnown || !NARRATION_WORDS.test(nm)) {
+        const quotes = [...multiQuote[2].matchAll(/[「『]([^」』]*)[」』]/g)];
+        for (const q of quotes) {
+          const t = q[1].trim();
+          if (t) out.push({ layer: "speech", text: t, speaker: nm });
+        }
+        if (quotes.length > 0) continue;
+      }
+    }
+
     // 冒号写法：`姐姐：抓紧我。`（无引号）
     const colonForm = rawLine.match(/^([^：:\n]{1,6})[：:]\s*(.+)$/);
     if (colonForm) {
@@ -409,6 +425,10 @@ export function classifyLines(
       const s = seg.trim();
       if (!s) continue;
 
+      // 丢弃纯引号残片（模型输出的孤立「」或」）
+      if (/^[「『」』\s]*$/.test(s)) continue;
+      if (/^[「『]?[…\.\s]*[」』]?$/.test(s)) continue;
+
       // 段落内嵌台词。仅当整段就是「名字「台词」」时才算，
       // 否则交给下面的 inline 分支按叙述+台词拆分。
       const spFull = s.match(FULL_SPEECH_RE);
@@ -419,6 +439,22 @@ export function classifyLines(
           out.push({ layer: "speech", text: spFull[2].trim(), speaker: nm });
           continue;
         }
+      }
+
+      // 引号对 + 多余的闭合引号（「台词」」）→ 只取台词，丢弃多余引号
+      const extraClose = s.match(/^[「『]([^」』]+)[」』][」』]+$/);
+      if (extraClose) {
+        const text = extraClose[1].trim();
+        if (text) {
+          const lastSpk = [...out].reverse().find((l) => l.layer === "speech")?.speaker;
+          const prevNar = [...out].reverse().find((l) => l.layer !== "speech");
+          const spk = lastSpk
+            ?? (prevNar ? speakerFromNarration(prevNar.text) : undefined)
+            ?? inferSpeaker(lookaheadFrom(rawIdx + 1))
+            ?? "主角";
+          out.push({ layer: "speech", text, speaker: spk });
+        }
+        continue;
       }
 
       // 引号闭合后还有叙述（`「别动。」她想了很久。`）→ 拆分
@@ -443,11 +479,23 @@ export function classifyLines(
       if (bare) {
         const text = bare[1].replace(/[」』]$/, "").trim();
 
-        // 优先用紧邻的上一条叙述行判定（最常见形态：
-        //   「她……喘息。」
-        //   「别动了」）
+        // 孤立引号（模型输出的残片，如单独一个「」或」）→ 丢弃
+        if (!text || /^[「『」』\s]*$/.test(text)) {
+          continue;
+        }
+
+        // 若该行只有引号与省略号（如「……」），也视为残片
+        if (/^[「『」』…\.\s]+$/.test(text)) {
+          continue;
+        }
+
+        // 优先沿用上一位说话人（模型常把同一人的多句拆到多行）
+        const lastSpeaker = [...out].reverse().find((l) => l.layer === "speech")?.speaker;
+
+        // 其次用紧邻的上一条叙述行判定
         const prevNarration = [...out].reverse().find((l) => l.layer !== "speech");
         let inferred =
+          lastSpeaker ??
           (prevNarration ? speakerFromNarration(prevNarration.text) : undefined) ??
           inferSpeaker(lookaheadFrom(rawIdx + 1));
 

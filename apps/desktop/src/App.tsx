@@ -13,6 +13,7 @@ import { CombatView } from "./shell/CombatView.tsx";
 import { StatusStrip, MessageLog } from "./shell/StatusStrip.tsx";
 import { Overlay } from "./shell/Overlay.tsx";
 import { SettingsPanel } from "./shell/SettingsPanel.tsx";
+import { CheatOverlay } from "./shell/CheatOverlay.tsx";
 
 const KEY_MAP: Record<string, string> = {
   i: "items", n: "quests", t: "tech", b: "base", w: "wardrobe",
@@ -236,6 +237,7 @@ export function App() {
       <StatusStrip />
       <MessageLog />
       <Overlay tab={overlay} onClose={() => setOverlay(null)} />
+      <CheatOverlay />
 
       <div className="keyhint">
         Tab 切换视图　P 画面　I 物品　N 主线　T 科技　B 基地　W 服装　M 模型　S 存档　←/→ 翻页　Esc 关闭
