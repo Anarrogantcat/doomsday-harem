@@ -34,6 +34,11 @@ export function App() {
   const [streamText, setStreamText] = useState("");
   const counter = useMemo(() => ({ n: 0 }), []);
 
+  // 启动时加载预生成文本库存
+  useEffect(() => {
+    void useGame.getState().loadStock();
+  }, []);
+
   // 默认选中好感最高的同伴
   useEffect(() => {
     if (selected) return;

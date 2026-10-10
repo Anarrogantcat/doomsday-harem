@@ -4,7 +4,11 @@ import { useGame } from "../store/game.ts";
 export function StatusStrip() {
   const session = useGame((s) => s.session);
   const version = useGame((s) => s.version);
+  const stockStats = useGame((s) => s.stockStats);
   void version;
+  const stock = (() => {
+    try { return stockStats(); } catch { return null; }
+  })();
 
   const h = Math.floor(session.time.minute / 60);
   const m = session.time.minute % 60;
@@ -40,6 +44,11 @@ export function StatusStrip() {
       {session.offspring.length > 0 && <span className="ss-item">后代 <b>{session.offspring.length}</b></span>}
       <span className="ss-sep" />
       <span className="ss-item" title="房车燃料">燃料 <b>{session.vehicle.fuel.toFixed(0)}L</b></span>
+      {stock && stock.total > 0 && (
+        <span className="ss-item" title={`预生成文本 ${stock.total} 条 / ${stock.totalChars.toLocaleString()} 字`}>
+          库存 <b>{stock.total}</b>
+        </span>
+      )}
       <span className="ss-item" title="待处理">
         {session.pendingNightRaids().length > 0
           ? <b className="ss-alert">夜袭预警 {session.pendingNightRaids().length}</b>

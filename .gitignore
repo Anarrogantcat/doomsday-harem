@@ -34,3 +34,5 @@ _commitmsg.txt
 # 批量生成的文本库存（体积大，按需重建）
 packages/core/data/generated/h_scenes.json
 apps/desktop/public/data/h_scenes.json
+# demo 构建产物
+apps/desktop/dist-demo/

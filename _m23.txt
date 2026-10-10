@@ -1,0 +1,32 @@
+feat: Demo 构建与启动器 v0.27.0
+
+一、Demo 构建
+- 新增 apps/desktop/vite.demo.config.ts
+  · base: "./" 资源走相对路径，支持 file:// 直接打开
+  · 输出到 dist-demo/，不生成 sourcemap（体积减半）
+- package.json 新增 build:demo / demo / demo:open
+
+二、Demo 启动器
+- 新增 scripts/demo.mjs：本地静态服务器
+  · 默认 4173 端口，--port 可改，--open 自动开浏览器
+  · SPA 回退、MIME 映射、目录穿越防护
+  · 启动时打印快捷键说明
+  · 说明为何需要它：file:// 下浏览器拦截 fetch，库存无法加载
+
+三、修复：库存未自动加载
+- loadStock 定义了但从未被调用 → App 启动时自动加载
+- 状态条新增库存显示（条数）
+- 实测：底部显示「库存 63」，叙事区显示「文本库存: 63 条 / 27,911 字」
+
+四、文档
+- 新增 DEMO.md：快速开始、界面说明、快捷键表、模型接入、
+  库存生成、存档机制、游戏规则要点、素材来源、目录结构、已知限制
+
+验证
+- file:// 直接打开：界面正常
+- HTTP 服务打开：界面正常 + 库存自动加载
+- 测试 763 项全部通过
+- tsc 零错误
+- Tauri cargo check 通过
+
+注：完整库存生成进行中（64/281）
