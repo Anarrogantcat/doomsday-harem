@@ -315,6 +315,51 @@ background:rgba(0,0,0,.25);border-radius:.25em;margin-bottom:.5em}
 .eq-sum .l{font-size:.68em;color:var(--dim)}
 
 
+/* ============ 选项区 ============ */
+.obar{
+  flex-shrink:0;border-top:1px solid var(--line);background:var(--panel);
+  display:flex;flex-direction:column;max-height:14em;overflow-y:auto;
+}
+.ohint{
+  display:flex;align-items:center;gap:.6em;padding:.3em .8em;
+  font-size:.72em;color:var(--dim);background:rgba(0,0,0,.22);flex-shrink:0;
+  position:sticky;top:0;z-index:2;
+}
+.ohint .ohl{color:var(--accent-lt);font-weight:600;letter-spacing:.06em}
+.ohint .ohk{margin-left:auto}
+.olist{display:flex;flex-direction:column;gap:.25em;padding:.4em .8em .5em}
+.opt{
+  display:flex;align-items:center;gap:.55em;width:100%;text-align:left;
+  padding:.45em .7em;background:var(--panel2);border:1px solid var(--line);
+  border-left:3px solid var(--line);border-radius:.25em;
+  color:var(--fg);font-family:inherit;font-size:.84em;cursor:pointer;
+  transition:all .12s;
+}
+.opt:hover:not(.lock){
+  background:var(--panel3);border-left-color:var(--accent-lt);transform:translateX(.2em);
+}
+.opt .oi{flex-shrink:0;font-size:1em;width:1.2em;text-align:center}
+.opt .ot{flex:1;min-width:0;line-height:1.35}
+.opt .ok{
+  flex-shrink:0;font-size:.82em;color:var(--dim);
+  border:1px solid var(--line);border-radius:.15em;padding:0 .4em;
+}
+.opt.go{border-left-color:var(--accent);background:linear-gradient(90deg,var(--accent-dk),var(--panel2))}
+.opt.go .ok{border-color:var(--accent);color:var(--accent-lt)}
+.opt.lock{opacity:.45;cursor:not-allowed;border-left-color:var(--line)}
+.opt.picked{border-left-color:var(--ok);background:rgba(12,215,28,.1)}
+.opt.picked .ok{border-color:var(--ok);color:var(--ok)}
+
+/* 输入栏开关 */
+.itoggle{
+  background:transparent;border:1px solid var(--line);color:var(--sub);
+  border-radius:.2em;padding:0 .4em;cursor:pointer;font-family:inherit;
+  font-size:1em;line-height:1.5;margin-left:.4em;transition:all .12s;
+}
+.itoggle:hover{border-color:var(--accent-lt);color:var(--fg)}
+.ibody{display:block}
+.ibody.hidden{display:none}
+
 /* ============ 事件栏（叙事区下方，可拖动调节） ============ */
 
 /* 能源说明 */
@@ -1310,6 +1355,41 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
       </div>
     </div>
     <!-- 事件栏（可拖动调节高度，可折叠，可滚动看全部） -->
+    <!-- 选项区：每个节拍结束后的选择 -->
+    <div class="obar" id="obar">
+      <div class="ohint">
+        <span class="ohl">选择回应</span>
+        <span class="ohk">数字键 1-9 快速选择 · 空格继续</span>
+      </div>
+      <div class="olist" id="olist">
+        <button class="opt go" onclick="pickOpt(this)">
+          <span class="oi">▶</span>
+          <span class="ot">继续</span>
+          <span class="ok">空格</span>
+        </button>
+        <button class="opt" onclick="pickOpt(this)">
+          <span class="oi">💬</span>
+          <span class="ot">问她：「你是什么时候醒的？」</span>
+          <span class="ok">好感 +2</span>
+        </button>
+        <button class="opt" onclick="pickOpt(this)">
+          <span class="oi">🤔</span>
+          <span class="ot">先不动，观察她的反应</span>
+          <span class="ok">感知判定</span>
+        </button>
+        <button class="opt" onclick="pickOpt(this)">
+          <span class="oi">✍</span>
+          <span class="ot">关掉屏幕，明天再说</span>
+          <span class="ok">欲情 −5</span>
+        </button>
+        <button class="opt lock" disabled>
+          <span class="oi">🔒</span>
+          <span class="ot">握住她（移动载体）的手</span>
+          <span class="ok">需好感 60</span>
+        </button>
+      </div>
+    </div>
+
     <div class="eventbar" id="eventbar">
       <div class="eb-grip" id="ebGrip" title="拖动调节高度"></div>
       <div class="eb-head">
@@ -1331,11 +1411,14 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
         <span class="imode on">对话</span>
         <span class="imode">H 场景内</span>
         <span class="imode">生成 H 场景</span>
-        <span style="margin-left:auto;color:var(--dim);font-size:.9em">不用输入栏也能玩 · 点选项即可推进</span>
+        <span style="margin-left:auto;color:var(--dim);font-size:.9em">不用输入栏也能玩 · 点上面的选项即可推进</span>
+        <button class="itoggle" onclick="toggleInputbar()" id="ibToggle" title="显示 / 隐藏输入栏">▾</button>
       </div>
-      <div class="irow">
-        <input type="text" placeholder="说点什么…（Enter 发送，Shift+Enter 换行）">
-        <button class="sbtn">发送</button>
+      <div class="ibody" id="ibody">
+        <div class="irow">
+          <input type="text" placeholder="说点什么…（Enter 发送，Shift+Enter 换行）">
+          <button class="sbtn">发送</button>
+        </div>
       </div>
       <div class="ihint">当前对象：<b>特殊AI</b>　模型：<b>qwen3:14b</b>　状态：<b style="color:var(--ok)">在线</b></div>
     </div>
@@ -3383,6 +3466,33 @@ function initSplitters() {
   });
 }
 
+/* ============ 选项区 ============ */
+function pickOpt(el) {
+  if (el.classList.contains("lock")) return;
+  document.querySelectorAll(".opt").forEach((x) => x.classList.remove("picked"));
+  el.classList.add("picked");
+  const txt = el.querySelector(".ot")?.textContent ?? "";
+  toastMsg("选择：" + txt.slice(0, 18));
+}
+function toggleInputbar() {
+  const b = document.getElementById("ibody");
+  const t = document.getElementById("ibToggle");
+  if (!b) return;
+  const hidden = b.classList.toggle("hidden");
+  if (t) { t.textContent = hidden ? "▸" : "▾"; t.title = hidden ? "显示输入栏" : "隐藏输入栏"; }
+  try { localStorage.setItem("dh-inputbar", hidden ? "0" : "1"); } catch (e) {}
+}
+function loadInputbar() {
+  let v = "1";
+  try { v = localStorage.getItem("dh-inputbar") ?? "1"; } catch (e) {}
+  if (v === "0") {
+    const b = document.getElementById("ibody");
+    const t = document.getElementById("ibToggle");
+    if (b) b.classList.add("hidden");
+    if (t) { t.textContent = "▸"; }
+  }
+}
+
 function openFortress() {
   document.getElementById('fortress-view').classList.add('on');
   const n = document.querySelectorAll('#fortress-view .dbody > .fsec').length;
@@ -3800,6 +3910,17 @@ document.addEventListener("keydown", (e) => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
   // Ctrl+0 / Ctrl+Shift+0：恢复默认栏宽
   if (e.ctrlKey && e.key === "0") { e.preventDefault(); resetColWidths(); return; }
+  // 数字键 1-9 快速选择选项
+  if (/^[1-9]$/.test(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    const opts = [...document.querySelectorAll("#olist .opt")].filter((o) => !o.classList.contains("lock"));
+    const idx = parseInt(e.key, 10) - 1;
+    if (opts[idx]) { e.preventDefault(); pickOpt(opts[idx]); return; }
+  }
+  // 空格 = 继续
+  if (e.key === " " && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    const go = document.querySelector("#olist .opt.go");
+    if (go) { e.preventDefault(); pickOpt(go); return; }
+  }
   const map = { ArrowUp:"N", ArrowDown:"S", ArrowLeft:"W", ArrowRight:"E" };
   if (map[e.key] && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); mapMove(map[e.key]); }
 });
@@ -3842,6 +3963,7 @@ function toastMsg(t) {
 
 loadColWidths();
 initSplitters();
+loadInputbar();
 
 mapRender();
 mapUpdateDirs();
