@@ -2959,8 +2959,12 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
         <div class="dgrid">
           <div class="dcell"><span class="k">生理性别</span><span class="v accent">扶她</span></div>
           <div class="dcell"><span class="k">性别认同</span><span class="v">女性</span></div>
-          <div class="dcell"><span class="k">性取向</span><span class="v">泛性恋</span></div>
-          <div class="dcell"><span class="k">身高 / 胸围</span><span class="v">178cm / D</span></div>
+          <div class="dcell"><span class="k">性取向</span><span class="v">女</span></div>
+          <div class="dcell"><span class="k">身高</span><span class="v">178cm</span></div>
+          <div class="dcell"><span class="k">体重</span><span class="v">62kg</span></div>
+          <div class="dcell"><span class="k">三围</span><span class="v">90-62-92</span></div>
+          <div class="dcell"><span class="k">罩杯</span><span class="v">D</span></div>
+          <div class="dcell"><span class="k">体型</span><span class="v">高挑御姐</span></div>
         </div>
         <div class="sec">怀孕与生育</div>
         <div class="dgrid">
@@ -3147,13 +3151,6 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
           <div class="dcell"><span class="k">生育力</span><span class="v" style="color:var(--ok)">高</span></div>
           <div class="dcell"><span class="k">生理期</span><span class="v">正常</span></div>
         </div>
-        <div class="sec">生理</div>
-        <div class="dgrid">
-          <div class="dcell"><span class="k">生理性别</span><span class="v accent">女</span></div>
-          <div class="dcell"><span class="k">性别认同</span><span class="v">女性</span></div>
-          <div class="dcell"><span class="k">性取向</span><span class="v">泛性恋</span></div>
-          <div class="dcell"><span class="k">身高 / 胸围</span><span class="v">174cm / D</span></div>
-        </div>
         <div class="sec">怀孕与生育</div>
         <div class="dgrid">
           <div class="dcell"><span class="k">当前状态</span><span class="v" style="color:var(--dim)">未怀孕</span></div>
@@ -3314,17 +3311,23 @@ sister:{name:'姐姐',role:'主导方',title:'企业项目经理 · 26岁',tags:
 bars:[['体力',85,'var(--ok)'],['心情',72,'var(--energy)'],['好感',72,'var(--accent-lt)'],['欲情',88,'var(--lust)']],
 grid:[['岗位','物资管理'],['冷落','0 天'],['暴露度','8%'],['亲密度','T2'],['受伤','无'],['被动增益','2 项'],['生育力','高'],['生理期','正常']],
 preg:{state:'未怀孕',stage:'—',count:0,births:0,children:0,recover:'—'},
+body:{sex:'女',gender:'女性',orient:'女',height:'174cm',weight:'58kg',
+      measure:'86-60-90',cup:'D',build:'匀称',skin:'白皙'},
 acts:['口交（施）','口交（受）','正面位','背后位','骑乘位','后庭（施）']},
 mother:{name:'母亲',role:'照顾方',title:'单亲母亲 / 居家设计师 · 45岁',tags:['温柔照顾','172cm','E-cup','已婚'],lv:3,exp:'48/100',expPct:48,hue:40,
 bars:[['体力',78,'var(--ok)'],['心情',65,'var(--energy)'],['好感',57,'var(--accent-lt)'],['欲情',40,'var(--lust)']],
 grid:[['岗位','厨房'],['冷落','2 天'],['暴露度','5%'],['亲密度','T1'],['受伤','无'],['被动增益','1 项'],['生育力','中'],['生理期','不规律']],
 // 她已经是三个孩子的母亲
 preg:{state:'未怀孕',stage:'—',count:3,births:3,children:3,recover:'—'},
+body:{sex:'女',gender:'女性',orient:'女',height:'172cm',weight:'62kg',
+      measure:'92-66-94',cup:'E',build:'丰腴',skin:'温润'},
 acts:['口交（施）','正面位','骑乘位','胸交']},
 sister2:{name:'妹妹',role:'被保护者',title:'大学生 · 19岁',tags:['害羞内敛','162cm','C-cup','处女'],lv:2,exp:'30/100',expPct:30,hue:200,
 bars:[['体力',90,'var(--ok)'],['心情',80,'var(--energy)'],['好感',45,'var(--accent-lt)'],['欲情',62,'var(--lust)']],
 grid:[['岗位','温室'],['冷落','0 天'],['暴露度','4%'],['亲密度','T1'],['受伤','无'],['被动增益','0 项'],['生育力','高'],['生理期','正常']],
 preg:{state:'未怀孕',stage:'—',count:0,births:0,children:0,recover:'—'},
+body:{sex:'女',gender:'女性',orient:'女',height:'162cm',weight:'48kg',
+      measure:'80-56-84',cup:'C',build:'娇小',skin:'嫩白'},
 acts:['口交（受）','手活（受）']}};
 
 function HUE_SVG(h){return 'data:image/svg+xml;utf8,'+encodeURIComponent(
@@ -3335,6 +3338,22 @@ function HUE_SVG(h){return 'data:image/svg+xml;utf8,'+encodeURIComponent(
   "<rect width='120' height='184' fill='url(#g)'/>"+
   "<circle cx='60' cy='52' r='26' fill='hsl("+h+",30%,70%)'/>"+
   "<ellipse cx='60' cy='150' rx='34' ry='52' fill='hsl("+h+",32%,58%)'/></svg>");}
+
+/** 生理区块（按角色数据渲染） */
+function physiBlock(d){
+  const b = d.body || {};
+  const cell=(k,v,accent)=>'<div class="dcell"><span class="k">'+k+'</span><span class="v'+(accent?' accent':'')+'">'+(v||'—')+'</span></div>';
+  return '<div class="sec">生理</div><div class="dgrid">'
+    + cell('生理性别', b.sex, true)
+    + cell('性别认同', b.gender)
+    + cell('性取向', b.orient)
+    + cell('身高', b.height)
+    + cell('体重', b.weight)
+    + cell('三围', b.measure)
+    + cell('罩杯', b.cup)
+    + cell('体型', b.build)
+    + '</div>';
+}
 
 /** 怀孕与生育区块（按角色数据渲染） */
 function pregBlock(d){
@@ -3368,6 +3387,7 @@ function fillDetail(id){
   const st=q('#d-status');
   if(st){st.innerHTML=d.bars.map(([k,v,c])=>'<div class="kv"><span class="k">'+k+'</span><div class="tr"><div class="fl" style="width:'+v+'%;background:'+c+'"></div></div><span class="v">'+v+'</span></div>').join('')
     +'<div class="dgrid">'+d.grid.map(([k,v])=>'<div class="dcell"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>').join('')+'</div>'
+    + physiBlock(d)
     + pregBlock(d);}
   const ac=q('#d-acts');
   if(ac){const all=['口交（施）','口交（受）','正面位','背后位','骑乘位','后庭（施）','胸交','腿交'];

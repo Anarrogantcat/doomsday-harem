@@ -4,7 +4,7 @@
  */
 
 /** 游戏版本，语义化版本号 */
-export const VERSION = "0.59.0";
+export const VERSION = "0.60.0";
 
 /** 存档结构版本 —— 不兼容变更时递增 */
 export const SCHEMA_VERSION = 1;
