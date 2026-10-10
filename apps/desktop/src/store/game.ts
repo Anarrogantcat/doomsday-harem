@@ -1024,7 +1024,7 @@ export const useGame = create<GameState>((set, get) => ({
       pushLog(`无法进行：${r.reason ?? "未知原因"}`);
     } else {
       const name = c?.identity.name ?? companionId;
-      const actName = session.actSceneStats ? actId : actId;
+      const actName = actId;
       pushLog(`与 ${name} 的亲密（${actName}）`);
       if (r.leveledParts && r.leveledParts.length > 0) {
         pushLog(`熟练度提升：${r.leveledParts.join("、")}`);

@@ -180,8 +180,8 @@ function VehicleView({ onOpen }: { onOpen: () => void }) {
 
       <div className="rv-stats">
         <div><span>燃料</span><b>{v.fuel.toFixed(0)} L</b></div>
-        <div><span>电量</span><b>{v.battery.toFixed(0)}%</b></div>
-        <div><span>车况</span><b>{v.condition.toFixed(0)}%</b></div>
+        <div><span>电量</span><b>{v.charge.toFixed(0)}%</b></div>
+        <div><span>燃料</span><b>{v.fuel.toFixed(0)}L</b></div>
         <div><span>可远征</span><b>{session.vehicleAvailable() ? "是" : "否"}</b></div>
       </div>
 

@@ -18,7 +18,7 @@ import type { AudioChannel } from "../audio/index.ts";
 import type { GenerationMode } from "./sceneTier.ts";
 
 export type SettingsTab =
-  | "display" | "gameplay" | "content" | "audio" | "lang" | "cheat" | "about";
+  | "display" | "gameplay" | "content" | "audio" | "lang" | "cheat" | "sharing" | "about";
 
 export const SETTINGS_TAB_LABEL: Record<SettingsTab, string> = {
   display: "显示",
@@ -27,6 +27,7 @@ export const SETTINGS_TAB_LABEL: Record<SettingsTab, string> = {
   audio: "音频",
   lang: "语言",
   cheat: "作弊",
+  sharing: "加成共享",
   about: "关于"
 };
 
@@ -37,6 +38,7 @@ export const SETTINGS_TAB_ICON: Record<SettingsTab, string> = {
   audio: "≈",
   lang: "文",
   cheat: "⌘",
+  sharing: "⇄",
   about: "ⓘ"
 };
 

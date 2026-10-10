@@ -16,6 +16,9 @@ import { SettingsPanel } from "./shell/SettingsPanel.tsx";
 import { CheatOverlay } from "./shell/CheatOverlay.tsx";
 import { MainMenu } from "./shell/MainMenu.tsx";
 import { BigMap } from "./shell/GridMap.tsx";
+import { FortressSections } from "./shell/FortressSections.tsx";
+import { OptionsBar, EventBar, InputBar, type Option, type EventEntry } from "./shell/CenterPieces.tsx";
+import { DetailPanel } from "./shell/DetailTabs.tsx";
 
 const KEY_MAP: Record<string, string> = {
   i: "items", n: "quests", t: "tech", b: "base", w: "wardrobe",
@@ -124,6 +127,47 @@ export function App() {
   }, [session, version, counter]);
 
   const current = entries[index] ?? entries[entries.length - 1];
+
+  /**
+   * 选项区（原型 .obar）。
+   * 四个常驻选项 + 当前场景相关的动态项。
+   */
+  const options: Option[] = useMemo(() => {
+    const out: Option[] = [
+      { icon: "▶", text: "继续", hint: "空格", primary: true, onPick: () => setIndex((i) => Math.min(i + 1, entries.length - 1)) }
+    ];
+    if (current?.scene) {
+      out.push({
+        icon: "💬", text: "与" + (current.scene.participants.find((x) => x !== "主角") ?? "对方") + "对话",
+        hint: "好感 +2",
+        onPick: () => {
+          const partner = session.findCompanion(current.scene!.participants.find((x) => x !== "主角") ?? "");
+          if (partner) {
+            session.gainAffection?.(partner.id, 2);
+            useGame.getState().pushLog(`与 ${partner.identity.name} 交谈（好感 +2）`);
+            useGame.getState().refresh();
+          }
+        }
+      });
+      out.push({ icon: "🤔", text: "观察她的反应", hint: "判定" });
+      out.push({ icon: "✍", text: "自由行动", hint: "输入" });
+    } else {
+      out.push({ icon: "💤", text: "休息到下一时段", hint: "R", onPick: () => { useGame.getState().advanceHours(6); } });
+      out.push({ icon: "🔍", text: "搜刮当前地点", hint: "L", onPick: () => { useGame.getState().lootCurrent(); } });
+    }
+    out.push({ icon: "🔒", text: "锁定（暂不可用）", hint: "—", locked: true });
+    return out;
+  }, [current, entries.length, session]);
+
+  /** 事件栏条目（原型 .eventbar）：从 log 取最近 40 条 */
+  const eventEntries: EventEntry[] = useMemo(
+    () => log.slice(0, 40).map((text, i) => ({
+      id: i,
+      text,
+      kind: /失败|无法|不足|危险|被|损失/.test(text) ? "alert" : /获得|完成|成功|升级/.test(text) ? "ok" : "info"
+    })),
+    [log]
+  );
   const canGenerate = !!current?.scene && !!narrator;
 
   const doGenerate = useCallback(async () => {
@@ -275,9 +319,15 @@ export function App() {
                 embedded
               />
             ) : (
-              <FortressSection onOpenBase={() => setOverlay("base")} />
+              <FortressSections onOpenBase={() => setOverlay("base")} />
             )}
           </div>
+
+          {/* 选项区：每节拍结束后的选择（原型 .obar） */}
+          <OptionsBar options={options} />
+
+          {/* 事件栏：可拖动高度、可折叠（原型 .eventbar） */}
+          <EventBar entries={eventEntries} />
 
           {/* 下侧栏：像素场景条 */}
           {showStrip && <PixelStrip height={148} />}
@@ -287,14 +337,22 @@ export function App() {
         <RightColumn onOpen={setOverlay} />
 
         {/* 最右：详情（主角或同伴） */}
-        <aside className="detailcol">
-          {selected === "hero" || !selected ? (
-            <HeroDetail />
-          ) : (
-            <CompanionDetail id={selected} />
-          )}
+        <aside className="detailcol proto-detailcol">
+          <DetailPanel
+            kind={selected === "hero" || !selected ? "hero" : "companion"}
+            id={selected ?? undefined}
+          />
         </aside>
       </div>
+
+      <InputBar
+        busy={generating}
+        onSubmit={(t) => {
+          setEntries((prev) => [...prev, {
+            id: ++counter.n, kind: "event", title: "你的行动", text: t
+          } as NarrationEntry].slice(-200));
+        }}
+      />
 
       <StatusStrip />
       <MessageLog />

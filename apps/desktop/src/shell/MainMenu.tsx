@@ -75,7 +75,7 @@ export function MainMenu({ onEnter, onPanel }: MainMenuProps) {
             className="mm-btn"
             disabled={busy || !latest}
             onClick={() => latest && run(() => loadFromSlot(latest.slot))}
-            title={latest ? `最近存档：${formatSlotTime(latest.savedAt)}` : "暂无存档"}
+            title={latest ? `最近存档：${formatSlotTime(latest)}` : "暂无存档"}
           >
             <span className="mm-key">C</span>
             <span className="mm-label">继续游戏</span>

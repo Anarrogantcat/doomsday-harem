@@ -5,7 +5,7 @@ import {
   BONUS_DEFS, bonusDef, bonusesByCategory, newShareState, toggleShare,
   setCategoryShare, isShared, sharedKeys, companionBonuses, heroBonuses,
   companionAttributeBonus, shareStats, SHARE_RATIO, HERO_RATIO,
-  CATEGORY_LABEL, CATEGORY_DESC, shareToJSON, shareFromJSON,
+  BONUS_CATEGORY_LABEL, BONUS_CATEGORY_DESC, shareToJSON, shareFromJSON,
   type BonusCategory
 } from "../src/systems/bonusSharing.ts";
 
@@ -34,8 +34,8 @@ test("share: 字段完整", () => {
 test("share: 五个分类都有加成", () => {
   for (const c of CATS) {
     assert.ok(bonusesByCategory(c).length >= 3, `${c} 分类加成不足`);
-    assert.ok(CATEGORY_LABEL[c]);
-    assert.ok(CATEGORY_DESC[c]);
+    assert.ok(BONUS_CATEGORY_LABEL[c]);
+    assert.ok(BONUS_CATEGORY_DESC[c]);
   }
 });
 

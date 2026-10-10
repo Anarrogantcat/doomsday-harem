@@ -5,7 +5,7 @@ import {
   TIME_SCALE_LABEL, MODE_LABEL, CHANNEL_LABEL, LOCALE_LABEL,
   type SettingsTab, type RenderStyle, type ContentIntensity, type TimeScale,
   type GenerationMode, type AudioChannel, type Locale, type DetailLevel,
-  CATEGORY_LABEL, CATEGORY_DESC, SHARE_RATIO,
+  BONUS_CATEGORY_LABEL, BONUS_CATEGORY_DESC, SHARE_RATIO,
   type BonusCategory
 } from "@doomsday/core";
 import { useGame } from "../store/game.ts";
@@ -109,8 +109,8 @@ function SharingPanel() {
         return (
           <div key={cat} className="share-cat">
             <div className="share-cat-head">
-              <span className="share-cat-name">{CATEGORY_LABEL[cat]}</span>
-              <span className="share-cat-desc">{CATEGORY_DESC[cat]}</span>
+              <span className="share-cat-name">{BONUS_CATEGORY_LABEL[cat]}</span>
+              <span className="share-cat-desc">{BONUS_CATEGORY_DESC[cat]}</span>
               <span className="share-cat-count">
                 {catStats.shared}/{catStats.total}
               </span>

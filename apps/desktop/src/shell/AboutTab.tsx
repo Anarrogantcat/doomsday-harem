@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   ABOUT, ABOUT_INTRO, ABOUT_FEATURES, ABOUT_NOTICES, CHANGELOG,
-  checkUpdate, newUpdateResult, compareVersion,
+  VERSION, checkUpdate, newUpdateResult, compareVersion,
   type UpdateCheckResult
 } from "@doomsday/core";
 import { useGame } from "../store/game.ts";
@@ -40,7 +40,7 @@ function FeaturesSection() {
 /** 统计 */
 function StatsSection() {
   const session = useGame((s) => s.session);
-  const version = useGame((s) => s.version);
+  const version = VERSION;
   void version;
 
   const stats = [
@@ -71,7 +71,7 @@ function StatsSection() {
 
 /** 更新 */
 function UpdateSection() {
-  const version = useGame((s) => s.version);
+  const version = VERSION;
   const [url, setUrl] = useState("");
   const [result, setResult] = useState<UpdateCheckResult | null>(null);
   const [busy, setBusy] = useState(false);

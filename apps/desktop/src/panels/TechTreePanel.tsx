@@ -162,7 +162,7 @@ export function TechTreePanel() {
               : av.reason === "missing-prereq"
               ? `缺前置：${av.missingPrereqs.join("、")}`
               : av.reason === "missing-resource"
-              ? `缺材料：${Object.keys(av.missing ?? {}).join("、")}`
+              ? `缺材料：${av.missingResources.join("、")}`
               : "可研究";
 
             return (

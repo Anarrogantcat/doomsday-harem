@@ -30,7 +30,7 @@ function HeroCard({ selected, onSelect }: { selected: boolean; onSelect: () => v
           wardrobe={h.wardrobe}
           heightCm={h.identity.heightCm}
           build={0.55}
-          cup={h.cup ?? 3}
+          cup={3}
           personality="bold"
           futanari
           size={40}

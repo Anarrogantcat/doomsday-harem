@@ -20,7 +20,7 @@ export type BonusCategory =
   | "comfort"    // 舒适：心情、隐私、氛围
   | "special";   // 特殊：H 场景解锁等
 
-export const CATEGORY_LABEL: Record<BonusCategory, string> = {
+export const BONUS_CATEGORY_LABEL: Record<BonusCategory, string> = {
   survival: "生存",
   combat: "战斗",
   facility: "设施",
@@ -28,7 +28,7 @@ export const CATEGORY_LABEL: Record<BonusCategory, string> = {
   special: "特殊"
 };
 
-export const CATEGORY_DESC: Record<BonusCategory, string> = {
+export const BONUS_CATEGORY_DESC: Record<BonusCategory, string> = {
   survival: "食物产出、饮水、医疗与卫生条件",
   combat: "防御工事、武器储备、护盾与自动火力",
   facility: "居住容量、训练效率、研究速率",

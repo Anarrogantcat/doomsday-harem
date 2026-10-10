@@ -123,7 +123,7 @@ import {
   BONUS_DEFS, bonusDef, bonusesByCategory, newShareState, toggleShare,
   setCategoryShare, isShared, sharedKeys, companionBonuses, heroBonuses,
   companionAttributeBonus, shareStats, SHARE_RATIO, HERO_RATIO,
-  CATEGORY_LABEL, CATEGORY_DESC, shareToJSON, shareFromJSON,
+  BONUS_CATEGORY_LABEL, BONUS_CATEGORY_DESC, shareToJSON, shareFromJSON,
   type ShareJSON
 } from "../systems/bonusSharing.ts";
 import {

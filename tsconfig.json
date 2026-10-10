@@ -15,8 +15,10 @@
     ],
     "lib": [
       "ES2022",
-      "DOM"
+      "DOM",
+      "DOM.Iterable"
     ],
+    "jsx": "react-jsx",
     "paths": {
       "@doomsday/core": [
         "./packages/core/src/index.ts"
@@ -28,6 +30,8 @@
     "packages/core/test/**/*.ts",
     "packages/core/demo.ts",
     "packages/llm/src/**/*.ts",
-    "packages/llm/test/**/*.ts"
+    "packages/llm/test/**/*.ts",
+    "apps/desktop/src/**/*.ts",
+    "apps/desktop/src/**/*.tsx"
   ]
 }

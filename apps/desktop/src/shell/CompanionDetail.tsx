@@ -74,7 +74,7 @@ export function CompanionDetail({ id }: { id: string | null }) {
           wardrobe={c.wardrobe}
           heightCm={c.identity.heightCm}
           build={def?.build ?? 0.5}
-          cup={def?.cup ?? c.cup ?? 3}
+          cup={def?.cup ?? 3}
           personality={def?.personality}
           size={104}
         />
