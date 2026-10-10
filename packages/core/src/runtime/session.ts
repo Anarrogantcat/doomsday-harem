@@ -1218,6 +1218,11 @@ export class GameSession {
     }
 
     if (r.setFlag) this.flags[r.setFlag] = true;
+
+    // 同步主线阶段变量，供剧本条件 mainline_<companion>_stage >= N 使用
+    const stageNow = this.quests[questId]?.stage ?? 0;
+    this.flags[`mainline_${def.companionId}_stage`] = stageNow;
+
     if (r.questCompleted) {
       this.flags[def.companionId + "_joined"] = true;
       this.flags[questId + "_done"] = true;
@@ -3553,6 +3558,63 @@ export class GameSession {
   /** 标记某个剧本条件已达成（供主线推进） */
   setFlag(key: string, value: number | boolean | string): void {
     this.flags[key] = value;
+  }
+
+  /** 某位同伴的主线阶段（0 表示未开始） */
+  mainlineStage(companionId: string): number {
+    const v = this.flags[`mainline_${companionId}_stage`];
+    return typeof v === "number" ? v : 0;
+  }
+
+  /**
+   * 该同伴在当前主线阶段可触发的剧情场景。
+   *
+   * 生成的主线场景条件是 mainline_<id>_stage >= N，
+   * 因此阶段推进后旧场景仍可见（可回看）。
+   */
+  mainlineScenesFor(companionId: string): Array<{ id: string; title: string; stage: number }> {
+    const out: Array<{ id: string; title: string; stage: number }> = [];
+    const prefix = `q_${companionId}_s`;
+
+    for (const sc of this.registry.all()) {
+      if (!sc.id.startsWith(prefix)) continue;
+      const stage = Number(sc.id.slice(prefix.length));
+      if (!Number.isFinite(stage)) continue;
+      out.push({ id: sc.id, title: sc.title, stage });
+    }
+
+    return out.sort((a, b) => a.stage - b.stage);
+  }
+
+  /** 主线进度总览（供 UI） */
+  mainlineOverview(): Array<{
+    questId: string;
+    companionId: string;
+    companionName: string;
+    title: string;
+    stage: number;
+    totalSteps: number;
+    scenes: number;
+  }> {
+    const out = [];
+    for (const def of this.questDefs()) {
+      // 阶段以标志位为准（与剧本条件 mainline_<id>_stage 同源）
+      out.push({
+        questId: def.id,
+        companionId: def.companionId,
+        companionName: def.companionName,
+        title: def.title,
+        stage: this.mainlineStage(def.companionId),
+        totalSteps: def.steps.length,
+        scenes: this.mainlineScenesFor(def.companionId).length
+      });
+    }
+    return out;
+  }
+
+  /** 全部主线定义 */
+  questDefs() {
+    return QUESTS;
   }
 
   getFlag(key: string): number | boolean | string | undefined {

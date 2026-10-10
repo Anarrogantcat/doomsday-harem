@@ -187,11 +187,18 @@ function cleanup(text) {
   // 去掉行尾多余的引号
   t = t.replace(/(speech\([^)]+\):\s*[^\n]*?)["']\s*$/gm, "$1");
 
-  // 统一缩进：beat 内容用 4 空格
-  t = t.replace(/^(\s*)action:/gm, "    action:");
-  t = t.replace(/^(\s*)sense:/gm, "    sense:");
-  t = t.replace(/^(\s*)mind:/gm, "    mind:");
-  t = t.replace(/^(\s*)speech\(/gm, "    speech(");
+  // 统一顶层指令缩进（模型有时多缩一层）
+  t = t.replace(/^\s*@scene\s+/gm, "@scene ");
+  t = t.replace(/^\s*@end\s*$/gm, "@end");
+  t = t.replace(/^\s*@beat\s+/gm, "  @beat ");
+  t = t.replace(/^\s*@variant\s+/gm, "  @variant ");
+  t = t.replace(/^\s*(title|participants|tone|when):/gm, "  $1:");
+
+  // 统一节拍内容缩进：4 空格
+  t = t.replace(/^\s*action:/gm, "    action:");
+  t = t.replace(/^\s*sense:/gm, "    sense:");
+  t = t.replace(/^\s*mind:/gm, "    mind:");
+  t = t.replace(/^\s*speech\(/gm, "    speech(");
 
   // 确保以 @end 结尾
   if (!/@end\s*$/.test(t)) {
