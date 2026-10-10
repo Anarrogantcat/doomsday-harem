@@ -1,0 +1,47 @@
+feat: 输出规范化 + 库存接入 v0.24.0
+
+一、修复模型输出格式偏差（实测发现）
+批量生成 30 条后诊断出两类格式问题（各占 50%）：
+1. 说话人与台词被换行拆开：`姐姐\n「台词」` → 渲染成 `?「「台词」」`
+2. 嵌套引号：`「「台词」」`
+
+新增 normalizeOutput()（packages/llm/src/prompt.ts）
+- 合并被换行拆开的说话人（允许中间夹 ? ？ : ： 等杂字符）
+- 收拢嵌套引号（「「」」→「」、『『』』→『』、「『』」→「」）
+- 去掉说话人后的冒号（姐姐：「」→姐姐「」）
+- 清理孤立引号与行首杂问号
+- 幂等：重复规范化不再改变文本
+- parseBeats 内部自动调用，所有解析路径统一生效
+
+新增 normalize.test.ts 11 项
+- 含「真实模型输出样本」的端到端回归
+- 修复前：识别出说话人 `?`、文本含双层引号
+- 修复后：说话人 `姐姐`、文本 `今晚...别吵醒我`
+
+二、预生成文本库存的读取层
+新增 packages/core/src/text/stock.ts
+- StockIndex：按 key / 模板 / 角色三重索引
+- 精确查找 get()、模糊查找 find()（顺序不敏感、支持子集、有兜底）
+- forCompanion / forTemplate / stats / put（回填）/ export
+- indexFromJson：容错解析，非法输入返回空索引
+- 16 项测试
+
+三、库存接入生成管线
+- GenerationPipeline 新增 stock 选项与 fromStock()
+- 来源新增 "stock"：命中预生成文本则直接返回，省去推理
+- 优先级：库存 → 缓存 → 模型 → 手写兜底
+- 流式版本同样支持
+- store 新增 loadStock / stockStats，从 /data/h_scenes.json 加载
+
+四、脚本改进
+- pregenerate.mjs 同时输出到 apps/desktop/public/data/h_scenes.json
+  （供运行时 fetch 加载）
+- .gitignore 排除两处库存文件（体积大，按需重建）
+
+测试与构建
+- 新增 normalize 11 项 + stock 16 项
+- 总数 745 项全部通过
+- tsc 零错误
+- 前端 455KB
+
+注：库存重建进行中（每条约 24s，50 条约需 20 分钟）

@@ -42,7 +42,11 @@ const TIMEOUT_MS = Number(flag("timeout", "180000")) || 180000;
 
 const OUT_DIR = join(root, "packages", "core", "data", "generated");
 const OUT_FILE = join(OUT_DIR, "h_scenes.json");
+/** 同时输出到前端可访问目录，供运行时加载 */
+const PUB_DIR = join(root, "apps", "desktop", "public", "data");
+const PUB_FILE = join(PUB_DIR, "h_scenes.json");
 mkdirSync(OUT_DIR, { recursive: true });
+mkdirSync(PUB_DIR, { recursive: true });
 
 // ---------- 载入 core（Node 直接跑 TS） ----------
 const core = await imp("packages/core/src/index.ts");
@@ -180,9 +184,11 @@ for (const [i, item] of plan.entries()) {
     store.entries.push(entry);
     ok++;
 
-    // 逐条落盘
+    // 逐条落盘（同时更新前端副本）
     store.generatedAt = new Date().toISOString();
-    writeFileSync(OUT_FILE, JSON.stringify(store, null, 2), "utf8");
+    const json = JSON.stringify(store, null, 2);
+    writeFileSync(OUT_FILE, json, "utf8");
+    writeFileSync(PUB_FILE, json, "utf8");
 
     const pct = Math.round(((i + 1) / Math.min(plan.length, LIMIT)) * 100);
     console.log(`[${pct}%] ${item.key}　${entry.chars} 字　${entry.latencyMs}ms`);
@@ -195,6 +201,7 @@ for (const [i, item] of plan.entries()) {
 const total = ((Date.now() - t0) / 1000).toFixed(1);
 console.log(`\n完成：成功 ${ok}　失败 ${fail}　耗时 ${total}s`);
 console.log(`输出：${OUT_FILE}`);
+console.log(`前端副本：${PUB_FILE}`);
 console.log(`累计条目：${store.entries.length}`);
 
 // 统计

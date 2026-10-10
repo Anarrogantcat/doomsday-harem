@@ -4,7 +4,7 @@ import {
   type CheatOptions, type CheatEffects,
   type CompanionRuntime, type Activity, type JobId,
   type Weather, type ClothingSlot, type BodyZone, type ViewConfig, DEFAULT_VIEW_CONFIG,
-  type GenerationMode,
+  type GenerationMode, StockIndex, emptyStore, indexFromJson,
   newSlotList, upsertMeta, removeMeta, slotView, slotStats, buildMeta, packForSave, validateAndUnwrap,
   type SlotList, type SlotMeta, type SaveEnvelope,
 } from "@doomsday/core";
@@ -32,6 +32,9 @@ export interface GameState {
   lastSaveMsg: string;
   generationMode: GenerationMode;
   pipeline: GenerationPipeline;
+  /** 预生成文本库存 */
+  stock: StockIndex;
+  stockMsg: string;
   log: string[];
 
   // 操作
@@ -84,6 +87,8 @@ export interface GameState {
   setPixelConfig: (cfg: ViewConfig) => void;
   setGenerationMode: (mode: GenerationMode) => void;
   planReport: () => ReturnType<GenerationPipeline["planReport"]>;
+  loadStock: () => Promise<void>;
+  stockStats: () => ReturnType<StockIndex["stats"]> | null;
 
   saveToSlot: (slot: string) => Promise<void>;
   loadFromSlot: (slot: string) => Promise<void>;
@@ -135,6 +140,8 @@ export const useGame = create<GameState>((set, get) => ({
   lastSaveMsg: "",
   generationMode: "minor" as GenerationMode,
   pipeline: new GenerationPipeline({ mode: "minor", narrator: null }),
+  stock: new StockIndex(emptyStore()),
+  stockMsg: "",
   log: [],
 
   refresh: () => set((s) => ({ version: s.version + 1 })),
@@ -487,6 +494,31 @@ export const useGame = create<GameState>((set, get) => ({
   planReport: () => {
     const { session, pipeline } = get();
     return pipeline.planReport(session.registry.all().map((s) => s.id));
+  },
+
+  loadStock: async () => {
+    try {
+      const res = await fetch("/data/h_scenes.json");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.text();
+      const idx = indexFromJson(json);
+      const { pipeline, pushLog, refresh } = get();
+      pipeline.setStock(idx);
+      const s = idx.stats();
+      set({
+        stock: idx,
+        stockMsg: `已载入 ${s.total} 条预生成文本（${s.totalChars.toLocaleString()} 字）`
+      });
+      pushLog(`文本库存：${s.total} 条 / ${s.totalChars.toLocaleString()} 字`);
+      refresh();
+    } catch (e) {
+      set({ stockMsg: `库存未载入（${e instanceof Error ? e.message : String(e)}）` });
+    }
+  },
+
+  stockStats: () => {
+    const { stock } = get();
+    return stock.size > 0 ? stock.stats() : null;
   },
 
   saveToSlot: async (slot) => {

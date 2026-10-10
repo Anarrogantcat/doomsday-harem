@@ -190,9 +190,36 @@ export function buildMessages(ctx: ScenePromptContext): ChatMessage[] {
   return [buildSystemPrompt(), buildScenePrompt(ctx)];
 }
 
+/**
+ * 规范化模型输出，修复常见格式偏差。
+ *
+ * 处理的问题：
+ *  1. 说话人与台词被换行拆开：`姐姐\n「台词」` → `姐姐「台词」`
+ *  2. 嵌套引号：`「「台词」」` → `「台词」`
+ *  3. 说话人后缀冒号：`姐姐：「台词」` → `姐姐「台词」`
+ *  4. 引号用半角：`"台词"` → `「台词」`（仅当整行是台词时）
+ */
+export function normalizeOutput(text: string): string {
+  let s = text;
+
+  // 1) 说话人与引号之间被换行隔开（允许中间夹着 ? ？ : 等杂字符）
+  s = s.replace(/([^\s「『"：:\n]{1,12})\s*\n\s*[?？:：,，.。]*\s*([「『])/g, "$1$2");
+  // 2) 嵌套引号收拢
+  s = s.replace(/「「([^」]*)」」/g, "「$1」");
+  s = s.replace(/『『([^』]*)』』/g, "『$1』");
+  s = s.replace(/「『([^』]*)』」/g, "「$1」");
+  // 3) 说话人后的冒号
+  s = s.replace(/([^\s「『"：:\n]{1,12})[：:]\s*([「『])/g, "$1$2");
+  // 4) 孤立的多余引号
+  s = s.replace(/「」/g, "");
+  s = s.replace(/^[?？]\s*(?=[「『])/gm, "");
+
+  return s;
+}
+
 /** 解析模型输出：按 --- 切分节拍 */
 export function parseBeats(text: string): string[] {
-  return text
+  return normalizeOutput(text)
     .split(/^\s*---\s*$/m)
     .map((s) => s.trim())
     .filter((s) => s.length > 0);

@@ -42,6 +42,7 @@ export * from "./systems/harem.ts";
 export * from "./systems/combat.ts";
 export * from "./text/engine.ts";
 export * from "./text/view.ts";
+export * from "./text/stock.ts";
 export * from "./script/condition.ts";
 export * from "./script/parser.ts";
 export * from "./save/serialize.ts";
