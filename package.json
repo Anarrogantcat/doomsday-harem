@@ -1,7 +1,7 @@
 {
   "name": "doomsday-harem",
   "private": true,
-  "version": "0.64.0",
+  "version": "1.0.0",
   "type": "module",
   "workspaces": [
     "packages/*",
@@ -17,7 +17,6 @@
     "version:check": "node scripts/version.mjs --check",
     "dev": "pnpm --filter @doomsday/desktop dev",
     "build": "pnpm --filter @doomsday/desktop build",
-    "tauri": "pnpm --filter @doomsday/desktop tauri",
     "smoke:ollama": "node scripts/ollama-smoke.mjs",
     "gen": "node scripts/gen-scripts.mjs",
     "prebuild": "node scripts/gen-scripts.mjs",
@@ -32,7 +31,11 @@
     "gen:portraits": "node scripts/gen-portraits.mjs",
     "gen:stories": "node scripts/gen-stories.mjs",
     "sign": "powershell -ExecutionPolicy Bypass -File scripts/sign.ps1",
-    "build:installer": "pnpm --filter @doomsday/desktop exec tauri build --bundles nsis && pnpm sign && node scripts/make-portable.mjs"
+    "build:installer": "pnpm --filter @doomsday/desktop exec vite build && pnpm --filter @doomsday/desktop dist",
+    "electron": "pnpm --filter @doomsday/desktop electron",
+    "electron:dev": "pnpm --filter @doomsday/desktop electron:dev",
+    "dist": "pnpm --filter @doomsday/desktop dist",
+    "dist:portable": "pnpm --filter @doomsday/desktop dist:portable"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

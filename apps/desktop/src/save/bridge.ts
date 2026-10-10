@@ -1,12 +1,16 @@
 /**
- * Tauri 后端桥接 —— 数据目录与 Mod 加载。
+ * 桌面后端桥接 —— 数据目录与 Mod 加载。
  *
- * 与 save/backend.ts 分开：
- *  - backend.ts 负责存档读写（Tauri / localStorage / 内存三后端）
- *  - 本模块负责数据目录查询与 Mod 加载（仅 Tauri 可用）
+ * 支持两种宿主（迁移期并存）：
+ *   1. Electron（当前）—— window.dh.*，见 apps/desktop/electron/preload.cjs
+ *   2. Tauri（旧）     —— @tauri-apps/api 的 invoke
+ *
+ * 迁移原因：Tauri 产物是「Rust 外壳 + 运行时自解压」，
+ * 撞杀软高危特征；Electron 的 asar 结构误报率低。
  *
  * 浏览器环境下降级为空实现，便于开发预览。
  */
+import { bridge as electronBridge } from "./electronBridge.ts";
 
 export interface DataLayout {
   root: string;
@@ -38,20 +42,45 @@ export interface ModFile {
   size: number;
 }
 
-/** 是否运行在 Tauri 环境 */
-export function isTauriEnv(): boolean {
-  if (typeof window === "undefined") return false;
-  const w = window as unknown as Record<string, unknown>;
-  return "__TAURI_INTERNALS__" in w || "__TAURI__" in w;
+/** 是否运行在 Electron 环境 */
+export function isElectronEnv(): boolean {
+  return typeof window !== "undefined" && !!electronBridge;
 }
 
-async function invoke<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
-  const mod = await import("@tauri-apps/api/core");
-  return mod.invoke<T>(cmd, args);
+/** 是否运行在 Tauri 环境（旧宿主，迁移期保留） */
+/** Tauri 环境检测（迁移后恒为 false，保留以兼容调用点） */
+export function isTauriEnv(): boolean {
+  return false;
+}
+
+/** 是否运行在任一桌面宿主内 */
+export function isDesktopEnv(): boolean {
+  return isElectronEnv() || isTauriEnv();
+}
+
+/** Tauri 已移除 —— 保留此函数仅为兼容旧分支的编译通过 */
+async function invoke<T>(_cmd: string, _args: Record<string, unknown> = {}): Promise<T> {
+  throw new Error("Tauri 后端已移除，请使用 Electron");
 }
 
 /** 获取数据目录布局 */
 export async function getDataLayout(): Promise<DataLayout | null> {
+  // Electron：主进程 data:layout
+  if (electronBridge) {
+    try {
+      const l = await electronBridge.data.layout();
+      return {
+        root: l.dataRoot,
+        saves: l.saves,
+        config: l.dataRoot,
+        mods: l.mods,
+        logs: l.logs,
+        portable: false
+      };
+    } catch {
+      return null;
+    }
+  }
   if (!isTauriEnv()) {
     return {
       root: "（浏览器预览，无真实目录）",

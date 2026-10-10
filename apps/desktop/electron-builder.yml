@@ -1,0 +1,51 @@
+# electron-builder 配置
+#
+# 为什么从 Tauri 迁到 Electron：
+#   Tauri 产物是「Rust 外壳 + 运行时自解压」，撞杀软高危特征。
+#   Electron 的 app.asar 结构与 VS Code / Slack 同构，误报率低。
+#
+# asar 保持默认（true）—— 不写这一行。
+
+appId: com.doomsdayharem.app
+productName: DoomsdayHarem
+copyright: 免费 · 禁售 · 禁商用 · 禁直播录播 · 署名「染喵」
+
+directories:
+  output: dist-electron
+  buildResources: build
+
+# 只打包运行期真正需要的文件。
+# node_modules 默认会被全量复制（含 vite / typescript 等构建期依赖，
+# 可到 100+ MB），这里显式排除 —— 渲染层依赖已由 Vite 打进 dist/。
+# 只打这三个，其余一律不要。
+# 注意：不要用 '!node_modules/**/*' 排除 —— 那样写不生效，
+# workspace 依赖被 hoist 到仓库根，会被整包拖进 asar（实测 179 个条目）。
+files:
+  - dist/**/*
+  - electron/**/*
+  - package.json
+
+# 显式声明「不打 node_modules」
+asarUnpack: []
+npmRebuild: false
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  # 名称里不能含 / —— Windows 文件名非法字符，会渲染成乱码
+  shortcutName: DoomsdayHarem
+  deleteAppDataOnUninstall: false
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}

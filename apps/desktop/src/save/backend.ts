@@ -1,51 +1,64 @@
 /**
  * 存档持久化桥接层。
  *
- * 两种后端：
- *  - Tauri 环境：invoke 调用 Rust 侧（AES-256-GCM + HMAC，写入 app_data/saves）
+ * 三种后端：
+ *  - Electron 环境：经 preload 走主进程（AES-256-GCM + HMAC，写入 userData/data/saves）
  *  - 浏览器环境：降级到 localStorage（明文，仅供开发预览）
+ *  - 内存：测试用
  *
  * 上层（store）只调用本模块，不关心运行环境。
+ *
+ * 迁移说明：此前是 Tauri 后端（Rust 侧 save.rs）。切到 Electron 的原因
+ * 是 Tauri 产物撞杀软「自解压 + 写文件」特征，误报率高。
  */
 
 export interface SaveBackend {
-  readonly kind: "tauri" | "localStorage" | "memory";
+  readonly kind: "electron" | "localStorage" | "memory";
   save(slot: string, json: string): Promise<string>;
   load(slot: string): Promise<string>;
   list(): Promise<string[]>;
   remove(slot: string): Promise<void>;
 }
 
-/** 检测是否运行在 Tauri 环境 */
-export function isTauri(): boolean {
+/** 检测是否运行在 Electron 环境 */
+export function isElectron(): boolean {
   if (typeof window === "undefined") return false;
-  const w = window as unknown as Record<string, unknown>;
-  return "__TAURI_INTERNALS__" in w || "__TAURI__" in w;
+  const w = window as unknown as { dh?: { isElectron?: boolean } };
+  return !!w.dh?.isElectron;
 }
 
-/** Tauri 后端 */
-class TauriBackend implements SaveBackend {
-  readonly kind = "tauri" as const;
+/** Electron 后端（走 preload 暴露的 window.dh.save） */
+class ElectronBackend implements SaveBackend {
+  readonly kind = "electron" as const;
 
-  private async invoke<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
-    const mod = await import("@tauri-apps/api/core");
-    return mod.invoke<T>(cmd, args);
+  private get api() {
+    const w = window as unknown as { dh?: {
+      save: {
+        write(slot: string, json: string): Promise<string>;
+        read(slot: string): Promise<string>;
+        list(): Promise<Array<{ slot: string }>>;
+        remove(slot: string): Promise<boolean>;
+      }
+    } };
+    if (!w.dh?.save) throw new Error("Electron 桥未就绪");
+    return w.dh.save;
   }
 
   async save(slot: string, json: string): Promise<string> {
-    return this.invoke<string>("save_game", { slot, json });
+    return this.api.write(slot, json);
   }
 
   async load(slot: string): Promise<string> {
-    return this.invoke<string>("load_game", { slot });
+    return this.api.read(slot);
   }
 
   async list(): Promise<string[]> {
-    return this.invoke<string[]>("list_saves", {});
+    const rows = await this.api.list();
+    return rows.map((r) => r.slot);
   }
 
   async remove(slot: string): Promise<void> {
-    await this.invoke<void>("delete_save", { slot });
+    await this.api.remove(slot);
   }
 }
 
@@ -109,8 +122,8 @@ let cached: SaveBackend | null = null;
 /** 获取当前环境的后端 */
 export function getBackend(): SaveBackend {
   if (cached) return cached;
-  if (isTauri()) {
-    cached = new TauriBackend();
+  if (isElectron()) {
+    cached = new ElectronBackend();
   } else if (typeof localStorage !== "undefined") {
     cached = new LocalStorageBackend();
   } else {
@@ -131,7 +144,7 @@ export function newMemoryBackend(): SaveBackend {
 /** 环境描述，供 UI 显示 */
 export function backendLabel(): string {
   const k = getBackend().kind;
-  return k === "tauri" ? "Tauri（AES-256-GCM 加密）"
+  return k === "electron" ? "Electron（AES-256-GCM 加密）"
     : k === "localStorage" ? "浏览器 localStorage（明文，仅预览）"
     : "内存（未持久化）";
 }

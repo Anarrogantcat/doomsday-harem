@@ -39,3 +39,6 @@ packages/core/data/generated/h_scenes.json
 apps/desktop/public/data/h_scenes.json
 # demo 构建产物
 apps/desktop/dist-demo/
+
+# Electron 打包产物
+apps/desktop/dist-electron/

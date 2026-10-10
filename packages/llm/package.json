@@ -1,6 +1,6 @@
 {
   "name": "@doomsday/llm",
-  "version": "0.64.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "exports": {

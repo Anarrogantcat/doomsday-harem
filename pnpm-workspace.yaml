@@ -3,4 +3,11 @@ packages:
   - "apps/*"
 # 允许执行构建脚本的依赖（vite 需要 esbuild 的原生二进制）
 allowBuilds:
+  electron: true
   esbuild: true
+
+# 允许下载 Electron 二进制（pnpm 默认忽略构建脚本）
+onlyBuiltDependencies:
+  - electron
+  - electron-builder
+  - esbuild
