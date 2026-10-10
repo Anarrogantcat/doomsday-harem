@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { renderScene, type Scene } from "@doomsday/core";
 import { buildSceneContext } from "@doomsday/llm";
 import { useGame } from "./store/game.ts";
-import { HaremRoster } from "./shell/HaremRoster.tsx";
+import { LeftColumn } from "./shell/LeftColumn.tsx";
 import { RightColumn } from "./shell/RightColumn.tsx";
 import { NarrationPanel, type NarrationEntry } from "./shell/NarrationPanel.tsx";
 import { PixelStrip } from "./shell/PixelStrip.tsx";
@@ -331,7 +331,7 @@ export function App() {
     <div id="game" style={rootStyle} className={settings.gameplay.compactRoster ? "compact" : ""}>
       {/* ═══ 左栏：特殊AI + 后宫名册 + 快捷面板 ═══ */}
       <div className="left">
-        <HaremRoster selected={selected} onSelect={setSelected} />
+        <LeftColumn selected={selected} onSelect={setSelected} onOpen={setOverlay} />
       </div>
 
       <div className="splitter" onPointerDown={(e) => startDrag(e, "left")} onDoubleClick={() => resetCol("left")} title="拖动调节宽度 · 双击复位" />
