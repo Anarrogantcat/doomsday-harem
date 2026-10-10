@@ -146,6 +146,11 @@ import {
   canUseSkill, effectiveStats, combatSummary, settleCombat
 } from "../systems/combatExt.ts";
 import {
+  type DroneDef, type DroneUnit, type DroneTurnResult, type DroneAction,
+  DRONE_DEFS, availableDrones, droneSquadCap, squadDrones, squadSummary,
+  droneTurn, tickDrones, damageDrones, repairDrones
+} from "../systems/droneCombat.ts";
+import {
   type TechScope, SCOPE_LABEL, SCOPE_DESC, SCOPE_ICON,
   BRANCH_SCOPE, SCOPE_OVERRIDES, nodeScope, canCompanionResearch,
   researchContribution, teamResearchRate, scopeStats, sharedNodes,
@@ -1555,6 +1560,158 @@ export class GameSession {
       player: st,
       summary: combatSummary(ext)
     };
+  }
+
+  // ---------- 无人机战斗 ----------
+
+  /** 已解锁科技的加成表（键→数值），无人机等系统按 key 查表 */
+  techBonusTable(): Record<string, number> {
+    const out = aggregateBonuses(this.tech);
+    // 后宫授权的共用加成也计入（按共享比例）
+    const shared = this.flags["shared_tech_bonuses"];
+    if (shared && typeof shared === "object") {
+      for (const [k, v] of Object.entries(shared as Record<string, unknown>)) {
+        if (typeof v === "number") out[k] = (out[k] ?? 0) + v;
+      }
+    }
+    return out;
+  }
+
+  /** 已解锁的无人机列表（供编队界面） */
+  availableDrones(): DroneDef[] {
+    return availableDrones(this.techBonusTable());
+  }
+
+  /** 编队上限 */
+  droneSquadCap(): number {
+    return droneSquadCap(this.techBonusTable());
+  }
+
+  /** 玩家选定的无人机编队 id（存在 flags 里） */
+  droneSquadIds(): string[] {
+    const raw = this.flags["drone_squad"];
+    return Array.isArray(raw) ? (raw as string[]) : [];
+  }
+
+  /** 设置编队（超出上限会截断；无效 id 会被忽略） */
+  setDroneSquad(ids: string[]): void {
+    const avail = new Set(this.availableDrones().map((d) => d.id));
+    const cap = this.droneSquadCap();
+    this.flags["drone_squad"] = ids.filter((id) => avail.has(id)).slice(0, cap);
+  }
+
+  /** 当前编队的战斗单位 */
+  combatDrones(): DroneUnit[] {
+    const picked = this.droneSquadIds();
+    const units = squadDrones(this.techBonusTable(), picked.length ? picked : undefined);
+    // 战斗中的受损状态存在 flags，避免每回合重置
+    const dmgRaw = this.flags["drone_damage"];
+    const dmg = dmgRaw && typeof dmgRaw === "object" ? (dmgRaw as Record<string, number>) : {};
+    return units.map((u) => {
+      const lost = dmg[u.id] ?? 0;
+      const hp = Math.max(0, u.hp - lost);
+      return { ...u, hp, down: hp <= 0 };
+    });
+  }
+
+  /** 持久化无人机受损 */
+  private saveDroneDamage(units: DroneUnit[]): void {
+    const dmg: Record<string, number> = {};
+    for (const u of units) dmg[u.id] = u.maxHp - u.hp;
+    this.flags["drone_damage"] = dmg;
+  }
+
+  /** 编队概览（供 UI） */
+  droneSquadInfo(): {
+    available: DroneDef[];
+    picked: DroneUnit[];
+    cap: number;
+    summary: ReturnType<typeof squadSummary>;
+  } {
+    const picked = this.combatDrones();
+    return {
+      available: this.availableDrones(),
+      picked,
+      cap: this.droneSquadCap(),
+      summary: squadSummary(picked)
+    };
+  }
+
+  /**
+   * 执行一轮无人机行动。
+   * 在玩家行动之后、敌方回合之前调用。
+   */
+  combatDroneTurn(): DroneTurnResult | null {
+    if (!this.combat || this.combat.over) return null;
+    const units = this.combatDrones();
+    if (!units.length) return null;
+
+    const allies = [
+      { id: this.combat.player.id, name: this.combat.player.name, hp: this.combat.player.hp, maxHp: this.combat.player.hpMax },
+      ...this.combat.allies.map((a) => ({ id: a.id, name: a.name, hp: a.hp, maxHp: a.hpMax }))
+    ];
+    const enemies = this.combat.enemies.map((e) => ({
+      id: e.id, name: e.name, hp: e.hp, maxHp: e.hpMax
+    }));
+
+    const res = droneTurn({
+      units,
+      allies,
+      enemies,
+      round: this.combat.round,
+      accuracy: { value: 0 },
+      damageReduction: { value: 0 },
+      skipEnemy: { value: 0 }
+    });
+
+    const cs = this.combat;
+
+    // 应用敌人伤害
+    if (Object.keys(res.enemyDamage).length) {
+      cs.enemies = cs.enemies.map((e) => {
+        const d = res.enemyDamage[e.id];
+        if (!d) return e;
+        return { ...e, hp: Math.max(0, e.hp - d) };
+      });
+      // 无人机击杀也算战果
+      if (cs.enemies.every((e) => e.hp <= 0)) {
+        cs.over = true;
+        cs.victory = true;
+      }
+    }
+
+    // 应用治疗
+    if (Object.keys(res.allyHeal).length) {
+      const healHp = (hp: number, max: number, id: string) => {
+        const h = res.allyHeal[id];
+        return h ? Math.min(max, hp + h) : hp;
+      };
+      cs.player = { ...cs.player, hp: healHp(cs.player.hp, cs.player.hpMax, cs.player.id) };
+      cs.allies = cs.allies.map((a) => ({ ...a, hp: healHp(a.hp, a.hpMax, a.id) }));
+    }
+
+    // 冷却推进
+    const acted = res.actions.map((a) => a.droneId);
+    const next = tickDrones(this.combatDrones(), acted);
+    this.saveDroneDamage(next);
+
+    for (const a of res.actions) cs.log.push(a.icon + " " + a.text);
+
+    if (cs.over) this.applyCombatOutcome();
+    return res;
+  }
+
+  /** 敌人攻击时，有几率打无人机而非主力 */
+  droneInterceptChance(): number {
+    const units = this.combatDrones();
+    if (!units.some((u) => !u.down)) return 0;
+    const decoys = units.filter((u) => !u.down && (u.def.role === "decoy" || u.def.role === "shield"));
+    return decoys.length ? 0.45 : 0.2;
+  }
+
+  /** 战斗结束后修复全部无人机 */
+  repairDronesAfterCombat(): void {
+    this.flags["drone_damage"] = {};
   }
 
   // ---------- 分支事件（怀孕线 / 战败线） ----------

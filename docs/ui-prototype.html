@@ -827,6 +827,37 @@ padding:.5em .6em;background:rgba(0,0,0,.25);border-radius:.3em;font-size:.76em;
 .fsec-h.rooms{border-bottom-color:var(--accent-lt)}
 .fsec-h .fl.rm{background:linear-gradient(90deg,var(--accent),var(--accent-lt));color:#fff}
 
+.fsec-h.dronef{border-bottom-color:#4ade80}
+.fsec-h .fl.dc{background:linear-gradient(90deg,#1a7a3a,#4ade80);color:#fff}
+
+.dronesquad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.35em;margin-top:.3em}
+.drcard{display:flex;flex-direction:column;gap:.15em;padding:.5em .55em;background:var(--panel2);
+border:1px solid var(--line);border-left:3px solid var(--line);border-radius:.25em}
+.drcard.atk{border-left-color:var(--danger)}
+.drcard.heal{border-left-color:var(--ok)}
+.drcard.sup{border-left-color:var(--info)}
+.drcard .drh{display:flex;align-items:center;gap:.35em}
+.drcard .dri{font-size:1.1em}
+.drcard .drn{font-size:.8em;color:var(--fg);font-weight:600;flex:1}
+.drcard .drr{font-size:.65em;padding:0 .35em;border-radius:.15em;border:1px solid var(--line);color:var(--sub)}
+.drcard.atk .drr{border-color:var(--danger);color:var(--danger)}
+.drcard.heal .drr{border-color:var(--ok);color:var(--ok)}
+.drcard.sup .drr{border-color:var(--info);color:var(--info)}
+.drcard .drd{font-size:.68em;color:var(--dim);line-height:1.35}
+.drcard .drf{display:flex;justify-content:space-between;font-size:.66em;margin-top:.1em}
+.drcard .drhp{color:var(--dim)}
+.drcard .drcd{color:var(--ok)}
+.drcard .drcd.cd{color:var(--warn)}
+
+.dronepool{display:flex;flex-wrap:wrap;gap:.3em;margin-top:.3em}
+.drchip{padding:.28em .6em;font-size:.75em;font-family:inherit;cursor:pointer;
+background:var(--panel2);border:1px solid var(--line);border-radius:.25em;color:var(--sub);
+transition:all .12s}
+.drchip:hover{border-color:#4ade80;color:var(--fg)}
+.drchip.on{background:rgba(74,222,128,.15);border-color:#4ade80;color:#4ade80}
+.drchip.lock{opacity:.45;cursor:not-allowed}
+.drchip.lock:hover{border-color:var(--line);color:var(--sub)}
+
 .fsec-h.pharma{border-bottom-color:#7ee787}
 .fsec-h .fl.ph{background:#7ee787;color:#000}
 .fcell.pharma{border-left-color:#7ee787 !important}
@@ -1059,6 +1090,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
 @media (max-width:1000px){
   #fortress-view .defgrid,
   #fortress-view .fgrid{ grid-template-columns: repeat(4, minmax(0,1fr)) !important }
+  #fortress-view .dronesquad{ grid-template-columns: repeat(2, minmax(0,1fr)) }
   #fortress-view .roomlist{ grid-template-columns: 1fr }
   #fortress-view .roverlist{ grid-template-columns: 1fr }
   #fortress-view .raidlist{ grid-template-columns: repeat(2, minmax(0,1fr)) }
@@ -1068,6 +1100,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
 @media (max-width:760px){
   #fortress-view .defgrid,
   #fortress-view .fgrid{ grid-template-columns: repeat(3, minmax(0,1fr)) !important }
+  #fortress-view .dronesquad{ grid-template-columns: 1fr }
   #fortress-view .raidlist{ grid-template-columns: 1fr }
   #fortress-view .eq-sum{ grid-template-columns: repeat(3, minmax(0,1fr)) !important }
 }
@@ -2119,6 +2152,71 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
           <span>母舰停在要塞机库，按任务起飞；机组成员一律留在地面</span>
           <button class="pb-btn">派遣出击</button>
           <button class="pb-btn" style="background:var(--panel3);border-color:var(--line);color:var(--sub)">召回返场</button>
+        </div>
+      </div>
+
+      <!-- 无人机战斗编队 -->
+      <div class="fsec">
+        <div class="fsec-h dronef" onclick="fsecToggle(this)"><span class="fl dc">DRONE</span> 无人机战斗编队 <span class="fd">战斗中每回合自动行动 · 由 AI 指挥</span><span class="farrow">▼</span></div>
+
+        <div class="defrow" style="grid-template-columns:auto 1fr auto 1fr auto auto">
+          <div class="dt">编队</div><div class="dv"><b>5</b> / 5 台</div>
+          <div class="dt">每回合输出</div><div class="dv"><b style="color:var(--danger)">32</b> 点</div>
+          <div class="dt">每回合回复</div><div class="dv"><b style="color:var(--ok)">13</b> 点</div>
+        </div>
+
+        <div class="sec" style="margin-top:.35em">已编队　<span style="font-size:.9em;color:var(--dim)">战斗中轮到自己时自动执行</span></div>
+        <div class="dronesquad">
+          <div class="drcard atk">
+            <div class="drh"><span class="dri">🛡</span><span class="drn">护航无人机</span><span class="drr">输出</span></div>
+            <div class="drd">每回合造成 6 点伤害，可吸引仇恨</div>
+            <div class="drf"><span class="drhp">耐久 18/18</span><span class="drcd">就绪</span></div>
+          </div>
+          <div class="drcard atk">
+            <div class="drh"><span class="dri">🛸</span><span class="drn">伴飞护卫群</span><span class="drr">输出</span></div>
+            <div class="drd">三机编队，每回合共 9 点伤害</div>
+            <div class="drf"><span class="drhp">耐久 24/24</span><span class="drcd">就绪</span></div>
+          </div>
+          <div class="drcard heal">
+            <div class="drh"><span class="dri">🚑</span><span class="drn">医疗无人机</span><span class="drr">治疗</span></div>
+            <div class="drd">每 3 回合治疗最重伤者 8 点</div>
+            <div class="drf"><span class="drhp">耐久 14/14</span><span class="drcd cd">冷却 2</span></div>
+          </div>
+          <div class="drcard sup">
+            <div class="drh"><span class="dri">🔭</span><span class="drn">侦察无人机</span><span class="drr">侦察</span></div>
+            <div class="drd">标记弱点，全队命中与暴击 +8%</div>
+            <div class="drf"><span class="drhp">耐久 12/12</span><span class="drcd">就绪</span></div>
+          </div>
+          <div class="drcard sup">
+            <div class="drh"><span class="dri">⚙</span><span class="drn">重装护卫机</span><span class="drr">护盾</span></div>
+            <div class="drd">全队受到的伤害减少 20%</div>
+            <div class="drf"><span class="drhp">耐久 30/30</span><span class="drcd">就绪</span></div>
+          </div>
+        </div>
+
+        <div class="sec" style="margin-top:.4em">可编入　<span style="font-size:.9em;color:var(--dim)">点一下加入 / 移除（上限 5）</span></div>
+        <div class="dronepool">
+          <button class="drchip on" title="已编入">🔭 侦察无人机</button>
+          <button class="drchip on" title="已编入">🛡 护航无人机</button>
+          <button class="drchip on" title="已编入">🚑 医疗无人机</button>
+          <button class="drchip on" title="已编入">🛸 伴飞护卫群</button>
+          <button class="drchip on" title="已编入">⚙ 重装护卫机</button>
+          <button class="drchip">📡 通讯中继机</button>
+          <button class="drchip">🧭 探路机器人</button>
+          <button class="drchip">📻 广播诱敌机</button>
+          <button class="drchip">🔥 热诱饵无人机</button>
+          <button class="drchip">💥 自爆追击机</button>
+          <button class="drchip">🐝 蜂群微型机</button>
+          <button class="drchip">🎯 舰载校射机</button>
+          <button class="drchip">💣 舰载攻击机</button>
+          <button class="drchip">📶 舰载电子战机</button>
+          <button class="drchip">✈ 舰载无人僚机</button>
+          <button class="drchip lock">🔒 舰载轰炸机</button>
+          <button class="drchip lock">🔒 蜂群投放荚舱</button>
+        </div>
+
+        <div class="prodnote" style="color:#4ade80;background:rgba(74,222,128,.07);border-left-color:#4ade80">
+          无人机不是同伴，不占队伍位。被打掉会失效，战斗结束后自动修复。编队上限由「巡逻调度中枢」提升。
         </div>
       </div>
 

@@ -1,0 +1,42 @@
+v0.49.0：无人机战斗系统
+
+新增 packages/core/src/systems/droneCombat.ts
+- 19 种战斗无人机定义（侦察/输出/治疗/护盾/削弱/干扰/诱饵/补给）
+  护航无人机、伴飞护卫群、蜂群微型机、舰载无人僚机、
+  医疗无人机、通讯中继机、重装护卫机、侦察无人机、
+  照明无人机、探路机器人、广播诱敌机、热诱饵无人机、
+  自爆追击机、舰载校射机、舰载攻击机、舰载轰炸机、
+  舰载电子战机、蜂群投放荚舱、空中侦察机
+- 每台有角色、数值、冷却、耐久、描述
+- availableDrones / droneSquadCap / squadDrones / squadSummary
+- droneTurn 纯函数：执行一轮全部无人机行动
+  返回伤害、治疗、精力、以及命中/减伤/破防/仇恨/跳过的效果汇总
+- tickDrones 冷却推进、damageDrones 承伤、repairDrones 战后修复
+- 科技加成键（aggregateBonuses 的 key）驱动解锁，编队上限来自 squadCap
+
+接入 GameSession
+- availableDrones / droneSquadCap / droneSquadIds / setDroneSquad
+- combatDrones（含战斗受损持久化）
+- droneSquadInfo（编队概览）
+- combatDroneTurn（每回合自动行动，接入战斗循环与战果判定）
+- droneInterceptChance（诱饵/护盾机吸引仇恨）
+- repairDronesAfterCombat（战后全部修复）
+- techBonusTable：聚合科技加成供各系统查表
+
+原型
+- 要塞剖面新增「DRONE 无人机战斗编队」区块（第 12 个）
+- 编队卡片：角色色条（输出红 / 治疗绿 / 侦察青）+ 耐久 + 冷却
+- 可编入池：17 个芯片按钮，已编入高亮，未解锁灰显
+- 编队概览：每回合输出 / 回复
+- 响应式：宽屏 3 列 / 中屏 2 列 / 窄屏 1 列
+
+测试
+- 新增 packages/core/test/drone-combat.test.ts（10 项）
+  定义表完整性、解锁逻辑、编队上限截断、attack/heal 目标选择、
+  效果汇总、冷却生效、承伤与修复、编队概览统计
+- 全套 1208 → 1218 项通过
+
+验证
+- TypeScript 干净
+- 15 台无人机在解锁机器人科技 T8 后可用
+- 编队上限 5（含巡逻调度中枢 +2）
