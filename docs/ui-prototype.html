@@ -736,6 +736,15 @@ border-radius:.2em;padding:.25em .65em;cursor:pointer;font-family:inherit;font-s
 transition:all .12s}
 .modrow .ms.btn:hover{background:var(--accent-lt);color:#000}
 
+/* 左栏角色卡片：hover 显示「可双击展开」提示 */
+.hitem{position:relative}
+.hitem::after{
+  content:"⤢";position:absolute;top:.25em;right:.25em;
+  font-size:.75em;color:var(--accent-lt);opacity:0;
+  transition:opacity .15s;pointer-events:none;
+}
+.hitem:hover::after{opacity:.75}
+
 /* ============ 暗色滚动条（全局） ============ */
 * { scrollbar-width: thin; scrollbar-color: var(--panel3) transparent; }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -3155,12 +3164,30 @@ function fillDetail(id){
   const sI=document.getElementById('dsImg'); if(sI) sI.src=HUE_SVG(d.hue);
 }
 
-document.querySelectorAll('.hitem').forEach(el => el.addEventListener('click', () => {
-  document.querySelectorAll('.hitem').forEach(x => x.classList.remove('sel'));
-  el.classList.add('sel');
-  fillDetail(el.dataset.id || 'sister');
-  document.getElementById('detail').classList.add('on');
-}));
+/* 左栏角色卡片：
+ *   单击 → 选中，最右侧「详情侧栏」显示该角色（不弹窗）
+ *   双击 → 弹出完整资料（6 标签 + 8 操作）
+ */
+document.querySelectorAll('.hitem').forEach(el => {
+  el.title = '单击查看 · 双击打开完整资料';
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.hitem').forEach(x => x.classList.remove('sel'));
+    el.classList.add('sel');
+    fillDetail(el.dataset.id || 'sister');
+    // 详情侧栏在窄屏被隐藏时，提示用户用双击
+    const side = document.getElementById('dside');
+    if (!side || getComputedStyle(side).display === 'none') {
+      toastMsg('窗口较窄，双击卡片可打开完整资料');
+    }
+  });
+  el.addEventListener('dblclick', () => {
+    const id = el.dataset.id || 'sister';
+    document.querySelectorAll('.hitem').forEach(x => x.classList.remove('sel'));
+    el.classList.add('sel');
+    fillDetail(id);
+    document.getElementById('detail').classList.add('on');
+  });
+});
 
 const QPAGES = [
   { hint: "面板入口 — 按对应字母键打开", items: [
