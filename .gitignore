@@ -31,6 +31,9 @@ _wip/
 _*.log
 
 _commitmsg.txt
+# 误创建的变量字面量目录（PowerShell %VAR% 不展开导致）
+%SystemDrive%/
+%USERPROFILE%/
 # 批量生成的文本库存（体积大，按需重建）
 packages/core/data/generated/h_scenes.json
 apps/desktop/public/data/h_scenes.json
