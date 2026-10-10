@@ -22,15 +22,68 @@ const fs = require('node:fs')
 const crypto = require('node:crypto')
 
 // ────────────────────────────────────────────────────────────
+// 启动日志
+//
+// 打包后 stdout 不可见，所有诊断写文件。
+// 路径：<userData>/main.log
+// ────────────────────────────────────────────────────────────
+let logFile = null
+function log(msg) {
+  try {
+    if (!logFile) logFile = path.join(app.getPath('userData'), 'main.log')
+    fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${msg}\n`)
+  } catch { /* 日志失败不能影响启动 */ }
+}
+
+// ────────────────────────────────────────────────────────────
 // 单实例锁
 //
 // 必须是进程第一件事：双开会导致两个缓存写入者、两个存档句柄。
 // 抢锁失败的一方立刻退出，由已有实例处理聚焦请求。
 // ────────────────────────────────────────────────────────────
+/**
+ * GPU 兼容性兜底（**这是「窗口空白」的根治方案**）。
+ *
+ * 症状：窗口打开了，但整片空白，随后进程退出。
+ * 日志：gpu_process_host.cc: GPU process launch failed: error_code=18
+ *
+ * 原因：Chromium 的 GPU 进程启动失败时，默认会反复重试并最终
+ * 判定「GPU 不可用」，此过程渲染器拿不到帧 → 白屏。
+ *
+ * 策略（三道保险）：
+ *   1) 命令行 --disable-gpu / --soft-render  → 强制软件渲染
+ *   2) 环境变量 ELECTRON_DISABLE_GPU=1        → 同上（便于脚本控制）
+ *   3) **默认开启软件渲染兜底**：Chromium 的 GPU 黑名单机制
+ *      在多数「GPU 启动失败」场景下会自动回退，但 error_code=18
+ *      （设备被占用 / 驱动异常）不在黑名单里，需要显式禁用。
+ *
+ * 代价：软件渲染下画面略慢，但对本作（静态界面为主）无影响。
+ */
+const wantSoftware =
+  process.argv.includes('--disable-gpu') ||
+  process.argv.includes('--soft-render') ||
+  process.env.ELECTRON_DISABLE_GPU === '1'
+
+if (wantSoftware) {
+  app.disableHardwareAcceleration()
+  log('hardware acceleration DISABLED (software rendering)')
+} else {
+  // 保留硬件加速，但关闭可能引发 error_code=18 的 GPU 特性
+  app.commandLine.appendSwitch('disable-gpu-compositing')
+  app.commandLine.appendSwitch('disable-gpu-sandbox')
+  app.commandLine.appendSwitch('disable-software-rasterizer-fallback')
+  log('hardware acceleration ENABLED (with GPU fallbacks)')
+}
+
+// GPU 缓存目录隔离（避免多实例 / 上次残留导致 0x20 占用错误）
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
+
+// 单实例锁 —— 必须是进程第一件事
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
   app.quit()
 }
+log('main.cjs loaded, argv=' + JSON.stringify(process.argv.slice(1)))
 
 const isDev = process.argv.includes('--dev')
 const DEV_URL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173'
@@ -220,7 +273,36 @@ function createWindow() {
     }
   })
 
-  mainWindow.once('ready-to-show', () => mainWindow.show())
+  // GPU 崩溃 / 渲染进程挂掉时记录（否则用户只看到空白）
+  mainWindow.webContents.on('render-process-gone', (_e, details) => {
+    log('RENDER_GONE ' + JSON.stringify(details))
+  })
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
+    log('DID_FAIL_LOAD ' + code + ' ' + desc + ' url=' + url)
+  })
+  mainWindow.webContents.on('console-message', (_e, lvl, msg) => {
+    log('RENDERER[' + lvl + '] ' + msg)
+  })
+  mainWindow.webContents.once('did-finish-load', () => {
+    log('DID_FINISH_LOAD ok')
+  })
+
+  /**
+   * 显示窗口。
+   *
+   * 两重兜底：
+   *   1) ready-to-show 正常触发 → 立即显示
+   *   2) 5 秒内没触发（GPU 卡死）→ 强制显示，让用户至少看到界面
+   */
+  let shown = false
+  const show = (why) => {
+    if (shown || !mainWindow || mainWindow.isDestroyed()) return
+    shown = true
+    mainWindow.show()
+    log('WINDOW_SHOWN via ' + why)
+  }
+  mainWindow.once('ready-to-show', () => show('ready-to-show'))
+  setTimeout(() => show('timeout-5s'), 5000)
 
   // 外链走系统浏览器，不在应用内打开
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

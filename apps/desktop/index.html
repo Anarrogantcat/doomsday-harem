@@ -7,6 +7,37 @@
   </head>
   <body>
     <div id="root"></div>
+
+    <!--
+      启动兜底。
+
+      若 React 因任何原因没能挂载（JS 报错、资源加载失败），
+      3 秒后显示这段内容 —— 避免用户只看到一片空白却无从判断。
+      正常情况下 main.tsx 挂载后会把 #root 填满，这段不会出现。
+    -->
+    <noscript>本应用需要启用 JavaScript。</noscript>
+    <div id="boot-fallback" style="display:none;position:fixed;inset:0;background:#1a2029;color:#e6e9ef;
+      font-family:system-ui,-apple-system,'Segoe UI',sans-serif;padding:3em;line-height:1.9;font-size:14px">
+      <h1 style="font-size:1.5em;margin:0 0 .6em">末日生存 · 后宫</h1>
+      <p style="color:#ff6b6b;margin:0 0 1.2em">界面未能加载。</p>
+      <p style="color:#8b94a3;margin:0 0 .5em">可能原因与处理：</p>
+      <ol style="color:#8b94a3;margin:0;padding-left:1.4em">
+        <li>显卡驱动不兼容 —— 用命令行加 <code style="color:#D982EF">--disable-gpu</code> 启动</li>
+        <li>资源文件缺失 —— 重新解压完整包</li>
+        <li>需要查看日志 —— <code style="color:#D982EF">%APPDATA%\@doomsday\desktop\main.log</code></li>
+      </ol>
+    </div>
+    <script>
+      // 3 秒后仍未挂载 → 显示兜底
+      setTimeout(function () {
+        var root = document.getElementById('root');
+        var fb = document.getElementById('boot-fallback');
+        if (root && fb && root.childElementCount === 0) {
+          fb.style.display = 'block';
+        }
+      }, 3000);
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

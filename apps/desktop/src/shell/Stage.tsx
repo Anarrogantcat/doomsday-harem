@@ -84,7 +84,7 @@ export function Stage({
   const tier = entry?.scene ? tierOfScene(entry.scene.id) : null;
 
   return (
-    <div className="stage" ref={bodyRef}>
+    <div className="proto-stage" ref={bodyRef}>
       {!entry ? (
         <>
           <div className="stitle">末日生存 · 后宫</div>

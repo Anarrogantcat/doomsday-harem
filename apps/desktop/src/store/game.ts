@@ -212,6 +212,9 @@ function makeSession(): GameSession {
   return s;
 }
 
+/** refresh 合批标记（同一 tick 内只提交一次） */
+let refreshPending = false;
+
 export const useGame = create<GameState>((set, get) => ({
   session: makeSession(),
   version: 0,
@@ -239,7 +242,25 @@ export const useGame = create<GameState>((set, get) => ({
   explored: buildExplored(),
   bigMapOpen: false,
 
-  refresh: () => set((s) => ({ version: s.version + 1 })),
+  /**
+   * 通知 UI 刷新。
+   *
+   * 背景：GameSession 是**可变对象**（内部直接改字段），Zustand 的浅比较
+   * 检测不到变化，所以用一个 version 计数器做「脏标记」。
+   *
+   * 问题：105 处调用点若在同一帧内连续触发，会连续 set 多次，
+   * 每次都让 33 个订阅 version 的组件重渲染 → 卡顿甚至内存暴涨。
+   *
+   * 解决：**微任务合批** —— 同一 tick 内多次 refresh 只提交一次。
+   */
+  refresh: () => {
+    if (refreshPending) return;
+    refreshPending = true;
+    queueMicrotask(() => {
+      refreshPending = false;
+      set((s) => ({ version: s.version + 1 }));
+    });
+  },
 
   pushLog: (line) =>
     set((s) => ({

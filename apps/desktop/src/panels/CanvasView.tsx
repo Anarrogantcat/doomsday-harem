@@ -14,7 +14,6 @@ const THEME = {
 export function CanvasView({ mode }: { mode: "map" | "battle" | "scene" }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<CanvasSceneRenderer | null>(null);
-  const rafRef = useRef<number>(0);
 
   const session = useGame((s) => s.session);
   const version = useGame((s) => s.version);
@@ -115,28 +114,35 @@ export function CanvasView({ mode }: { mode: "map" | "battle" | "scene" }) {
     };
   }, [session, mode]);
 
-  // 绘制循环
+  /**
+   * 按需绘制（**不是**无限循环）。
+   *
+   * 为什么改成按需：
+   *   此前用 requestAnimationFrame 无条件递归，每帧都重绘同一幅静态画面，
+   *   且 effect 依赖变化时会再启一条循环 —— 多条 rAF 叠加导致内存暴涨。
+   *   本视图没有动画需求，只在状态变化时绘制一帧即可。
+   */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const draw = () => {
-      const rect = canvas.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.round(rect.width * dpr);
-      canvas.height = Math.round(rect.height * dpr);
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.max(1, Math.round(rect.width * dpr));
+    const h = Math.max(1, Math.round(rect.height * dpr));
 
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+    // 尺寸没变就不重设（重设 canvas.width 会清空并重新分配显存）
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
 
-      const dc: DrawContext = { ctx, width: rect.width, height: rect.height, dpr };
-      rendererRef.current?.draw(dc, buildState());
-      rafRef.current = requestAnimationFrame(draw);
-    };
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    rafRef.current = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [buildState]);
+    const dc: DrawContext = { ctx, width: rect.width, height: rect.height, dpr };
+    rendererRef.current?.draw(dc, buildState());
+  }, [buildState, pixelCfg]);
 
   const registerDemoSheet = () => {
     const sheet: SpriteSheet = {

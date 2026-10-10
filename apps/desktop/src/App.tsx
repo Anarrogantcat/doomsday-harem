@@ -92,26 +92,41 @@ export function App() {
   // 日志 → 叙事条目（过滤系统噪音）
   // 系统噪音：这些不进叙事流，避免覆盖剧情
   const NOISE = /文本库存|已载入|存档|设置已|自动存档|已保存|已读取|交通方式|调岗为|换上了|脱下了|开始研究|秒完成|获得物资|睡了一觉/;
+  const lastLogRef = useRef<string | null>(null);
   useEffect(() => {
     if (log.length === 0) return;
     const latest = log[0];
     if (NOISE.test(latest)) return;
+    // 用 ref 去重，避免把 counter 放进依赖导致反复触发
+    if (lastLogRef.current === latest) return;
+    lastLogRef.current = latest;
     setEntries((prev) => {
-      if (prev.length > 0 && prev[prev.length - 1].text === latest) return prev;
       const next = [...prev, { id: ++counter.n, kind: "event" as const, title: "事件", text: latest }];
       setIndex(next.length - 1);
       return next.slice(-200);
     });
   }, [log, counter]);
 
-  // 可触发场景 → 叙事条目
+  /**
+   * 可触发场景 → 叙事条目。
+   *
+   * 关键：**不能用 version 做依赖**。
+   *   availableScenes() 每次都新建整个 Scene 数组，
+   *   而本 effect 内部会 setEntries → 触发重渲染 → version 变化
+   *   → effect 再跑 → 无限循环 → 内存暴涨。
+   * 改用 seenScenes ref 去重，依赖只保留 session。
+   */
+  const seenScenes = useRef<Set<string>>(new Set());
   useEffect(() => {
     const scenes = session.availableScenes();
     if (scenes.length === 0) return;
-    const scene = scenes[0];
+    const fresh = scenes.filter((x) => !seenScenes.current.has(x.id));
+    if (fresh.length === 0) return;
+
+    const scene = fresh[0];
+    seenScenes.current.add(scene.id);
+    const text = renderScene(scene, { detail: "standard", showLayerTags: false });
     setEntries((prev) => {
-      if (prev.some((e) => e.scene?.id === scene.id && e.kind === "narration")) return prev;
-      const text = renderScene(scene, { detail: "standard", showLayerTags: false });
       const next = [...prev, {
         id: ++counter.n,
         kind: "narration" as const,
@@ -122,7 +137,7 @@ export function App() {
       }];
       return next.slice(-200);
     });
-  }, [session, version, counter]);
+  }, [session, counter]);
 
   const current = entries[index] ?? entries[entries.length - 1];
 
@@ -353,7 +368,7 @@ export function App() {
         />
 
         {/* 舞台 */}
-        <div className="stage">
+        <div className="proto-stage">
           {centerTab === "combat" ? (
             <CombatView />
           ) : (
