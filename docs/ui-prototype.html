@@ -746,6 +746,7 @@ border-bottom:2px solid transparent}
 .kv .v{color:var(--fg);font-variant-numeric:tabular-nums;min-width:3em;text-align:right}
 
 .dgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:.4em}
+.dcell .v.accent{color:var(--accent-lt);font-weight:600}
 .dcell{padding:.5em .6em;background:var(--panel2);border:1px solid var(--line);
 border-radius:.25em;display:flex;justify-content:space-between;align-items:center}
 .dcell .k{font-size:.78em;color:var(--sub)}
@@ -1574,7 +1575,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
     <div class="ds-hero">
       <div class="ds-head hero">
         <span class="ds-name" data-hero-name>林晓</span>
-        <span class="ds-role" title="生理性别">扶她</span>
+        <span class="ds-role">御姐</span>
         <button class="ds-expand" title="查看完整资料" onclick="document.getElementById('hero-detail').classList.add('on')">⤢</button>
       </div>
       <div class="ds-body">
@@ -2911,7 +2912,7 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
     <div class="dhead">
       <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='184'%3E%3Cdefs%3E%3ClinearGradient id='h1' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='hsl(280,35%25,38%25)'/%3E%3Cstop offset='1' stop-color='hsl(280,30%25,22%25)'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='120' height='184' fill='url(%23h1)'/%3E%3Ccircle cx='60' cy='52' r='26' fill='hsl(280,30%25,72%25)'/%3E%3Cellipse cx='60' cy='150' rx='34' ry='52' fill='hsl(280,32%25,60%25)'/%3E%3C/svg%3E" alt="主角">
       <div class="dmeta">
-        <div class="dname"><span data-hero-name>林晓</span> <span class="tag" title="生理性别">扶她</span></div>
+        <div class="dname"><span data-hero-name>林晓</span></div>
         <div class="dtitle">幸存者 · 28岁 · 基地建造者</div>
         <div class="dtags">
           <span class="dtag">御姐</span><span class="dtag">178cm</span>
@@ -2953,6 +2954,13 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
           <div class="dcell"><span class="k">被动增益</span><span class="v">2 项</span></div>
           <div class="dcell"><span class="k">受伤</span><span class="v" style="color:var(--ok)">无</span></div>
           <div class="dcell"><span class="k">生育力</span><span class="v" style="color:var(--ok)">高</span></div>
+        </div>
+        <div class="sec">生理</div>
+        <div class="dgrid">
+          <div class="dcell"><span class="k">生理性别</span><span class="v accent">扶她</span></div>
+          <div class="dcell"><span class="k">性别认同</span><span class="v">女性</span></div>
+          <div class="dcell"><span class="k">性取向</span><span class="v">泛性恋</span></div>
+          <div class="dcell"><span class="k">身高 / 胸围</span><span class="v">178cm / D</span></div>
         </div>
         <div class="sec">怀孕与生育</div>
         <div class="dgrid">
