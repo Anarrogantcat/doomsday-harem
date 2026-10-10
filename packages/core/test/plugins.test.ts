@@ -294,3 +294,46 @@ test("cache: 语音键区分说话者", () => {
   const b = ttsCacheKey("mother", "别动。");
   assert.notEqual(a, b);
 });
+
+// ============ 成熟度（御姐化） ============
+
+test("prompt: mature 注入御姐标签", () => {
+  const r = buildPortraitPrompt({
+    name: "主角", build: "高挑健硕", cup: 4, height: 178,
+    futanari: true, pregnant: false, exposure: 25, mood: "平静",
+    mature: true
+  });
+  assert.ok(r.prompt.includes("mature female"), "应含 mature female");
+  assert.ok(r.prompt.includes("onee-san"), "应含 onee-san");
+  assert.ok(r.prompt.includes("defined jawline"), "应有下颌线");
+  assert.ok(r.prompt.includes("sharp narrow eyes"), "应有狭长眼");
+});
+
+test("prompt: 非 mature 也有成年标签", () => {
+  const r = buildPortraitPrompt({
+    name: "妹妹", build: "娇小纤细", cup: 1, height: 162,
+    futanari: false, pregnant: false, exposure: 30, mood: "开心"
+  });
+  assert.ok(r.prompt.includes("adult woman"), "所有角色都是成年人");
+  assert.ok(!r.prompt.includes("onee-san"), "非成熟角色不注入御姐标签");
+});
+
+test("prompt: 负向排除幼态", () => {
+  const r = buildPortraitPrompt({
+    name: "X", build: "", height: 165, futanari: false,
+    pregnant: false, exposure: 30, mood: "平静"
+  });
+  for (const bad of ["loli", "child", "baby face", "schoolgirl", "cute face"]) {
+    assert.ok(r.negative.includes(bad), `负向应含 ${bad}`);
+  }
+});
+
+test("prompt: 丰腴体型映射为成熟曲线", () => {
+  const r = buildPortraitPrompt({
+    name: "母亲", build: "成熟丰腴型", cup: 3, height: 172,
+    futanari: false, pregnant: false, exposure: 30, mood: "温柔",
+    mature: true
+  });
+  assert.ok(r.prompt.includes("voluptuous") || r.prompt.includes("curvy"),
+    "丰腴应映射为 voluptuous/curvy");
+});

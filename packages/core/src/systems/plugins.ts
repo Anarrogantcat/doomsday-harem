@@ -266,6 +266,8 @@ export function buildPortraitPrompt(opts: {
   pregnant: boolean;
   exposure: number;
   mood: string;
+  /** 成熟御姐气质（主角与年长角色） */
+  mature?: boolean;
   extra?: string;
 }): { prompt: string; negative: string } {
   const parts: string[] = [];
@@ -276,16 +278,34 @@ export function buildPortraitPrompt(opts: {
   // 风格
   parts.push("anime style", "soft lighting", "portrait");
 
+  // 成熟度：默认成年女性，mature 时强化御姐气质
+  if (opts.mature) {
+    parts.push(
+      "mature female", "adult woman", "onee-san", "ara ara",
+      "mature face", "sharp narrow eyes", "defined jawline", "high cheekbones",
+      "elegant", "sophisticated", "confident gaze", "commanding presence",
+      "adult body", "womanly figure", "mature proportions", "long legs"
+    );
+  } else {
+    parts.push("adult woman", "mature face", "defined features");
+  }
+
   // 体型
-  if (opts.height >= 175) parts.push("tall woman");
+  if (opts.height >= 175) parts.push("tall woman", "long legs");
   else if (opts.height >= 165) parts.push("average height woman");
   else parts.push("petite woman");
 
-  if (opts.build.includes("丰满") || opts.build.includes("肉")) parts.push("curvy body");
-  else if (opts.build.includes("纤细") || opts.build.includes("瘦")) parts.push("slender body");
-  else if (opts.build.includes("健") || opts.build.includes("运动")) parts.push("athletic body");
-  else if (opts.build.includes("娇小")) parts.push("petite body");
-  else parts.push("normal body");
+  if (opts.build.includes("丰腴") || opts.build.includes("丰满") || opts.build.includes("肉")) {
+    parts.push("voluptuous body", "curvy figure", "womanly hips");
+  } else if (opts.build.includes("纤细") || opts.build.includes("瘦")) {
+    parts.push("slender body");
+  } else if (opts.build.includes("健") || opts.build.includes("运动") || opts.build.includes("结实")) {
+    parts.push("athletic body", "toned physique", "fit body");
+  } else if (opts.build.includes("娇小")) {
+    parts.push("petite body");
+  } else {
+    parts.push("normal body");
+  }
 
   // 胸围
   if (opts.cup !== undefined) {
@@ -336,7 +356,12 @@ export function buildPortraitPrompt(opts: {
   const negative = [
     "lowres", "bad anatomy", "bad hands", "worst quality", "low quality",
     "jpeg artifacts", "watermark", "signature", "text", "error",
-    "extra limbs", "missing limbs", "deformed", "blurry"
+    "extra limbs", "missing limbs", "deformed", "blurry",
+    // 排除幼态：所有角色都是成年人
+    "loli", "child", "childlike", "young girl", "teen", "schoolgirl",
+    "baby face", "immature face", "round face", "chubby cheeks",
+    "flat chest", "petite frame", "small stature", "short height",
+    "oversized eyes", "kawaii", "cute face"
   ].join(", ");
 
   return { prompt: parts.join(", "), negative };

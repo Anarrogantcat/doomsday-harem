@@ -84,11 +84,27 @@ export function Portrait({
   );
 
   const [genFailed, setGenFailed] = useState(false);
+  const [staticFailed, setStaticFailed] = useState(false);
 
   if (mode === "full") {
     const h = Math.round(size * 1.75);
 
-    // 文生图可用且未失败 → 用它
+    // 1) 预生成立绘（随包分发的静态资源）优先
+    if (companionId && STATIC_PORTRAITS.has(companionId) && !staticFailed) {
+      return (
+        <div className={`rig-wrap ${active ? "active" : ""}`} style={{ width: size, height: h }}>
+          <img
+            src={"/assets/portraits/" + companionId + ".png"}
+            alt={name}
+            className="rig-img"
+            style={{ width: size, height: h, objectFit: "cover" }}
+            onError={() => setStaticFailed(true)}
+          />
+        </div>
+      );
+    }
+
+    // 2) 文生图可用且未失败 → 用它
     if (genAvailable && !genFailed && companionId) {
       return (
         <div className={`rig-wrap ${active ? "active" : ""}`} style={{ width: size, height: h }}>
@@ -204,3 +220,17 @@ function moodTextFrom(mood: number, lust: number): string {
   if (mood >= 25) return "疲惫";
   return "紧张";
 }
+
+/**
+ * 随包分发的预生成立绘。
+ *
+ * 由 scripts/gen-portraits.mjs 生成，清单见
+ * apps/desktop/public/assets/portraits/manifest.json。
+ */
+export const STATIC_PORTRAITS = new Set([
+  "hero",
+  "mother", "sister", "sister2", "ai", "teacher", "pharmacist", "nun",
+  "idol", "mechanic", "hunter", "pianist", "pilot", "baker", "neighbor",
+  "colleague", "librarian", "heiress", "surgeon", "singlemom", "student",
+  "daughter"
+]);

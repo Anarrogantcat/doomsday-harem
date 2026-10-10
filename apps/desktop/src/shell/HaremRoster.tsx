@@ -163,6 +163,7 @@ export function HaremRoster({
             >
               <div className="rcard-face">
                 <Portrait
+                  companionId={c.id}
                   name={c.identity.name}
                   mode="full"
                   mood={session.hero.survival.mood}

@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-10",
+  "model": "anything-v5-PrtRE",
+  "size": {
+    "width": 512,
+    "height": 768
+  },
+  "portraits": [
+    {
+      "id": "hero",
+      "file": "hero.png",
+      "width": 512,
+      "height": 768,
+      "note": "主角（扶她）"
+    },
+    {
+      "id": "mother",
+      "file": "mother.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "sister",
+      "file": "sister.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "sister2",
+      "file": "sister2.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "ai",
+      "file": "ai.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "teacher",
+      "file": "teacher.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "pharmacist",
+      "file": "pharmacist.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "nun",
+      "file": "nun.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "idol",
+      "file": "idol.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "mechanic",
+      "file": "mechanic.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "hunter",
+      "file": "hunter.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "pianist",
+      "file": "pianist.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "pilot",
+      "file": "pilot.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "baker",
+      "file": "baker.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "neighbor",
+      "file": "neighbor.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "colleague",
+      "file": "colleague.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "librarian",
+      "file": "librarian.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "heiress",
+      "file": "heiress.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "surgeon",
+      "file": "surgeon.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "singlemom",
+      "file": "singlemom.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "student",
+      "file": "student.png",
+      "width": 512,
+      "height": 768
+    },
+    {
+      "id": "daughter",
+      "file": "daughter.png",
+      "width": 512,
+      "height": 768
+    }
+  ],
+  "total": 22
+}
