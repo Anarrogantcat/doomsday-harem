@@ -38,6 +38,8 @@ export interface GameState {
   /** 预生成文本库存 */
   stock: StockIndex;
   stockMsg: string;
+  /** 已加载的 Mod 数 */
+  modsLoaded: number;
   /** 设置 */
   settings: Settings;
   /** 最近一次性爱行为的场景（供叙事区显示） */
@@ -95,6 +97,7 @@ export interface GameState {
   setGenerationMode: (mode: GenerationMode) => void;
   planReport: () => ReturnType<GenerationPipeline["planReport"]>;
   loadStock: () => Promise<void>;
+  loadMods: () => Promise<void>;
   stockStats: () => ReturnType<StockIndex["stats"]> | null;
 
   patchDisplay: (p: Parameters<typeof patchDisplayFn>[1]) => void;
@@ -171,6 +174,7 @@ export const useGame = create<GameState>((set, get) => ({
   pipeline: new GenerationPipeline({ mode: "minor", narrator: null }),
   stock: new StockIndex(emptyStore()),
   stockMsg: "",
+  modsLoaded: 0,
   settings: defaultSettings(),
   lastActScene: null,
   log: [],
@@ -525,6 +529,30 @@ export const useGame = create<GameState>((set, get) => ({
   planReport: () => {
     const { session, pipeline } = get();
     return pipeline.planReport(session.registry.all().map((s) => s.id));
+  },
+
+  loadMods: async () => {
+    try {
+      const { loadModScripts, listMods } = await import("../save/bridge.ts");
+      const mods = await listMods();
+      const enabled = mods.filter((m) => m.enabled);
+      if (enabled.length === 0) return;
+
+      set({ modsLoaded: enabled.length });
+
+      const scripts = await loadModScripts();
+      if (scripts.length === 0) {
+        get().pushLog("已启用 " + enabled.length + " 个 Mod（无剧本）");
+        return;
+      }
+
+      const { session, pushLog, refresh } = get();
+      const loaded = session.loadScripts(scripts.map((s) => s.text));
+      pushLog("Mod 剧本已加载：" + loaded + " 个（来自 " + enabled.length + " 个 Mod）");
+      refresh();
+    } catch (e) {
+      get().pushLog("Mod 加载失败：" + (e instanceof Error ? e.message : String(e)));
+    }
   },
 
   loadStock: async () => {

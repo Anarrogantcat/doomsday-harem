@@ -13,6 +13,8 @@ import { DefensePanel } from "../panels/DefensePanel.tsx";
 import { CompanionDataPanel } from "../panels/CompanionDataPanel.tsx";
 import { SavePanel } from "../panels/SavePanel.tsx";
 import { SettingsPanel } from "./SettingsPanel.tsx";
+import { ModPanel } from "../panels/ModPanel.tsx";
+import { AchievementPanel } from "../panels/AchievementPanel.tsx";
 import { LlmPanel } from "../panels/LlmPanel.tsx";
 import { CanvasView } from "../panels/CanvasView.tsx";
 
@@ -32,7 +34,9 @@ export const OVERLAY_TITLES: Record<string, string> = {
   canvas: "画面渲染",
   llm: "本地模型",
   save: "存档",
-  cheats: "设置"
+  cheats: "设置",
+  mods: "Mod",
+  achievements: "成就"
 };
 
 export function Overlay({ tab, onClose }: { tab: string | null; onClose: () => void }) {
@@ -66,6 +70,8 @@ export function Overlay({ tab, onClose }: { tab: string | null; onClose: () => v
       case "llm": return <LlmPanel />;
       case "save": return <SavePanel />;
       case "cheats": return <SettingsPanel />;
+      case "mods": return <ModPanel />;
+      case "achievements": return <AchievementPanel />;
       default: return <p className="sub">（未知面板）</p>;
     }
   })();

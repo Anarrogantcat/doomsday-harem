@@ -6,33 +6,25 @@ use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::PathBuf;
-use tauri::Manager;
 
 type HmacSha256 = Hmac<Sha256>;
 
 const NONCE_LEN: usize = 12;
 
 /// 派生密钥：生产环境应改用系统密钥环 / 用户口令 KDF。
-fn key_from_app(app: &tauri::AppHandle) -> [u8; 32] {
+/// 派生密钥。
+///
+/// 注意：种子固定为应用标识，不随数据目录变化 ——
+/// 否则用户切换数据目录后旧存档无法解密。
+fn key_from_app(_app: &tauri::AppHandle) -> [u8; 32] {
     let mut key = [0u8; 32];
-    let seed = app
-        .path()
-        .app_data_dir()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|_| "doomsday-harem".into());
-    let digest = Sha256::digest(seed.as_bytes());
+    let digest = Sha256::digest(b"doomsday-harem-v1-save-key");
     key.copy_from_slice(&digest[..32]);
     key
 }
 
 fn saves_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?
-        .join("saves");
-    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir)
+    crate::data::saves_dir(app)
 }
 
 fn checksum(key: &[u8; 32], payload: &[u8]) -> String {

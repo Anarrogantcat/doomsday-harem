@@ -125,6 +125,13 @@ import {
   VARIANT_LABEL
 } from "../systems/actScenes.ts";
 import {
+  type CombatTerrain, type Stance, type ExtendedCombat, type CombatSkill,
+  COMBAT_SKILLS, COMBAT_TERRAIN_LABEL, COMBAT_TERRAIN_DESC, COMBAT_TERRAIN_MODS,
+  STANCE_LABEL, STANCE_DESC, STANCE_MODS,
+  terrainFromRegion, initExtended, setStance, useSkill, tickCooldowns,
+  canUseSkill, effectiveStats, combatSummary, settleCombat
+} from "../systems/combatExt.ts";
+import {
   type TechScope, SCOPE_LABEL, SCOPE_DESC, SCOPE_ICON,
   BRANCH_SCOPE, SCOPE_OVERRIDES, nodeScope, canCompanionResearch,
   researchContribution, teamResearchRate, scopeStats, sharedNodes,
@@ -1440,6 +1447,60 @@ export class GameSession {
     const r = this.beginResearch(nodeId);
     if (!r.ok) return { ok: false, reason: r.reason };
     return { ok: true, rate: info.rate };
+  }
+
+  // ---------- 战斗扩展 ----------
+
+  /** 当前战斗地形（由所在区域推断） */
+  combatTerrain(): CombatTerrain {
+    const here = this.here();
+    return terrainFromRegion(here?.terrain ?? "rural");
+  }
+
+  /** 敌方回合（技能使用后调用） */
+  combatEnemyTurn(): void {
+    if (!this.combat || this.combat.over) return;
+    this.combat = enemyTurn(this.combat, this.combatRandom());
+    if (!this.combat.over) {
+      this.combat = advanceRound(this.combat);
+    }
+    this.applyCombatOutcome();
+  }
+
+  /** 当前战斗的技能可用性（供 UI） */
+  combatSkillStatus(): Array<{
+    id: string;
+    name: string;
+    ok: boolean;
+    reason?: string;
+  }> {
+    if (!this.combat) return [];
+    const ext = initExtended(this.combat, this.combatTerrain());
+    return COMBAT_SKILLS.map((sk) => {
+      const check = canUseSkill(ext, this.combat!.player.id, sk.id);
+      return { id: sk.id, name: sk.name, ok: check.ok, reason: check.reason };
+    });
+  }
+
+  /** 当前战斗的详细状态（供 UI 展示攻防数值） */
+  combatDetail(): {
+    terrain: CombatTerrain;
+    terrainLabel: string;
+    terrainDesc: string;
+    player: { attack: number; defense: number; dodge: number; critRate: number };
+    summary: ReturnType<typeof combatSummary>;
+  } | null {
+    if (!this.combat) return null;
+    const terrain = this.combatTerrain();
+    const ext = initExtended(this.combat, terrain);
+    const st = effectiveStats(ext, this.combat.player.id, "player");
+    return {
+      terrain,
+      terrainLabel: COMBAT_TERRAIN_LABEL[terrain],
+      terrainDesc: COMBAT_TERRAIN_DESC[terrain],
+      player: st,
+      summary: combatSummary(ext)
+    };
   }
 
   // ---------- 作弊执行器 ----------

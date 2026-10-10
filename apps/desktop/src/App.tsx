@@ -18,7 +18,7 @@ import { CheatOverlay } from "./shell/CheatOverlay.tsx";
 const KEY_MAP: Record<string, string> = {
   i: "items", n: "quests", t: "tech", b: "base", w: "wardrobe",
   h: "harem", j: "jobs", v: "vehicle", d: "defense", m: "llm",
-  s: "save", c: "cheats", r: "roster", k: "canvas", o: "status"
+  s: "save", c: "cheats", r: "roster", k: "canvas", o: "status", l: "mods", g: "achievements"
 };
 
 type CenterTab = "narration" | "fortress" | "combat";
@@ -44,6 +44,11 @@ export function App() {
   // 启动时加载预生成文本库存
   useEffect(() => {
     void useGame.getState().loadStock();
+  }, []);
+
+  // 启动时加载 Mod 剧本（仅 Tauri 环境有效）
+  useEffect(() => {
+    void useGame.getState().loadMods();
   }, []);
 
   // 日志 → 叙事条目（过滤系统噪音）
@@ -240,7 +245,7 @@ export function App() {
       <CheatOverlay />
 
       <div className="keyhint">
-        Tab 切换视图　P 画面　I 物品　N 主线　T 科技　B 基地　W 服装　M 模型　S 存档　←/→ 翻页　Esc 关闭
+        Tab 切换视图　P 画面　I 物品　N 主线　T 科技　B 基地　W 服装　M 模型　L Mod　S 存档　←/→ 翻页　Esc 关闭
       </div>
     </div>
   );

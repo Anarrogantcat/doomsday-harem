@@ -68,3 +68,5 @@ export * from "./systems/haremGrowth.ts";
 export * from "./systems/actScenes.ts";
 export * from "./systems/bonusSharing.ts";
 export * from "./systems/cheatRunner.ts";
+export * from "./systems/combatExt.ts";
+export * from "./systems/achievements.ts";
