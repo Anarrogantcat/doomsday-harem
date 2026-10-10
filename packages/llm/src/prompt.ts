@@ -217,12 +217,29 @@ export function normalizeOutput(text: string): string {
   return s;
 }
 
-/** 解析模型输出：按 --- 切分节拍 */
+/** 节拍分隔符：兼容「---」「--- 节拍 1/5 ---」「***」等写法 */
+const BEAT_SEPARATOR = /^\s*(?:-{3,}|\*{3,}|={3,})\s*(?:节拍\s*\d+\s*(?:\/\s*\d+)?\s*)?(?:-{3,}|\*{3,}|={3,})?\s*$/m;
+
+/**
+ * 解析模型输出：按分隔符切分节拍。
+ * 同时剥离模型自带的「节拍 N/M」标题行。
+ */
 export function parseBeats(text: string): string[] {
-  return normalizeOutput(text)
-    .split(/^\s*---\s*$/m)
+  const normalized = normalizeOutput(text)
+    // 去掉独占一行的节拍标题
+    .replace(/^\s*节拍\s*\d+\s*(?:\/\s*\d+)?\s*[:：]?\s*$/gm, "")
+    // 去掉行内的「--- 节拍 N/M ---」标记（保留 --- 供下面切分）
+    .replace(/-{3,}\s*节拍\s*\d+\s*(?:\/\s*\d+)?\s*-{3,}/g, "---");
+
+  return normalized
+    .split(BEAT_SEPARATOR)
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
+}
+
+/** 判断一行是否只是节拍标记 */
+export function isBeatMarker(line: string): boolean {
+  return /^\s*(?:-{3,}|\*{3,}|={3,})\s*(?:节拍\s*\d+.*)?(?:-{3,})?\s*$/.test(line);
 }
 
 /** 台词识别：「角色名「台词」」 */

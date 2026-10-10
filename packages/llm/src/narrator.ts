@@ -199,8 +199,11 @@ export class Narrator {
     }
   }
 
-  /** 把模型文本转成引擎可渲染的 Scene */
-  private toScene(ctx: ScenePromptContext, text: string): Scene {
+  /**
+   * 把模型文本转成引擎可渲染的 Scene。
+   * 公开为 public，供批量预生成脚本复用同一套解析与规范化逻辑。
+   */
+  toScene(ctx: ScenePromptContext, text: string): Scene {
     const chunks = parseBeats(text);
     const beats: Beat[] = chunks.map((chunk, i) => {
       const lines: Line[] = classifyLines(chunk).map((l) => ({

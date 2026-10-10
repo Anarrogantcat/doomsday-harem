@@ -56,6 +56,8 @@ const {
 } = core;
 
 const { createNarrator } = await imp("packages/llm/src/narrator.ts");
+const { normalizeOutput } = await imp("packages/llm/src/prompt.ts");
+const { renderScene } = await imp("packages/core/src/text/engine.ts");
 
 // ---------- 载入已有进度 ----------
 let store = { generatedAt: null, model: MODEL, entries: [] };
@@ -157,6 +159,9 @@ for (const [i, item] of plan.entries()) {
   const start = Date.now();
   try {
     const r = await narrator.narrate(ctx, null);
+
+    // 用引擎的渲染器输出，保证与游戏内显示一致
+    // （narrate 内部已调用 normalizeOutput 与 classifyLines）
     const text = r.scene.beats
       .map((b, bi) => {
         const lines = b.lines.map((l) =>
@@ -167,6 +172,17 @@ for (const [i, item] of plan.entries()) {
         return `--- 节拍 ${bi + 1}/${r.scene.beats.length} ---\n${lines}`;
       })
       .join("\n\n");
+
+    // 校验：确保没有残留的格式问题
+    const problems = [];
+    if (/「「|」」/.test(text)) problems.push("双引号");
+    if (/\n[?？]\s*「/.test(text)) problems.push("说话人断裂");
+    const speechLines = text.split("\n").filter((l) => l.includes("「"));
+    const badSpeakers = speechLines.filter((l) => !/^[^「]{1,8}「/.test(l));
+    if (badSpeakers.length > 0) problems.push(`无主台词 ${badSpeakers.length}`);
+    if (problems.length > 0) {
+      console.warn(`  ⚠ ${item.key} 格式问题：${problems.join("、")}`);
+    }
 
     const entry = {
       key: item.key,
