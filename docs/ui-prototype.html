@@ -1379,6 +1379,24 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
             <div class="bars"><div class="brow"><span class="blabel"></span><div class="btrack"><div class="bfill aff" style="width:57%"></div></div><span class="bval">57</span></div><div class="brow"><span class="blabel"></span><div class="btrack"><div class="bfill lust" style="width:40%"></div></div><span class="bval">40</span></div></div>
           </div>
         </div>
+        <div class="hitem" data-id="doctor">
+          <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='184'%3E%3Cdefs%3E%3ClinearGradient id='h170' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='hsl(170,35%25,38%25)'/%3E%3Cstop offset='1' stop-color='hsl(170,30%25,22%25)'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='120' height='184' fill='url(%23h170)'/%3E%3Ccircle cx='60' cy='52' r='26' fill='hsl(170,30%25,70%25)'/%3E%3Cellipse cx='60' cy='150' rx='34' ry='52' fill='hsl(170,32%25,58%25)'/%3E%3C/svg%3E" alt="沈清">
+          <div class="hi">
+            <div class="hn">沈清 <span class="lv">Lv4</span></div>
+            <div class="hj">医务室</div>
+            <div class="bars"><div class="brow"><span class="blabel">好感</span><div class="btrack"><div class="bfill" style="width:35%"></div></div><span class="bval">35</span></div></div>
+          </div>
+        </div>
+
+        <div class="hitem" data-id="soldier">
+          <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='184'%3E%3Cdefs%3E%3ClinearGradient id='h25' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='hsl(25,35%25,38%25)'/%3E%3Cstop offset='1' stop-color='hsl(25,30%25,22%25)'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='120' height='184' fill='url(%23h25)'/%3E%3Ccircle cx='60' cy='52' r='26' fill='hsl(25,30%25,70%25)'/%3E%3Cellipse cx='60' cy='150' rx='34' ry='52' fill='hsl(25,32%25,58%25)'/%3E%3C/svg%3E" alt="雷曼">
+          <div class="hi">
+            <div class="hn">雷曼 <span class="lv">Lv5</span></div>
+            <div class="hj">训练场</div>
+            <div class="bars"><div class="brow"><span class="blabel">好感</span><div class="btrack"><div class="bfill" style="width:25%"></div></div><span class="bval">25</span></div></div>
+          </div>
+        </div>
+
         <div class="hitem" data-id="sister2">
           <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22120%22%20height%3D%22184%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22hsl(200%2C35%25%2C38%25)%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22hsl(200%2C30%25%2C22%25)%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22120%22%20height%3D%22184%22%20fill%3D%22url(%2523g)%22%2F%3E%3Ccircle%20cx%3D%2260%22%20cy%3D%2252%22%20r%3D%2226%22%20fill%3D%22hsl(200%2C30%25%2C70%25)%22%2F%3E%3Cellipse%20cx%3D%2260%22%20cy%3D%22150%22%20rx%3D%2234%22%20ry%3D%2252%22%20fill%3D%22hsl(200%2C32%25%2C58%25)%22%2F%3E%3Ctext%20x%3D%2260%22%20y%3D%22178%22%20text-anchor%3D%22middle%22%20font-size%3D%2214%22%20fill%3D%22hsl(200%2C20%25%2C88%25)%22%3E%E5%A6%B9%E5%A6%B9%3C%2Ftext%3E%3C%2Fsvg%3E" alt="妹妹" style="width:2.4em;height:3.6em;object-fit:cover;border-radius:.25em;flex-shrink:0">
           <div class="hi">
@@ -3328,7 +3346,25 @@ grid:[['岗位','温室'],['冷落','0 天'],['暴露度','4%'],['亲密度','T1
 preg:{state:'未怀孕',stage:'—',count:0,births:0,children:0,recover:'—'},
 body:{sex:'女',gender:'女性',orient:'女',height:'162cm',weight:'48kg',
       measure:'80-56-84',cup:'C',build:'娇小',skin:'嫩白'},
-acts:['口交（受）','手活（受）']}};
+acts:['口交（受）','手活（受）']},
+// ── 以下为「后期遇到」的同伴示例 ──
+// 她们不随主角姓，有自己的姓名与生理数据，结构与家人完全一致
+doctor:{name:'沈清',app:'林医生',role:'外科医生',title:'市立医院 · 31岁',
+  tags:['冷静专业','168cm','C-cup','经验丰富'],lv:4,exp:'30/200',expPct:15,hue:170,
+  bars:[['体力',75,'var(--ok)'],['心情',70,'var(--energy)'],['好感',35,'var(--accent-lt)'],['欲情',30,'var(--lust)']],
+  grid:[['岗位','医务室'],['冷落','0 天'],['暴露度','6%'],['亲密度','T1'],['受伤','无'],['被动增益','1 项'],['生育力','高'],['生理期','正常']],
+  preg:{state:'未怀孕',stage:'—',count:0,births:0,children:0,recover:'—'},
+  body:{sex:'女',gender:'女性',orient:'女',height:'168cm',weight:'55kg',
+        measure:'88-62-90',cup:'C',build:'清瘦',skin:'苍白'},
+  acts:['口交（施）','正面位','骑乘位']},
+soldier:{name:'雷曼',app:'雷教官',role:'军方残部',title:'原陆军中尉 · 27岁',
+  tags:['强硬寡言','172cm','C-cup','战斗专家'],lv:5,exp:'80/300',expPct:27,hue:25,
+  bars:[['体力',95,'var(--ok)'],['心情',55,'var(--energy)'],['好感',25,'var(--accent-lt)'],['欲情',20,'var(--lust)']],
+  grid:[['岗位','训练场'],['冷落','0 天'],['暴露度','3%'],['亲密度','T1'],['受伤','无'],['被动增益','3 项'],['生育力','高'],['生理期','正常']],
+  preg:{state:'未怀孕',stage:'—',count:0,births:0,children:0,recover:'—'},
+  body:{sex:'女',gender:'女性',orient:'女',height:'172cm',weight:'60kg',
+        measure:'86-62-92',cup:'C',build:'结实',skin:'小麦'},
+  acts:['口交（施）','正面位','背后位','骑乘位']}};
 
 function HUE_SVG(h){return 'data:image/svg+xml;utf8,'+encodeURIComponent(
   "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='184'>"+
@@ -3376,9 +3412,12 @@ function pregBlock(d){
 function fillDetail(id){
   const d=COMPANIONS[id]; if(!d) return;
   const q=(s)=>document.querySelector('#detail '+s);
-  const t=q('.mtitle'); if(t) t.textContent=d.name;
+  const t=q('.mtitle'); if(t) t.textContent = d.app ? (d.app + ' · ' + d.name) : d.name;
   const im=q('.dhead img'); if(im) im.src=HUE_SVG(d.hue);
-  const nm=q('.dname'); if(nm) nm.innerHTML=d.name+' <span class="tag">'+d.role+'</span>';
+  // 后期遇到的同伴可以有称谓（如「林医生」），家人则用名字
+  const disp = d.app ? (d.app + ' <span class="tag">' + d.role + '</span>')
+                     : (d.name + ' <span class="tag">' + d.role + '</span>');
+  const nm=q('.dname'); if(nm) nm.innerHTML=disp;
   const ti=q('.dtitle'); if(ti) ti.textContent=d.title;
   const tg=q('.dtags'); if(tg) tg.innerHTML=d.tags.map((x,i)=>'<span class="dtag'+(i===d.tags.length-1?' ok':'')+'">'+x+'</span>').join('');
   const lv=q('.dlvl .n'); if(lv) lv.textContent=d.lv;
