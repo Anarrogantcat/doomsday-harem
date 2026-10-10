@@ -235,7 +235,15 @@ export function DetailPanel({ kind, id }: { kind: Kind; id?: string }) {
   }, [session, kind, id, version]);
 
   return (
-    <div className="proto-detail">
+    <div className="proto-ds-hero">
+      <div className="proto-ds-head">
+        <div className="proto-dname">
+          {kind === "hero" ? "主角" : companion?.identity.name ?? "同伴"}
+        </div>
+        <div className="proto-dtitle">
+          {kind === "hero" ? "扶她 · 指挥者" : companion?.identity.title ?? ""}
+        </div>
+      </div>
       <div className="proto-dtabs">
         {tabs.map((t) => (
           <div

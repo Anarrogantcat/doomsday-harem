@@ -1,14 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { renderScene, type Scene } from "@doomsday/core";
 import { buildSceneContext } from "@doomsday/llm";
 import { useGame } from "./store/game.ts";
 import { HaremRoster } from "./shell/HaremRoster.tsx";
 import { RightColumn } from "./shell/RightColumn.tsx";
-import { CompanionDetail } from "./shell/CompanionDetail.tsx";
-import { HeroDetail } from "./shell/HeroDetail.tsx";
 import { NarrationPanel, type NarrationEntry } from "./shell/NarrationPanel.tsx";
 import { PixelStrip } from "./shell/PixelStrip.tsx";
-import { FortressSection } from "./shell/FortressSection.tsx";
 import { CombatView } from "./shell/CombatView.tsx";
 import { StatusStrip, MessageLog } from "./shell/StatusStrip.tsx";
 import { Overlay } from "./shell/Overlay.tsx";
@@ -242,9 +239,71 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [entries.length]);
 
+  // ---------- 栏宽拖动（对应原型 3 个 .splitter）----------
+  const [colWidths, setColWidths] = useState<{ left: number; right: number; detail: number }>(() => {
+    try {
+      const raw = localStorage.getItem("dh-col-widths");
+      if (raw) {
+        const v = JSON.parse(raw) as { left: number; right: number; detail: number };
+        if (v && typeof v.left === "number") return v;
+      }
+    } catch { /* 忽略 */ }
+    return { left: 19, right: 24, detail: 21 };
+  });
+
+  const dragRef = useRef<{ which: "left" | "right" | "detail"; x: number; w: number } | null>(null);
+
+  /** 拖动开始（3 个 splitter 共用） */
+  const startDrag = useCallback((e: React.PointerEvent, which: "left" | "right" | "detail") => {
+    dragRef.current = { which, x: e.clientX, w: colWidths[which] };
+    (e.currentTarget as HTMLElement).classList.add("dragging");
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* 合成事件无 capture */ }
+  }, [colWidths]);
+
+  // 拖动中 / 结束（全局监听，避免指针移出 splitter 后丢失）
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const dx = e.clientX - d.x;
+      const deltaEm = (dx / (settings.display.fontSize || 14));
+      // 左栏向右拖变宽；右栏向右拖也变宽；详情栏向右拖变窄
+      const next = d.which === "detail" ? d.w - deltaEm : d.w + deltaEm;
+      const limits: Record<string, [number, number]> = {
+        left: [9, 34], right: [13, 44], detail: [11, 34]
+      };
+      const [lo, hi] = limits[d.which];
+      setColWidths((v) => ({ ...v, [d.which]: Math.max(lo, Math.min(hi, Math.round(next))) }));
+    };
+    const onUp = () => {
+      if (!dragRef.current) return;
+      dragRef.current = null;
+      document.querySelectorAll(".splitter.dragging").forEach((x) => x.classList.remove("dragging"));
+      setColWidths((v) => {
+        try { localStorage.setItem("dh-col-widths", JSON.stringify(v)); } catch { /* 忽略 */ }
+        return v;
+      });
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [settings.display.fontSize]);
+
+  /** 双击 splitter 复位该栏 */
+  const resetCol = useCallback((which: "left" | "right" | "detail") => {
+    const def = { left: 19, right: 24, detail: 21 };
+    setColWidths((v) => ({ ...v, [which]: def[which] }));
+  }, []);
+
   // 根字号随设置变化（所有尺寸用 em，因此整体缩放）
   const rootStyle = {
-    "--fs": `${settings.display.fontSize}px`
+    "--fs": `${settings.display.fontSize}px`,
+    "--c-left": colWidths.left + "em",
+    "--c-right": colWidths.right + "em",
+    "--c-detail": colWidths.detail + "em"
   } as React.CSSProperties;
 
   // 主菜单：未进入游戏时只显示菜单
@@ -267,98 +326,102 @@ export function App() {
   }
 
   return (
-    <div className={`game ${settings.gameplay.compactRoster ? "compact" : ""}`} style={rootStyle}>
-      <div className="game-body">
-        {/* 左：后宫名册（主角与 AI 置顶） */}
+    <div id="game" style={rootStyle} className={settings.gameplay.compactRoster ? "compact" : ""}>
+      {/* ═══ 左栏：特殊AI + 后宫名册 + 快捷面板 ═══ */}
+      <div className="left">
         <HaremRoster selected={selected} onSelect={setSelected} />
-
-        {/* 中：舞台 + 下侧像素条 */}
-        <main className="stage">
-          <div className="stage-tabs">
-            <button
-              className={centerTab === "narration" ? "stagetab active" : "stagetab"}
-              onClick={() => setCenterTab("narration")}
-            >
-              叙事
-            </button>
-            <button
-              className={centerTab === "fortress" ? "stagetab active" : "stagetab"}
-              onClick={() => setCenterTab("fortress")}
-            >
-              要塞剖面
-            </button>
-            <button
-              className={centerTab === "combat" ? "stagetab active" : "stagetab"}
-              onClick={() => setCenterTab("combat")}
-            >
-              战斗{session.inCombat() ? "（进行中）" : ""}
-            </button>
-            <span className="sub">
-              {session.here()?.name}　第 {session.time.day} 天
-            </span>
-            <button
-              className="stagetab"
-              onClick={() => setShowStrip((v) => !v)}
-              title="切换像素条（P）"
-            >
-              {showStrip ? "隐藏画面" : "显示画面"}
-            </button>
-          </div>
-
-          <div className="stage-body">
-            {centerTab === "combat" ? (
-              <CombatView />
-            ) : centerTab === "narration" ? (
-              <NarrationPanel
-                entries={entries}
-                index={index}
-                onIndex={setIndex}
-                onGenerate={doGenerate}
-                generating={generating}
-                streamText={streamText}
-                embedded
-              />
-            ) : (
-              <FortressSections onOpenBase={() => setOverlay("base")} />
-            )}
-          </div>
-
-          {/* 选项区：每节拍结束后的选择（原型 .obar） */}
-          <OptionsBar options={options} />
-
-          {/* 事件栏：可拖动高度、可折叠（原型 .eventbar） */}
-          <EventBar entries={eventEntries} />
-
-          {/* 下侧栏：像素场景条 */}
-          {showStrip && <PixelStrip height={148} />}
-        </main>
-
-        {/* 右：地图 / 基地 / 房车 / 行动 */}
-        <RightColumn onOpen={setOverlay} />
-
-        {/* 最右：详情（主角或同伴） */}
-        <aside className="detailcol proto-detailcol">
-          <DetailPanel
-            kind={selected === "hero" || !selected ? "hero" : "companion"}
-            id={selected ?? undefined}
-          />
-        </aside>
       </div>
 
-      <InputBar
-        busy={generating}
-        onSubmit={(t) => {
-          setEntries((prev) => [...prev, {
-            id: ++counter.n, kind: "event", title: "你的行动", text: t
-          } as NarrationEntry].slice(-200));
-        }}
-      />
+      <div className="splitter" onPointerDown={(e) => startDrag(e, "left")} onDoubleClick={() => resetCol("left")} title="拖动调节宽度 · 双击复位" />
+
+      {/* ═══ 中栏：舞台 + 选项 + 事件 + 输入 ═══ */}
+      <div className="center">
+        <div className="ctabs">
+          {([
+            ["narration", "叙事"],
+            ["fortress", "剖面"],
+            ["combat", "战斗"]
+          ] as Array<[CenterTab, string]>).map(([id, label]) => (
+            <div
+              key={id}
+              className={"ctab" + (centerTab === id ? " on" : "")}
+              onClick={() => setCenterTab(id)}
+            >
+              {label}{id === "combat" && session.inCombat() ? " ●" : ""}
+            </div>
+          ))}
+          <span className="csub">
+            {session.here()?.name}　第 {session.time.day} 天
+          </span>
+          <button
+            className="ctab"
+            onClick={() => setShowStrip((v) => !v)}
+            title="切换像素条（P）"
+          >
+            {showStrip ? "隐藏画面" : "显示画面"}
+          </button>
+        </div>
+
+        {/* 舞台 */}
+        <div className="stage">
+          {centerTab === "combat" ? (
+            <CombatView />
+          ) : centerTab === "narration" ? (
+            <NarrationPanel
+              entries={entries}
+              index={index}
+              onIndex={setIndex}
+              onGenerate={doGenerate}
+              generating={generating}
+              streamText={streamText}
+              embedded
+            />
+          ) : (
+            <FortressSections onOpenBase={() => setOverlay("base")} />
+          )}
+        </div>
+
+        {/* 选项区（原型 .obar） */}
+        <OptionsBar options={options} />
+
+        {/* 事件栏（原型 .eventbar） */}
+        <EventBar entries={eventEntries} />
+
+        {/* 输入栏（原型 .ibar） */}
+        <InputBar
+          busy={generating}
+          onSubmit={(t) => {
+            setEntries((prev) => [...prev, {
+              id: ++counter.n, kind: "event", title: "你的行动", text: t
+            } as NarrationEntry].slice(-200));
+          }}
+        />
+      </div>
+
+      <div className="splitter" onPointerDown={(e) => startDrag(e, "right")} onDoubleClick={() => resetCol("right")} title="拖动调节宽度 · 双击复位" />
+
+      {/* ═══ 右栏：地图 / 基地 / 房车 / 行动 ═══ */}
+      <div className="right">
+        <RightColumn onOpen={setOverlay} />
+      </div>
+
+      <div className="splitter" onPointerDown={(e) => startDrag(e, "detail")} onDoubleClick={() => resetCol("detail")} title="拖动调节宽度 · 双击复位" />
+
+      {/* ═══ 详情栏：主角段 + 分隔 + 同伴段 ═══ */}
+      <div className="detail-side">
+        <DetailPanel
+          kind={selected === "hero" || !selected ? "hero" : "companion"}
+          id={selected ?? undefined}
+        />
+      </div>
+
+      {/* ═══ 底条 ═══ */}
+      {showStrip ? <div className="strip"><PixelStrip height={44} /></div> : null}
 
       <StatusStrip />
       <MessageLog />
       <Overlay tab={overlay} onClose={() => setOverlay(null)} />
       <CheatOverlay />
-      {/* 大地图弹窗（原型 UI） */}
       <BigMapHost />
 
       <div className="keyhint">
