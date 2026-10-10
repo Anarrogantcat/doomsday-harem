@@ -825,3 +825,115 @@ legend { color: var(--sub); font-size: 0.78em; padding: 0 0.4em; }
 }
 .rv-ok { color: var(--ok); }
 .rv-lock { color: var(--dim); }
+
+/* ============ 主角等级与成长 ============ */
+.hero-level { display: flex; flex-direction: column; gap: 0.2em; margin-top: 0.35em; }
+.hl-row { display: flex; align-items: baseline; gap: 0.4em; }
+.hl-label { font-size: 0.72em; color: var(--sub); }
+.hl-value {
+  font-size: 1.25em; font-weight: 700; color: var(--accent-lt);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.hl-points {
+  font-size: 0.68em; color: var(--warn); border: 1px solid var(--warn);
+  border-radius: 0.2em; padding: 0 0.35em; margin-left: auto;
+}
+.hl-bar {
+  height: 0.35em; background: #1e2532; border-radius: 0.18em;
+  overflow: hidden; margin-top: 0.15em;
+}
+.hl-fill {
+  height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-lt));
+  transition: width .3s;
+}
+.hl-exp {
+  font-size: 0.68em; color: var(--dim); text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-tabs {
+  display: flex; gap: 0.2em; padding: 0.15em 0;
+  border-bottom: 1px solid var(--line);
+}
+.dtab {
+  flex: 1; background: transparent; border: none; color: var(--sub);
+  padding: 0.35em 0.2em; border-radius: var(--radius) var(--radius) 0 0;
+  font-size: 0.82em; cursor: pointer; border-bottom: 2px solid transparent;
+}
+.dtab:hover { color: var(--fg); background: var(--panel2); }
+.dtab.active { color: var(--accent-lt); border-bottom-color: var(--accent); }
+
+.growth-note {
+  font-size: 0.75em; color: var(--dim); line-height: 1.6;
+  padding: 0.45em 0.6em; background: var(--panel2);
+  border-left: 2px solid var(--accent); border-radius: var(--radius);
+}
+
+.attr-list { display: flex; flex-direction: column; gap: 0.5em; }
+.attr-row { display: flex; flex-direction: column; gap: 0.2em; }
+.attr-head { display: flex; align-items: baseline; gap: 0.4em; }
+.attr-name { font-size: 0.8em; color: var(--sub); flex: 1; cursor: help; }
+.attr-val {
+  font-size: 0.88em; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.attr-bonus { font-size: 0.75em; color: var(--ok); margin-left: 0.25em; }
+.attr-add {
+  width: 1.2em; height: 1.2em; padding: 0; line-height: 1;
+  font-size: 0.9em; font-weight: 700;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 50%; cursor: pointer;
+}
+.attr-add:hover { background: var(--accent-lt); }
+.attr-bar {
+  position: relative; height: 0.4em; background: #1e2532;
+  border-radius: 0.2em; overflow: hidden;
+}
+.attr-fill { position: absolute; top: 0; height: 100%; transition: width .25s; }
+.attr-fill.base { left: 0; background: var(--accent-lt); }
+.attr-fill.bonus { background: var(--ok); opacity: .85; }
+
+.skill-list { display: flex; flex-direction: column; gap: 0.55em; }
+.skill-row { display: flex; flex-direction: column; gap: 0.18em; }
+.skill-head { display: flex; align-items: baseline; justify-content: space-between; }
+.skill-name { font-size: 0.82em; }
+.skill-lv {
+  font-size: 0.75em; color: var(--accent-lt);
+  font-variant-numeric: tabular-nums;
+}
+.skill-bar { height: 0.32em; background: #1e2532; border-radius: 0.16em; overflow: hidden; }
+.skill-fill {
+  height: 100%; background: var(--info); transition: width .25s;
+}
+.skill-exp {
+  font-size: 0.68em; color: var(--dim); text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============ 动效 ============ */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(0.4em); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.narration-body > * { animation: fadeSlideIn .22s ease-out; }
+.overlay-box { animation: fadeSlideIn .18s ease-out; }
+.rcard { animation: fadeSlideIn .18s ease-out; }
+.detail > * { animation: fadeSlideIn .2s ease-out; }
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(141,49,176,.5); }
+  50% { box-shadow: 0 0 0 0.3em rgba(141,49,176,0); }
+}
+.rcard.alert { animation: pulseGlow 2s infinite; }
+
+@keyframes barPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .7; }
+}
+.rv-building, .fortress-building { animation: barPulse 1.8s infinite; }
+
+/* 过渡统一 */
+.rcard, .rv-row, .chip, .actbtn, .navbtn, .mini, .stagetab, .rtab, .dtab {
+  transition: background-color .14s, border-color .14s, color .14s, transform .1s;
+}
+.actbtn:active:not(:disabled) { transform: scale(0.97); }
+.rv-btn:active:not(:disabled) { transform: scale(0.98); }

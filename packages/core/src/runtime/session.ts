@@ -103,6 +103,13 @@ import {
   haremInteractToScene, allTemplateStats, type HaremInteractTemplate
 } from "../systems/hTemplates.ts";
 import {
+  type HeroGrowth, type HeroAttributes, type HeroBonuses,
+  newHeroGrowth, gainExp, gainSkillExp, spendPoint, effectiveAttributes,
+  emptyBonuses, attributeTotal, skillTotal, levelProgress, expForLevel,
+  ATTR_KEYS, ATTR_LABEL, growthToJSON, growthFromJSON,
+  type HeroGrowthJSON
+} from "../systems/heroGrowth.ts";
+import {
   type Combatant, type CombatState, type CombatBonus, type AttackResult,
   newCombatant, startCombat, mulberry32 as combatRng, attack as combatAttack,
   applyDamage, addLog, playerAttack, charmEnemy, enemyTurn, advanceRound,
@@ -135,6 +142,8 @@ export interface HeroRuntime {
   lust: Lust;
   pregnancy: Pregnancy | null;
   wardrobe: Wardrobe;
+  /** 成长状态（等级/属性/技能）—— 只有主角有 */
+  growth: HeroGrowth;
 }
 
 export interface SessionOptions {
@@ -275,7 +284,8 @@ export class GameSession {
       survival: { ...DEFAULT_SURVIVAL },
       lust: { ...DEFAULT_LUST, value: 20 },
       pregnancy: null,
-      wardrobe: presetWardrobe("hero")
+      wardrobe: presetWardrobe("hero"),
+      growth: newHeroGrowth()
     };
 
     this.companions = defaultCompanions();
@@ -2031,6 +2041,102 @@ export class GameSession {
     return allTemplateStats();
   }
 
+  // ---------- 主角成长 ----------
+
+  /**
+   * 来自科技与基地的加成。
+   *
+   * 这是主角强化的唯一来源（设计约束）：
+   * 科技节点 + 基地设施，没有任何超自然来源。
+   */
+  heroBonuses(): HeroBonuses {
+    const b = this.baseBonuses();
+    const techCount = this.tech.unlocked.size;
+    const out = emptyBonuses();
+
+    // 科技：每 10 个节点给全属性 +1
+    const techAttr = Math.floor(techCount / 10);
+    if (techAttr > 0) {
+      out.attributes = {
+        strength: techAttr,
+        agility: techAttr,
+        endurance: techAttr,
+        perception: techAttr,
+        willpower: techAttr,
+        charisma: techAttr
+      };
+    }
+
+    // 设施加成映射到属性
+    const attrFromBase: Partial<HeroAttributes> = {};
+    const addAttr = (k: keyof HeroAttributes, v: number) => {
+      attrFromBase[k] = (attrFromBase[k] ?? 0) + v;
+    };
+
+    addAttr("strength", Math.floor((b["meleeDmg"] ?? 0) / 5));
+    addAttr("agility", Math.floor((b["trainingRate"] ?? 0) / 10));
+    addAttr("endurance", Math.floor((b["staminaMax"] ?? 0) / 10));
+    addAttr("perception", Math.floor((b["detection"] ?? 0) / 10));
+    addAttr("willpower", Math.floor((b["mentalResist"] ?? 0) / 10));
+    addAttr("charisma", Math.floor((b["morale"] ?? 0) / 10));
+
+    for (const k of ATTR_KEYS) {
+      const v = attrFromBase[k] ?? 0;
+      if (v > 0) out.attributes[k] = (out.attributes[k] ?? 0) + v;
+    }
+
+    // 数值类加成
+    out.staminaMax = b["staminaMax"] ?? 0;
+    out.carryBonus = b["carry"] ?? 0;
+    out.meleeBonus = b["meleeDmg"] ?? 0;
+    out.dodgeBonus = (b["cover"] ?? 0) / 200;
+    out.scavengeMult = 1 + (b["scavengeRate"] ?? 0) / 100;
+    out.researchMult = 1 + (b["researchRate"] ?? 0) / 100;
+    out.alertBonus = Math.floor((b["detection"] ?? 0) / 10);
+
+    return out;
+  }
+
+  /** 主角最终属性（基础 + 加点 + 科技/基地） */
+  heroAttributes(): HeroAttributes {
+    return effectiveAttributes(this.hero.growth, this.heroBonuses());
+  }
+
+  /** 主角战力（属性总和） */
+  heroPower(): number {
+    return attributeTotal(this.heroAttributes());
+  }
+
+  /** 主角技能总等级 */
+  heroSkillTotal(): number {
+    return skillTotal(this.hero.growth);
+  }
+
+  /** 升级进度 0-1 */
+  heroLevelProgress(): number {
+    return levelProgress(this.hero.growth);
+  }
+
+  /** 给予主角经验（可能升级） */
+  giveHeroExp(amount: number): { levelsGained: number } {
+    const r = gainExp(this.hero.growth, amount);
+    this.hero.growth = r.growth;
+    return { levelsGained: r.levelsGained };
+  }
+
+  /** 给予技能经验 */
+  giveHeroSkillExp(skillId: string, amount: number): void {
+    this.hero.growth = gainSkillExp(this.hero.growth, skillId, amount);
+  }
+
+  /** 花费属性点 */
+  spendHeroPoint(attr: keyof HeroAttributes): { ok: boolean; reason?: string } {
+    const r = spendPoint(this.hero.growth, attr);
+    if (!r.ok) return { ok: false, reason: r.reason };
+    this.hero.growth = r.growth;
+    return { ok: true };
+  }
+
   /**
    * 当前可建造的设施列表（含消耗与阻塞原因）。
    * 供 UI 直接展示，不必打开建造面板。
@@ -2131,6 +2237,11 @@ export class GameSession {
   /** 直接建造（右栏快捷操作） */
   quickBuild(facilityId: string): { ok: boolean; reason?: string } {
     const r = this.beginBuild(facilityId);
+    if (r.ok) {
+      // 建造给成长经验
+      this.giveHeroExp(20);
+      this.giveHeroSkillExp("craft", 8);
+    }
     return r.ok ? { ok: true } : { ok: false, reason: r.reason };
   }
 
@@ -2234,7 +2345,12 @@ export class GameSession {
 
   toSave(slot = "auto"): SaveData {
     const data = newSave(VERSION, this.time);
-    data.flags = { ...this.flags, slot };
+    data.flags = {
+      ...this.flags,
+      slot,
+      // 主角成长（等级/属性/技能）随存档保存
+      __heroGrowth: JSON.stringify(growthToJSON(this.hero.growth))
+    };
 
     data.entities.push({
       id: this.hero.id,
@@ -2348,6 +2464,16 @@ export class GameSession {
         s.tech = { ...s.tech, researching: { nodeId: t.nodeId, hours: t.progress } };
       }
     }
+    // 主角成长（旧存档无此字段时用默认值）
+    const growthRaw = data.flags["__heroGrowth"];
+    if (typeof growthRaw === "string") {
+      try {
+        s.hero.growth = growthFromJSON(JSON.parse(growthRaw) as HeroGrowthJSON);
+      } catch {
+        s.hero.growth = newHeroGrowth();
+      }
+    }
+
     s.base = baseFromJSON(data.flags["base"] as never);
     s.world = mapFromJSON(data.flags["world"] as never);
     s.vehicle = vehicleFromJSON(data.flags["vehicle"] as never);

@@ -111,6 +111,7 @@ export interface GameState {
   refreshSlots: () => Promise<void>;
   backendInfo: () => string;
 
+  spendHeroPoint: (attr: string) => void;
   quickBuild: (facilityId: string) => void;
   quickInstallMod: (modId: string) => void;
 
@@ -706,6 +707,13 @@ export const useGame = create<GameState>((set, get) => ({
   },
 
   backendInfo: () => backendLabel(),
+
+  spendHeroPoint: (attr) => {
+    const { session, pushLog, refresh } = get();
+    const r = session.spendHeroPoint(attr as never);
+    pushLog(r.ok ? `属性提升：${attr}` : `无法加点：${r.reason}`);
+    refresh();
+  },
 
   quickBuild: (facilityId) => {
     const { session, pushLog, refresh } = get();
