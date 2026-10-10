@@ -49,6 +49,7 @@ export * from "./save/serialize.ts";
 export * from "./save/store.ts";
 export * from "./save/slots.ts";
 export * from "./render/pixel.ts";
+export * from "./render/rig.ts";
 export * from "./registry/scene.ts";
 export * from "./tech/branches.ts";
 export * from "./tech/tree.ts";

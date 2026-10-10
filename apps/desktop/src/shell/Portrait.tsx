@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 /**
  * 程序化角色头像。
  *
@@ -18,6 +19,9 @@ export function avatarFor(name: string): string {
   return avatarPath(hashHue(name) % AVATAR_COUNT);
 }
 
+import { rigToDataUri, buildFromText } from "@doomsday/core";
+import type { Wardrobe } from "@doomsday/core";
+
 export interface PortraitProps {
   name: string;
   /** 心情 0-100，影响表情 */
@@ -32,6 +36,17 @@ export interface PortraitProps {
   active?: boolean;
   /** 使用真实像素头像（默认 true，加载失败时回退 SVG） */
   useSprite?: boolean;
+  /** 显示模式：头像（方形裁切）或全身立绘 */
+  mode?: "avatar" | "full";
+  /** 着装（全身立绘用） */
+  wardrobe?: Wardrobe | null;
+  heightCm?: number;
+  /** 体型：数值 0-1 或角色数据里的描述文字 */
+  build?: number | string;
+  pregnancyProgress?: number;
+  lust?: number;
+  personality?: string;
+  futanari?: boolean;
 }
 
 /** 按名字散列出稳定色相 */
@@ -43,8 +58,28 @@ function hashHue(name: string): number {
 
 export function Portrait({
   name, mood = 60, pregnant = false, exposure = 10, size = 96, active = false,
-  useSprite = true
+  useSprite = true, mode = "avatar", wardrobe = null, heightCm = 168, build = 0.5 as number | string,
+  pregnancyProgress = 0, lust = 30, personality, futanari = false
 }: PortraitProps) {
+  // 全身立绘模式：程序化绘制
+  if (mode === "full") {
+    const buildNum = typeof build === "number" ? build : buildFromText(build);
+    const uri = useMemo(
+      () => rigToDataUri({
+        name, heightCm, build: buildNum, pregnant, pregnancyProgress,
+        wardrobe, exposure, mood, lust, personality, futanari,
+        width: size, height: Math.round(size * 1.75)
+      }),
+      [name, heightCm, buildNum, pregnant, pregnancyProgress, wardrobe, exposure, mood, lust, personality, futanari, size]
+    );
+
+    return (
+      <div className={`rig-wrap ${active ? "active" : ""}`} style={{ width: size, height: size * 1.75 }}>
+        <img src={uri} alt={name} className="rig-img" style={{ width: size, height: size * 1.75 }} />
+      </div>
+    );
+  }
+
   // 优先使用像素头像
   if (useSprite) {
     return (

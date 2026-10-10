@@ -37,10 +37,17 @@ export function CompanionDetail({ id }: { id: string | null }) {
       <div className="detail-head">
         <Portrait
           name={c.identity.name}
+          mode="full"
           mood={60}
+          lust={c.lust.value}
           pregnant={c.physiology.pregnant}
+          pregnancyProgress={c.physiology.pregnancyProgress}
           exposure={outfit?.exposure ?? 0}
-          size={72}
+          wardrobe={c.wardrobe}
+          heightCm={c.identity.heightCm}
+          build={def?.build ?? 0.5}
+          personality={def?.personality}
+          size={104}
         />
         <div className="detail-meta">
           <div className="detail-name">{c.identity.name}</div>
