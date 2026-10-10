@@ -125,6 +125,14 @@ import {
   VARIANT_LABEL
 } from "../systems/actScenes.ts";
 import {
+  type TechScope, SCOPE_LABEL, SCOPE_DESC, SCOPE_ICON,
+  BRANCH_SCOPE, SCOPE_OVERRIDES, nodeScope, canCompanionResearch,
+  researchContribution, teamResearchRate, scopeStats, sharedNodes,
+  allNodePairs, scopeMap, globalScopeStats, branchScopeOf,
+  COMPANION_RESEARCH_CAP, MAX_TEAM_BONUS
+} from "../tech/scope.ts";
+import { findNode as findTechNode, branchOf as techBranchOf } from "../tech/branches.ts";
+import {
   type CheatHost, type CheatResult,
   runCheatOp, runCheatAll as runCheatAllOps, cheatOpIds
 } from "../systems/cheatRunner.ts";
@@ -1317,6 +1325,123 @@ export class GameSession {
    * 一键应用作弊效果到全部系统。
    * 开启作弊即全开（对应设计：不分档）。
    */
+  // ---------- 科技树双轨与科研人员 ----------
+
+  /** 某节点的归属（共用 / 主角个人） */
+  techScopeOf(nodeId: string): TechScope | null {
+    const node = findTechNode(nodeId);
+    if (!node) return null;
+    const branch = techBranchOf(nodeId);
+    if (!branch) return null;
+    return nodeScope(node, branch.id);
+  }
+
+  /** 该节点是否可由后宫科研人员参与 */
+  canCompanionResearchTech(nodeId: string): boolean {
+    const node = findTechNode(nodeId);
+    if (!node) return false;
+    const branch = techBranchOf(nodeId);
+    if (!branch) return false;
+    return canCompanionResearch(node, branch.id);
+  }
+
+  /** 科技树双轨统计 */
+  techScopeStats() {
+    return globalScopeStats();
+  }
+
+  /** 全部节点的归属映射 */
+  techScopeMap(): Record<string, TechScope> {
+    return scopeMap();
+  }
+
+  /**
+   * 科研人员的参与贡献。
+   * 只有共用科技才能让科研人员参与；主角个人科技只能主角自己研究。
+   */
+  researchContributors(nodeId: string): Array<{
+    id: string;
+    name: string;
+    contribution: number;
+    craftLevel: number;
+    medicalLevel: number;
+    jobId: string | null;
+    eligible: boolean;
+    reason?: string;
+  }> {
+    const canResearch = this.canCompanionResearchTech(nodeId);
+
+    return this.joined()
+      .filter((c) => c.id !== "ai")
+      .map((c) => {
+        const craft = c.growth.skills.find((s) => s.id === "craft")?.level ?? 0;
+        const medical = c.growth.skills.find((s) => s.id === "medical")?.level ?? 0;
+        const contribution = researchContribution({
+          craftLevel: craft,
+          medicalLevel: medical,
+          jobId: c.job.id,
+          perkCount: c.growth.perks.length
+        });
+
+        if (c.growth.injuries > 0) {
+          return {
+            id: c.id, name: c.identity.name, contribution: 0,
+            craftLevel: craft, medicalLevel: medical, jobId: c.job.id,
+            eligible: false, reason: "有伤在身"
+          };
+        }
+
+        if (!canResearch) {
+          return {
+            id: c.id, name: c.identity.name, contribution: 0,
+            craftLevel: craft, medicalLevel: medical, jobId: c.job.id,
+            eligible: false, reason: "该科技为主角个人专属"
+          };
+        }
+
+        return {
+          id: c.id, name: c.identity.name, contribution,
+          craftLevel: craft, medicalLevel: medical, jobId: c.job.id,
+          eligible: contribution > 0
+        };
+      })
+      .sort((a, b) => b.contribution - a.contribution);
+  }
+
+  /** 含科研人员加成的研究速率 */
+  researchRateFor(nodeId: string): {
+    base: number;
+    teamBonus: number;
+    rate: number;
+    contributors: number;
+    canDelegate: boolean;
+  } {
+    const bonuses = this.heroBonuses();
+    const base = bonuses.researchMult;
+    const sharingOn = this.isSharedWithHarem("researchRate");
+    const canDelegate = this.canCompanionResearchTech(nodeId);
+    const contributions = canDelegate && sharingOn
+      ? this.researchContributors(nodeId).filter((x) => x.eligible).map((x) => x.contribution)
+      : [];
+
+    const t = teamResearchRate(base, contributions);
+    return {
+      base,
+      teamBonus: t.bonus,
+      rate: t.rate,
+      contributors: t.contributors,
+      canDelegate
+    };
+  }
+
+  /** 开工研究（含科研人员加成） */
+  beginResearchWithTeam(nodeId: string): { ok: boolean; reason?: string; rate?: number } {
+    const info = this.researchRateFor(nodeId);
+    const r = this.beginResearch(nodeId);
+    if (!r.ok) return { ok: false, reason: r.reason };
+    return { ok: true, rate: info.rate };
+  }
+
   // ---------- 作弊执行器 ----------
 
   /** 构建作弊宿主（把 session 能力暴露给 cheatRunner） */

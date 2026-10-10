@@ -63,7 +63,7 @@ export const BONUS_DEFS: BonusDef[] = [
   { key: "healRate", label: "治疗效率", category: "survival", appliesTo: "numeric", description: "医疗舱的恢复速度", defaultShared: true },
   { key: "hygiene", label: "卫生条件", category: "survival", appliesTo: "numeric", description: "浴室与清洁设施水平", defaultShared: true },
   { key: "airQuality", label: "空气质量", category: "survival", appliesTo: "numeric", description: "通风与过滤效果", defaultShared: true },
-  { key: "materialPerDay", label: "材料产出", category: "survival", appliesTo: "none", description: "矿场与回收的每日产出（主角统筹）", defaultShared: false },
+  { key: "materialPerDay", label: "材料产出", category: "survival", appliesTo: "numeric", description: "矿场与回收的每日产出（可授权后宫参与）", defaultShared: false },
 
   // ---- 战斗 ----
   { key: "defense", label: "防御强度", category: "combat", appliesTo: "numeric", description: "围墙与掩体的防护值", defaultShared: true },
@@ -78,8 +78,8 @@ export const BONUS_DEFS: BonusDef[] = [
   // ---- 设施 ----
   { key: "livingCapacity", label: "居住容量", category: "facility", appliesTo: "numeric", description: "可容纳的人数", defaultShared: true },
   { key: "trainingRate", label: "训练效率", category: "facility", appliesTo: "numeric", description: "训练场的提升速度", defaultShared: true },
-  { key: "craftRate", label: "制作效率", category: "facility", appliesTo: "none", description: "工坊的合成速度（主角专属）", defaultShared: false },
-  { key: "researchRate", label: "研究效率", category: "facility", appliesTo: "none", description: "实验室的研发速度（主角专属）", defaultShared: false },
+  { key: "craftRate", label: "制作效率", category: "facility", appliesTo: "numeric", description: "工坊的合成速度（可授权后宫协助）", defaultShared: true },
+  { key: "researchRate", label: "研究效率", category: "facility", appliesTo: "numeric", description: "实验室的研发速度（可授权后宫科研人员参与）", defaultShared: true },
   { key: "storageMult", label: "仓储容量", category: "facility", appliesTo: "numeric", description: "仓库的存储上限", defaultShared: false },
   { key: "powerCapacity", label: "电力容量", category: "facility", appliesTo: "numeric", description: "发电与储能总量", defaultShared: true },
   { key: "vehicleSlots", label: "车位", category: "facility", appliesTo: "numeric", description: "可停放的车辆数", defaultShared: true },

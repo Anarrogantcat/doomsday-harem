@@ -1178,16 +1178,43 @@ legend { color: var(--sub); font-size: 0.78em; padding: 0 0.4em; }
 }
 .cheat-actions { display: flex; flex-direction: column; gap: 0.2em; }
 .cheat-btn {
-  display: flex; flex-direction: column; gap: 0.05em;
-  width: 100%; text-align: left;
-  background: transparent; border: 1px solid transparent;
-  border-radius: 0.25em; padding: 0.35em 0.5em; cursor: pointer;
-  transition: background-color .12s, border-color .12s;
-}
-.cheat-btn:hover { background: var(--panel3); border-color: var(--accent); }
-.cheat-btn:active { transform: scale(0.99); }
-.cheat-btn-name { font-size: 0.8em; color: var(--fg); }
-.cheat-btn-desc { font-size: 0.68em; color: var(--dim); line-height: 1.4; }
 
-.cheat-foot { margin-top: 0.5em; }
-.cheat-foot h3 { margin: 0.9em 0 0.4em; }
+/* ============ 科技树双轨 ============ */
+.scope-dot { margin-left: 0.35em; font-size: 0.85em; }
+.scope-dot.shared { color: var(--info); }
+.scope-dot.personal { color: var(--accent-lt); }
+.scope-badge {
+  display: inline-block; font-size: 0.72em; padding: 0.1em 0.45em;
+  border-radius: 0.25em; white-space: nowrap;
+}
+.scope-badge.shared { color: var(--info); border: 1px solid var(--info); }
+.scope-badge.personal { color: var(--accent-lt); border: 1px solid var(--accent); }
+.node-name { font-weight: 500; }
+
+.research-team {
+  margin-top: 0.4em; padding: 0.5em;
+  background: var(--panel2); border-radius: var(--radius);
+  border-left: 2px solid var(--info);
+}
+.rt-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 0.82em; margin-bottom: 0.35em;
+}
+.rt-rate { color: var(--info); font-variant-numeric: tabular-nums; }
+.rt-bonus { color: var(--ok); font-size: 0.9em; }
+.rt-list { display: flex; flex-direction: column; gap: 0.15em; }
+.rt-row {
+  display: flex; align-items: center; gap: 0.5em;
+  font-size: 0.74em; padding: 0.2em 0.35em; border-radius: 0.2em;
+}
+.rt-row.on { background: rgba(0,245,239,.06); }
+.rt-row.off { opacity: .5; }
+.rt-name { flex: 1; }
+.rt-skills { color: var(--dim); }
+.rt-contrib { color: var(--ok); font-variant-numeric: tabular-nums; }
+.rt-row.off .rt-contrib { color: var(--dim); }
+.research-note {
+  font-size: 0.75em; color: var(--accent-lt); padding: 0.4em 0.5em;
+  background: rgba(141,49,176,.08); border-left: 2px solid var(--accent);
+  border-radius: var(--radius); margin-top: 0.4em;
+}

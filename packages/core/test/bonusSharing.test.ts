@@ -52,9 +52,15 @@ test("share: 默认授权", () => {
   // 默认授权的键应有值
   const shared = sharedKeys(s);
   assert.ok(shared.length > 0);
-  // 主角专属的默认不共享
-  assert.equal(isShared(s, "researchRate"), false, "研究效率应为主角专属");
-  assert.equal(isShared(s, "craftRate"), false);
+  // 研究/制作效率现为可授权项（默认开启）
+  assert.equal(isShared(s, "researchRate"), true, "研究效率应可授权给后宫科研人员");
+  assert.equal(isShared(s, "craftRate"), true, "制作效率应可授权");
+});
+
+test("share: 全部加成均可授权（无主角专属项）", () => {
+  const s = newShareState();
+  const none = BONUS_DEFS.filter((b) => b.appliesTo === "none");
+  assert.equal(none.length, 0, "不应存在不可授权的加成");
 });
 
 test("share: 切换授权", () => {
