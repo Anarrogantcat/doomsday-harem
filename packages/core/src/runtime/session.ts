@@ -125,6 +125,10 @@ import {
   VARIANT_LABEL
 } from "../systems/actScenes.ts";
 import {
+  type CheatHost, type CheatResult,
+  runCheatOp, runCheatAll as runCheatAllOps, cheatOpIds
+} from "../systems/cheatRunner.ts";
+import {
   type CompanionGrowth, type CompanionPerk, type PerkContext,
   newCompanionGrowth, recordIntimacy, recordJobDay, recordBirth,
   hasPerk, perkMultipliers, growthLevel, growthSummary,
@@ -1313,6 +1317,268 @@ export class GameSession {
    * 一键应用作弊效果到全部系统。
    * 开启作弊即全开（对应设计：不分档）。
    */
+  // ---------- 作弊执行器 ----------
+
+  /** 构建作弊宿主（把 session 能力暴露给 cheatRunner） */
+  cheatHost(): CheatHost {
+    const self = this;
+    const ALL_PARTS: ActPart[] = ["mouth", "vagina", "anus", "hand", "breast", "thigh", "foot", "toy"];
+
+    const maxProf = (p: Proficiency): Proficiency => {
+      let out = p;
+      for (const part of ALL_PARTS) {
+        const act = ACTS.find((a) => a.part === part);
+        if (!act) continue;
+        for (let i = 0; i < 600; i++) out = recordAct(out, act.id).proficiency;
+      }
+      return out;
+    };
+
+    return {
+      // 生存
+      fillVitals() {
+        self.hero.survival = {
+          stamina: 100, hunger: 100, thirst: 100,
+          energy: 100, mood: 100
+        };
+        for (const c of self.companions) {
+          c.growth = { ...c.growth, stamina: c.growth.staminaMax, mood: 100 };
+        }
+      },
+      clearLust() { self.cheatClearLust(); },
+      maxLust() { self.cheatMaxLust(); },
+      healAll() {
+        for (const c of self.companions) c.growth = { ...c.growth, injuries: 0 };
+      },
+
+      // 主角成长
+      setHeroLevel(n: number) { self.hero.growth = { ...self.hero.growth, level: n, exp: 0 }; },
+      addHeroPoints(n: number) {
+        self.hero.growth = { ...self.hero.growth, points: self.hero.growth.points + n };
+      },
+      maxHeroAttrs() {
+        self.hero.growth = {
+          ...self.hero.growth,
+          attributes: { strength: 50, agility: 50, endurance: 50, perception: 50, willpower: 50, charisma: 50 }
+        };
+      },
+      maxHeroSkills() {
+        self.hero.growth = {
+          ...self.hero.growth,
+          skills: self.hero.growth.skills.map((s) => ({ ...s, level: 10, exp: 0 }))
+        };
+      },
+      addHeroExp(n: number) {
+        const r = gainExp(self.hero.growth, n);
+        self.hero.growth = r.growth;
+        return r.levelsGained;
+      },
+
+      // 后宫成长
+      setAllCompanionLevel(n: number) {
+        for (const c of self.companions) c.growth = { ...c.growth, level: n, exp: 0 };
+      },
+      maxAllCompanionSkills() {
+        for (const c of self.companions) {
+          c.growth = { ...c.growth, skills: c.growth.skills.map((s) => ({ ...s, level: 10, exp: 0 })) };
+        }
+      },
+      maxAllCompanionMood() {
+        for (const c of self.companions) c.growth = { ...c.growth, mood: 100 };
+      },
+      maxAllCompanionStamina() {
+        for (const c of self.companions) c.growth = { ...c.growth, stamina: c.growth.staminaMax };
+      },
+      unlockAllCompanionPerks() {
+        for (const c of self.companions) {
+          let g = c.growth;
+          for (let i = 0; i < 60; i++) {
+            g = recordIntimacy(g, "oral_give", { bond: 5, affection: 100, loyalty: 100 }).growth;
+          }
+          for (let i = 0; i < 40; i++) g = recordJobDay(g, c.job.id ?? "idle");
+          g = recordBirth(g, { bond: 5, affection: 100, loyalty: 100 }).growth;
+          c.growth = g;
+        }
+      },
+      maxAllIntimacyTier() {
+        for (const c of self.companions) {
+          c.relationship = { ...c.relationship, bond: 5 };
+          // 亲密度层级由羁绊与累计亲密共同决定，需补足次数
+          let g = c.growth;
+          if (g.totalActs < 60) {
+            for (let i = g.totalActs; i < 60; i++) {
+              g = recordIntimacy(g, "oral_give", { bond: 5, affection: 100, loyalty: 100 }).growth;
+            }
+          }
+          c.growth = refreshIntimacyTier(g, 5);
+        }
+      },
+      healAllCompanions() {
+        for (const c of self.companions) c.growth = { ...c.growth, injuries: 0 };
+      },
+
+      // 亲密
+      maxHeroProficiency() { self.hero.proficiency = maxProf(self.hero.proficiency); },
+      maxCompanionProficiency() {
+        for (const c of self.companions) {
+          c.growth = { ...c.growth, proficiency: maxProf(c.growth.proficiency) };
+        }
+      },
+      completeAllAnalPrep() {
+        for (const c of self.companions) self.analPrep[c.id] = ENEMA_STEPS.length;
+      },
+      clearAllAnalPrep() { self.analPrep = {}; },
+      grantAllIntimateItems() {
+        const items = [
+          "dildo_double", "strap_on", "vibrator", "egg_vibe", "restraint_set",
+          "lube", "anal_plug_set", "anal_beads", "vibrating_plug",
+          "enema_kit", "enema_solution", "anal_cleanser",
+          "anal_soothing_cream", "intimate_wipes", "warming_lube", "numbing_lube"
+        ];
+        for (const id of items) self.addToStorage(id, 99);
+        return items.length;
+      },
+
+      // 基地科技
+      unlockAllTech() { self.unlockEverything(); return self.tech.unlocked.size; },
+      buildAllFacilities() {
+        self.base = instantBuildAll(self.base);
+        return self.base.facilities.filter((f) => f.tier > 0).length;
+      },
+      clearBuildQueue() { self.base = { ...self.base, building: null }; },
+      grantMaterials() { return self.giveCheatMaterials(); },
+
+      // 房车
+      installAllMods() { self.vehicle = installAll(self.vehicle); return self.vehicle.mods.length; },
+      fillVehicle() { self.vehicle = { ...self.vehicle, fuel: 200, charge: 100 }; },
+      repairVehicle() { self.vehicle = { ...self.vehicle, hull: 100 }; },
+
+      // 世界
+      discoverAll() {
+        for (const r of REGIONS) {
+          const st = self.world.regions[r.id];
+          if (st) st.discovered = true;
+        }
+      },
+      clearAllRegions() {
+        for (const r of REGIONS) {
+          const st = self.world.regions[r.id];
+          if (st) { st.discovered = true; st.cleared = r.lootNodes; st.nodesLeft = 0; }
+        }
+      },
+      refillLoot() {
+        for (const r of REGIONS) {
+          const st = self.world.regions[r.id];
+          if (st) { st.discovered = true; st.nodesLeft = r.lootNodes; }
+        }
+      },
+
+      // 战斗
+      winCombat() {
+        if (!self.combat) return false;
+        self.combat = {
+          ...self.combat,
+          enemies: self.combat.enemies.map((e) => ({ ...e, hp: 0 })),
+          over: true, victory: true
+        };
+        self.applyCombatOutcome();
+        return true;
+      },
+      endCombat() { self.endCombat(); },
+      grantWeapons() {
+        const w = ["knife", "axe", "bat", "pistol", "rifle", "shotgun", "machinegun",
+          "ammo_762", "ammo_9mm", "ammo_shell", "gunpowder"];
+        for (const id of w) self.addToStorage(id, 999);
+        return w.length;
+      },
+
+      // 防御
+      maxDefense() {
+        self.defense = { ...self.defense, reputation: 100, blood: 0, wallDamage: 0 };
+      },
+      rescueCaptured() {
+        const n = self.defense.captured.length;
+        self.defense = { ...self.defense, captured: [] };
+        return n;
+      },
+      cancelRaids() {
+        for (const c of self.companions) {
+          c.lust = { ...c.lust, forced: false, value: 0 };
+        }
+      },
+
+      // 生育
+      impregnateHero(t?: string) { self.cheatHeroPregnant(t ?? "sister"); },
+      impregnateAll() {
+        let n = 0;
+        for (const c of self.companions) {
+          if (c.id === "ai") continue;
+          if (self.cheatImpregnate(c.id)) n++;
+        }
+        return n;
+      },
+      deliverAll() { return self.cheatDeliver(); },
+      clearPregnancies() {
+        for (const c of self.companions) {
+          c.physiology = { ...c.physiology, pregnant: false, pregnancyProgress: 0 };
+        }
+        self.hero.physiology = { ...self.hero.physiology, pregnant: false, pregnancyProgress: 0 };
+        self.hero.pregnancy = null;
+      },
+
+      // 主线
+      unlockAllCompanions() { return self.cheatUnlockAllCompanions(); },
+      completeAllQuests() {
+        for (const q of Object.values(self.quests)) q.completed = true;
+      },
+      maxRelations() { self.cheatMaxRelations(); },
+      resetRelations() {
+        for (const c of self.companions) {
+          c.relationship = { ...c.relationship, affection: 20, loyalty: 10, bond: 1 };
+        }
+      },
+
+      // 时间
+      advanceHours(h: number) { self.advance(h, "idle"); },
+      setHour(h: number) { self.time = { ...self.time, minute: h * 60 }; },
+
+      // 共享
+      setAllSharing(on: boolean) {
+        for (const cat of ["survival", "combat", "facility", "comfort", "special"] as BonusCategory[]) {
+          self.setCategoryShare(cat, on);
+        }
+      },
+      resetSharing() { self.share = newShareState(); },
+
+      // 元
+      stateSummary() {
+        const t = self.time;
+        const hh = Math.floor(t.minute / 60);
+        const mm = t.minute % 60;
+        return [
+          "时间：第 " + t.day + " 天 " + hh + ":" + String(mm).padStart(2, "0"),
+          "主角：Lv" + self.hero.growth.level + "　战力 " + self.heroPower() + "　技能 " + self.heroSkillTotal(),
+          "科技：" + self.tech.unlocked.size + " 节点",
+          "基地：" + self.base.facilities.filter((f) => f.tier > 0).length + " 座",
+          "房车：" + self.vehicle.mods.length + " 项改装",
+          "同伴：" + self.joined().length + " 位在队",
+          "后代：" + self.offspring.length + " 位",
+          "探索：" + self.exploration().percent + "%"
+        ].join("\n");
+      }
+    };
+  }
+
+  /** 执行一条作弊（供 UI 调用） */
+  runCheat(actionId: string, target?: string): CheatResult {
+    return runCheatOp(this.cheatHost(), actionId, target);
+  }
+
+  /** 一键全开 */
+  runCheatAll(): CheatResult {
+    return runCheatAllOps(this.cheatHost());
+  }
+
   applyCheatAll(): {
     techUnlocked: number;
     companionsMaxed: number;

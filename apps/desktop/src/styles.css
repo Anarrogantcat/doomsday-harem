@@ -1119,3 +1119,75 @@ legend { color: var(--sub); font-size: 0.78em; padding: 0 0.4em; }
 }
 
 .train-actions { display: flex; gap: 0.35em; flex-wrap: wrap; }
+
+/* ============ 作弊面板 ============ */
+.cheat-root { display: flex; flex-direction: column; gap: 0.9em; }
+.cheat-head { display: flex; flex-direction: column; gap: 0.6em; }
+.cheat-opts { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.7em; }
+.cheat-body { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.9em; }
+.cheat-toolbar {
+  display: flex; align-items: center; gap: 0.6em; margin-bottom: 0.8em;
+}
+.cheat-all {
+  background: var(--accent); border: 1px solid var(--accent-lt); color: #fff;
+  border-radius: var(--radius); padding: 0.5em 1.2em;
+  font-size: 0.9em; font-weight: 600; cursor: pointer;
+}
+.cheat-all:hover { background: var(--accent-lt); }
+.cheat-filter {
+  flex: 1; background: #1c2330; border: 1px solid var(--line); color: var(--fg);
+  border-radius: var(--radius); padding: 0.4em 0.7em; font-size: 0.85em;
+}
+.cheat-msg {
+  font-size: 0.82em; color: var(--ok); padding: 0.45em 0.7em;
+  background: rgba(12,215,28,.08); border-left: 2px solid var(--ok);
+  border-radius: var(--radius); margin-bottom: 0.7em;
+  white-space: pre-wrap; line-height: 1.6;
+}
+.cheat-snapshot {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(5.5em, 1fr));
+  gap: 0.4em; margin-bottom: 0.9em;
+}
+.snap-cell {
+  background: var(--panel2); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 0.45em; text-align: center;
+}
+.snap-value {
+  font-size: 1.05em; font-weight: 700; color: var(--accent-lt);
+  font-variant-numeric: tabular-nums;
+}
+.snap-label { font-size: 0.68em; color: var(--dim); margin-top: 0.1em; }
+
+.cheat-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(16em, 1fr));
+  gap: 0.7em; align-items: start;
+}
+.cheat-cat {
+  background: var(--panel2); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 0.6em;
+  border-left: 2px solid var(--accent);
+}
+.cheat-cat-head {
+  display: flex; align-items: center; gap: 0.4em; margin-bottom: 0.45em;
+}
+.cheat-cat-icon { font-size: 0.95em; color: var(--accent-lt); }
+.cheat-cat-name { font-size: 0.85em; font-weight: 600; flex: 1; }
+.cheat-cat-count {
+  font-size: 0.7em; color: var(--dim);
+  background: var(--panel3); border-radius: 0.6em; padding: 0 0.45em;
+}
+.cheat-actions { display: flex; flex-direction: column; gap: 0.2em; }
+.cheat-btn {
+  display: flex; flex-direction: column; gap: 0.05em;
+  width: 100%; text-align: left;
+  background: transparent; border: 1px solid transparent;
+  border-radius: 0.25em; padding: 0.35em 0.5em; cursor: pointer;
+  transition: background-color .12s, border-color .12s;
+}
+.cheat-btn:hover { background: var(--panel3); border-color: var(--accent); }
+.cheat-btn:active { transform: scale(0.99); }
+.cheat-btn-name { font-size: 0.8em; color: var(--fg); }
+.cheat-btn-desc { font-size: 0.68em; color: var(--dim); line-height: 1.4; }
+
+.cheat-foot { margin-top: 0.5em; }
+.cheat-foot h3 { margin: 0.9em 0 0.4em; }

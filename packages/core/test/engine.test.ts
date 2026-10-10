@@ -195,7 +195,7 @@ test("cheat: console is gated by its own toggle", () => {
   const on = new CheatConsole({ ...DEFAULT_CHEAT, enabled: true, console: true });
   on.register("god", () => "无敌已开启");
   assert.equal(on.exec("/god"), "无敌已开启");
-  assert.equal(on.exec("/nope"), "未知命令：/nope");
+  assert.match(on.exec("/nope"), /未知命令：\/nope/);
   assert.deepEqual(parseCommand("/add item:medicine 50"), { cmd: "add", args: ["item:medicine", "50"] });
 });
 

@@ -132,6 +132,7 @@ export interface GameState {
   combatFlee: () => void;
   endCombat: () => void;
 
+  runCheat: (actionId: string, target?: string) => string;
   applyCheatAll: () => void;
   cheatMaxRelations: () => void;
   cheatClearLust: () => void;
@@ -891,7 +892,23 @@ export const useGame = create<GameState>((set, get) => ({
     refresh();
   },
 
+  runCheat: (actionId, target) => {
+    const { session, pushLog, refresh } = get();
+    const r = session.runCheat(actionId, target);
+    pushLog(r.message);
+    refresh();
+    return r.message;
+  },
+
   applyCheatAll: () => {
+    const { session, pushLog, refresh } = get();
+    const r = session.runCheatAll();
+    pushLog("一键全开：" + r.message);
+    refresh();
+    return;
+  },
+
+  _applyCheatAllOld: () => {
     const { session, pushLog, refresh } = get();
     const r = session.applyCheatAll();
     pushLog(`作弊全开：科技 ${r.techUnlocked}　同伴 ${r.companionsMaxed}　设施 ${r.baseBuilt}　改装 ${r.vehicleMods}　物资 ${r.itemsGranted} 种`);
