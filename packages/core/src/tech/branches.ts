@@ -145,7 +145,46 @@ const defense: TechNode[] = [
   n("def_drone3", "无人机 ×3", 7, ["def_network"], { "侦察无人机": 3 }, 42, "手动遥控侦察"),
   n("def_core_armor", "要塞核心装甲", 7, ["def_hangar"], { "强化装甲": 50 }, 56, "抵御导弹/重炮"),
   n("def_swarm", "无人机蜂群", 8, ["def_drone3", "def_core_armor"], { "攻击无人机": 10, "自主AI": 1 }, 72, "10 架自动巡逻 + 攻击", { swarm: 10 }),
-  n("def_shield", "能量护盾", 8, ["def_core_armor", "def_swarm"], { "水晶核心": 3, "能源过载器": 1 }, 88, "60 秒能量屏障", { shieldSec: 60 })
+  n("def_shield", "能量护盾", 8, ["def_core_armor", "def_swarm"], { "水晶核心": 3, "能源过载器": 1 }, 88, "60 秒能量屏障", { shieldSec: 60 }),
+
+  // ---- 自动炮台 ----
+  n("def_turret_mg762", "7.62mm 机枪塔", 5, ["def_turret"], { "炮塔基座": 1, "轻机枪": 1, "伺服": 2 }, 28, "通用机枪塔，性价比最高", { turret762: 1 }),
+  n("def_turret_mg127", "12.7mm 重机枪", 6, ["def_turret_mg762"], { "炮塔基座": 1, "重机枪": 1, "重型伺服": 2 }, 36, "大口径，能打穿轻型装甲", { turret127: 1 }),
+  n("def_turret_grenade", "榴弹发射台", 6, ["def_turret_mg127"], { "炮塔基座": 1, "榴弹发射器": 1 }, 40, "面杀伤，对付成群目标", { turretGrenade: 1 }),
+  n("def_turret_flame", "火焰喷射塔", 6, ["def_fire_trap"], { "喷火器": 1, "燃油罐": 2 }, 38, "近距离清场，克制丧尸潮", { turretFlame: 1 }),
+  n("def_turret_taser", "电击塔", 6, ["def_auto_mg"], { "高压发生器": 1, "电容组": 2 }, 34, "电击使目标麻痹，不用弹药", { turretTaser: 1 }),
+  n("def_turret_laser", "激光切割塔", 8, ["def_network"], { "激光发生器": 1, "聚焦镜组": 2 }, 76, "高精度持续伤害，弹药无限", { turretLaser: 1 }),
+  n("def_turret_emp", "电磁脉冲塔", 8, ["def_turret_laser"], { "EMP 发生器": 1, "大电容": 3 }, 70, "瘫痪电子设备与机械敌人", { turretEMP: 1 }),
+  n("def_turret_mortar", "迫击炮台", 7, ["def_turret_grenade"], { "迫击炮管": 1, "弹道计算机": 1 }, 54, "曲射，打击掩体后的目标", { turretMortar: 1 }),
+  n("def_turret_tear", "催泪瓦斯塔", 6, ["def_turret_taser"], { "瓦斯罐": 4, "风机": 1 }, 30, "驱散人群，不致命（对付人类袭扰）", { turretTear: 1 }),
+  n("def_turret_flechette", "钉刺弹发射器", 6, ["def_turret_mg762"], { "钉刺弹箱": 2, "发射机构": 1 }, 32, "近距离弹幕，杀伤面广", { turretFlechette: 1 }),
+  n("def_turret_sonic", "声波震慑塔", 7, ["def_turret_tear"], { "声波发生器": 1, "功率放大": 2 }, 48, "大范围震慑，可驱赶兽群", { turretSonic: 1 }),
+  n("def_turret_aa", "防空炮台", 8, ["def_turret_mortar"], { "防空炮": 1, "雷达联动": 1 }, 82, "对空火力，防无人机与飞行变异体", { turretAA: 1 }),
+
+  // ---- 内层与核心防御 ----
+  n("def_inner_gate", "内层隔离门", 6, ["def_network"], { "气密门": 2, "液压机构": 1 }, 36, "分区隔离，把敌人挡在通道里", { innerGate: 2 }),
+  n("def_loophole", "射击孔", 6, ["def_inner_gate"], { "钢板": 20, "射孔套件": 6 }, 30, "掩体后还击，不减员", { loophole: 6 }),
+  n("def_burner", "燃烧装置", 5, ["def_fire_trap"], { "燃油管": 2, "点火器": 1 }, 32, "走廊内点燃，封闭空间杀伤", { burner: 1 }),
+  n("def_gas_valve", "毒气阀", 6, ["def_burner"], { "毒气罐": 4, "气阀": 2 }, 40, "封闭区投毒，需己方先撤离", { gasValve: 1 }),
+  n("def_trap_corridor", "陷阱走廊", 6, ["def_loophole", "def_burner"], { "机关套件": 1, "传感器": 6 }, 46, "整条通道做成杀伤区", { trapCorridor: 1 }),
+  n("def_zone_lock", "分区封锁", 6, ["def_inner_gate"], { "分区控制器": 1, "电磁锁": 8 }, 38, "失守时逐一封锁，不一次丢光", { zoneLock: 1 }),
+  n("def_corridor_mg", "走廊机枪位", 6, ["def_loophole"], { "轻机枪": 2, "射击底座": 2 }, 34, "交叉火力封锁走廊", { corridorMG: 2 }),
+  n("def_sound_seal", "隔音隔气层", 6, ["def_gas_valve"], { "隔音材料": 20, "密封条": 10 }, 28, "防毒气扩散，也隔绝声音", { soundSeal: 1 }),
+  n("def_corridor_cam", "走廊摄像头", 6, ["def_network"], { "摄像头": 8, "线缆": 10 }, 26, "全程监控通道，无死角", { corridorCam: 8 }),
+  n("def_power_cut", "紧急断电闸", 7, ["def_zone_lock"], { "断路器": 3, "机械闸": 1 }, 42, "遇袭时切断非必要电路，集中供电", { powerCut: 1 }),
+  n("def_core_gate", "核心区门禁", 6, ["def_zone_lock"], { "生物识别": 1, "厚重金库门": 1 }, 44, "只有主角与 AI 能开", { coreGate: 1 }),
+  n("def_cell_reinforce", "收容室加固", 6, ["def_core_gate"], { "强化墙板": 10, "独立锁": 1 }, 32, "关在里面的人跑不出来", { cellReinforce: 1 }),
+  n("def_server_shield", "服务器防护", 7, ["def_core_gate"], { "法拉第笼": 1, "防火层": 1 }, 48, "保护 AI 机房，防电磁与火", { serverShield: 1 }),
+  n("def_self_destruct", "自毁装置", 8, ["def_server_shield"], { "炸药套件": 10, "双人授权锁": 1 }, 90, "守不住时炸毁要塞，不给敌人留东西", { selfDestruct: 1 }),
+  n("def_safe_nook", "人质暗格", 7, ["def_cell_reinforce"], { "暗门": 1, "隐蔽空间": 1 }, 40, "把家人藏起来，敌人搜不到", { safeNook: 1 }),
+
+  // ---- 夜视与探测 ----
+  n("def_lowlight", "微光夜视", 5, ["def_lookout"], { "夜视仪": 4, "光电管": 4 }, 24, "夜间岗哨可视，成本低", { defNightVision: 1 }),
+  n("def_thermal", "热成像哨位", 6, ["def_lowlight"], { "热像仪": 4, "处理单元": 1 }, 34, "夜间发现热源，可穿烟尘", { defThermal: 1 }),
+  n("def_sonar_pit", "声呐警戒坑", 6, ["def_thermal"], { "地音传感器": 8, "分析仪": 1 }, 36, "听脚步声，摸黑也能预警", { defSonar: 1 }),
+  n("def_radar_net", "雷达预警网", 7, ["def_sonar_pit"], { "小型雷达": 4, "组网模块": 1 }, 56, "半径 5km 内提前发现来袭", { radarNet: 5 }),
+  n("def_light_low", "定向低光灯", 5, ["def_lookout"], { "低光灯": 6, "遮光罩": 6 }, 18, "只照亮脚下一小块，不暴露位置", { lowLight: 6 }),
+  n("def_blackout", "灯光管制", 5, ["def_light_low"], { "遮光帘": 20, "管制开关": 1 }, 16, "全要塞夜间熄灯，靠红外与夜视", { blackout: 1 })
 ];
 
 // ============ 机器人 ============
@@ -159,7 +198,71 @@ const robot: TechNode[] = [
   n("rob_possess", "附身模块", 7, ["rob_ai_interface"], { "全息投影": 1, "同步模块": 1 }, 44, "AI 意识投射到机器人，拟人互动", { possession: 1 }),
   n("rob_allterrain", "全地形底盘", 7, ["rob_possess"], { "四足机构": 1, "地形传感器": 4 }, 46, "废墟/林间/山地自由移动"),
   n("rob_body", "仿生身体", 8, ["rob_allterrain"], { "仿生骨架": 1, "人工皮肤": 1, "神经接口": 1 }, 96, "女性躯体，触觉/味觉/痛觉，AI 实体化", { aiBody: 1 }),
-  n("rob_body_fertility", "生育模块", 8, ["rob_body"], { "生物子宫": 1, "激素模拟": 1 }, 52, "仿生身体可怀孕", { aiFertile: 1 })
+  n("rob_body_fertility", "生育模块", 8, ["rob_body"], { "生物子宫": 1, "激素模拟": 1 }, 52, "仿生身体可怀孕", { aiFertile: 1 }),
+
+  // ---- 巡逻与警戒 ----
+  n("rob_patrol_basic", "巡逻机器人", 4, ["rob_sentry"], { "履带底盘": 2, "电池组": 2 }, 30, "基地内固定路线巡逻 ×2", { patrolBots: 2 }),
+  n("rob_uav_scout", "空中侦察无人机", 4, ["rob_monitor"], { "四旋翼框架": 1, "摄像头": 2, "电池": 1 }, 28, "空中巡逻，视野覆盖要塞外围", { aerialVision: 1 }),
+  n("rob_dispatch", "巡逻调度中枢", 5, ["rob_patrol_basic", "rob_uav_scout"], { "调度软件": 1, "通信模块": 2 }, 36, "AI 统一调度巡逻单位，编队上限 +2", { patrolCoord: 1, squadCap: 2 }),
+  n("rob_thermal", "红外热成像", 5, ["rob_uav_scout"], { "热成像模块": 2, "处理器": 1 }, 22, "夜间红外探测 60m，可穿透薄墙烟雾", { thermalRange: 60 }),
+  n("rob_lowlight", "微光夜视仪", 5, ["rob_thermal"], { "光电倍增管": 2, "镜组": 1 }, 20, "极弱光下可视，与红外互补", { nightVision: 1 }),
+  n("rob_heat_track", "热源追踪仪", 6, ["rob_thermal"], { "热源传感器": 4, "算法模块": 1 }, 30, "自动追踪热源移动，锁定潜行者", { heatTrack: 1 }),
+  n("rob_sonar", "声呐探测阵", 6, ["rob_thermal"], { "声呐探头": 6, "处理器": 2 }, 34, "探测墙后与地下动静，无视黑暗", { sonarDetect: 1 }),
+  n("rob_quad", "四足巡查机", 6, ["rob_sentry"], { "四足机构": 2, "地形传感器": 6 }, 44, "能走车开不进的地方", { allTerrainBot: 1 }),
+  n("rob_drone_wire", "巡线固定翼", 5, ["rob_uav_scout"], { "固定翼框架": 1, "弹射架": 1 }, 26, "沿预设航线长距离巡视", { longRangePatrol: 1 }),
+  n("rob_tether_guard", "系留值守机", 5, ["rob_uav_scout"], { "系留缆": 1, "升空平台": 1 }, 24, "缆绳供电，24 小时悬停不移位", { tetheredWatch: 1 }),
+  n("rob_balloon", "浮空监视气球", 6, ["rob_tether_guard"], { "气球囊体": 2, "吊舱": 1 }, 30, "高空长时间视野", { balloonWatch: 1 }),
+  n("rob_swarm_micro", "蜂群微型机", 7, ["rob_dispatch"], { "微型机架": 8, "集群芯片": 1 }, 52, "一次放出 8 台微型机", { microSwarm: 8 }),
+  n("rob_tether_listen", "系留监听机", 6, ["rob_tether_guard"], { "监听阵列": 2, "线缆": 1 }, 28, "长时间悬停监听周边动静", { listenPost: 1 }),
+  n("rob_flare_drop", "照明弹投放机", 6, ["rob_uav_scout"], { "投放机构": 1, "照明弹": 20 }, 26, "夜间投放照明弹", { flareDrop: 1 }),
+  n("rob_jammer", "干扰信号机", 7, ["rob_dispatch"], { "干扰模块": 3, "天线": 2 }, 40, "压制敌方通讯与遥控引爆", { jammer: 1 }),
+  n("rob_relay_air", "中继浮空平台", 7, ["rob_balloon"], { "中继模块": 2, "浮空平台": 1 }, 38, "升空做通讯中继", { airRelay: 1 }),
+  n("rob_high_alt", "高空侦察机", 8, ["rob_relay_air"], { "高空机体": 1, "光学吊舱": 1 }, 60, "升限 12000m，看清整座城市", { highAltRecon: 1 }),
+  n("rob_heavy_sentry", "重装哨戒机", 6, ["rob_armed"], { "重型底盘": 1, "重武器架": 1, "装甲板": 6 }, 42, "重甲重火力，镇守要塞入口", { heavySentry: 1 }),
+  n("rob_kamikaze", "自爆追击机", 7, ["rob_heavy_sentry"], { "炸药包": 4, "冲刺机构": 1 }, 34, "追到目标后自毁引爆", { kamikaze: 1 }),
+  n("rob_repair_arm", "自动维修臂", 6, ["rob_sentry"], { "机械臂": 2, "焊接模块": 1 }, 32, "损坏的机器与设施自动修", { autoRepair: 1 }),
+  n("rob_mine_layer", "地雷布设机", 7, ["rob_repair_arm"], { "布设机构": 1, "地雷": 20 }, 36, "外出时自动布设雷区", { mineLayer: 1 }),
+  n("rob_decoy", "诱饵假人机", 6, ["rob_sentry"], { "假人形架": 2, "加热片": 4 }, 24, "模拟人形热源引开敌人", { decoy: 1 }),
+  n("rob_search_rescue", "搜救无人机", 6, ["rob_uav_scout"], { "生命探测仪": 1, "抓取机构": 1 }, 30, "搜救废墟下的人，回收物资", { searchRescue: 1 }),
+  n("rob_smoke", "烟雾发生器", 6, ["rob_sentry"], { "发烟剂": 10, "风机": 1 }, 20, "释放烟幕掩护撤离或突入", { smokeScreen: 1 }),
+  n("rob_spider", "蛛形攀壁机", 7, ["rob_quad"], { "攀附机构": 4, "吸附足": 8 }, 46, "爬墙贴顶，走没人想到的路", { wallCrawler: 1 }),
+  n("rob_snake_pipe", "蛇形管道机", 7, ["rob_spider"], { "蛇形节段": 12, "柔性摄像头": 1 }, 42, "钻管道与通风井探查死角", { pipeCrawler: 1 }),
+  n("rob_fixed_guard", "固定警戒机", 6, ["rob_monitor"], { "固定座": 4, "传感器": 4 }, 22, "装固定点的警戒哨", { fixedGuard: 1 }),
+  n("rob_sonar_boat", "声呐探测艇", 7, ["rob_sonar"], { "浮体": 1, "声呐": 2 }, 38, "水面/水下探测", { sonarBoat: 1 }),
+  n("rob_track_heavy", "履带重装机", 8, ["rob_heavy_sentry"], { "重履带": 1, "装甲板": 12, "重火力": 1 }, 64, "能推能撞能压，攻坚尖兵", { trackHeavy: 1 }),
+
+  // ---- 随行探索 ----
+  n("rob_exp_scout", "侦察无人机", 4, ["rob_uav_scout"], { "便携机体": 1, "标记模块": 1 }, 24, "随行：标记 2 格内敌人与物资", { expScout: 1 }),
+  n("rob_exp_carry", "搬运无人机", 5, ["rob_exp_scout"], { "载货框架": 1, "吊索": 2 }, 26, "随行：额外载重 +60kg", { expCarry: 60 }),
+  n("rob_exp_medic", "医疗无人机", 5, ["rob_exp_scout"], { "医疗模块": 1, "药剂箱": 1 }, 28, "随行：战斗中每 3 回合治疗 8", { expMedic: 8 }),
+  n("rob_exp_escort", "护航无人机", 5, ["rob_exp_scout"], { "武器挂架": 1, "瞄准模块": 1 }, 30, "随行：每回合造成 6 点伤害", { expEscort: 6 }),
+  n("rob_exp_light", "照明无人机", 4, ["rob_uav_scout"], { "探照模块": 1, "电池": 2 }, 18, "随行：夜战不受视野惩罚", { expLight: 1 }),
+  n("rob_exp_relay", "通讯中继机", 5, ["rob_exp_scout"], { "中继模块": 1, "天线": 1 }, 26, "随行：8km 内保持基地联系", { expRelay: 8 }),
+  n("rob_exp_collect", "采集无人机", 5, ["rob_exp_scout"], { "采集爪": 2, "分拣模块": 1 }, 26, "随行：自动搜刮，产出 +20%", { expCollect: 0.2 }),
+  n("rob_exp_pathfinder", "探路机器人", 5, ["rob_exp_scout"], { "地形扫描仪": 1, "探雷器": 1 }, 28, "随行：先探陷阱与地形", { expPath: 1 }),
+  n("rob_exp_escort_heavy", "重装护卫机", 6, ["rob_exp_escort"], { "重装甲板": 6, "护盾模块": 1 }, 44, "随行：跟随者伤害减免 +20%", { expEscortDr: 0.2 }),
+  n("rob_exp_worker", "采集型作业机", 6, ["rob_exp_collect"], { "作业臂": 2, "破碎机构": 1 }, 38, "随行：外出时自动采集材料", { expWorker: 1 }),
+  n("rob_exp_flock", "伴飞护卫群", 7, ["rob_exp_escort_heavy"], { "小型机架": 3, "集群模块": 1 }, 50, "随行：三机围成一圈护住跟随者", { expFlock: 3 }),
+  n("rob_exp_sampler", "取样无人机", 6, ["rob_exp_scout"], { "取样机械臂": 1, "样本箱": 1 }, 32, "随行：取样，研究进度 +10%", { expSample: 0.1 }),
+  n("rob_exp_mapper", "测绘无人机", 5, ["rob_exp_scout"], { "测绘相机": 1, "建模软件": 1 }, 28, "随行：飞过即探明整格地形", { expMap: 1 }),
+  n("rob_exp_broadcast", "广播诱敌机", 6, ["rob_exp_scout"], { "扩音模块": 1, "定时器": 1 }, 26, "随行：播放声音把敌人引开", { expDecoy: 1 }),
+  n("rob_exp_heat_decoy", "热诱饵无人机", 7, ["rob_exp_broadcast"], { "热源发生器": 1, "投放机构": 1 }, 40, "随行：投射热源吸引丧尸潮", { expHeatDecoy: 1 }),
+  n("rob_exp_tow", "牵引拖救机", 6, ["rob_exp_carry"], { "牵引绞盘": 1, "抓取臂": 1 }, 34, "随行：把倒地同伴拖回安全区", { expTow: 1 }),
+  n("rob_exp_hive", "孵化蜂群舱", 8, ["rob_exp_flock"], { "孵化舱": 1, "微型机架": 6 }, 58, "随行：随身投放 6 台微型机", { expHive: 6 }),
+  n("rob_exp_underwater", "水下探查机", 7, ["rob_sonar_boat"], { "防水机体": 1, "推进器": 2 }, 42, "随行：江河湖海专用", { expUnderwater: 1 }),
+
+  // ---- 空中航母 ----
+  n("rob_carrier_hull", "无人母舰机体", 8, ["rob_high_alt"], { "运输机机体": 1, "导航系统": 1 }, 120, "载机 24 架，作战半径 210km", { carrierHull: 1 }),
+  n("rob_carrier_scout", "舰载侦察机", 8, ["rob_carrier_hull"], { "舰载机体": 4, "光学吊舱": 4 }, 40, "舰载：全图探明", { carrierScout: 4 }),
+  n("rob_carrier_attack", "舰载攻击机", 8, ["rob_carrier_hull"], { "舰载机体": 3, "挂弹架": 3 }, 44, "舰载：对地打击", { carrierAttack: 3 }),
+  n("rob_carrier_escort", "舰载护航机", 8, ["rob_carrier_hull"], { "舰载机体": 2, "干扰模块": 2 }, 40, "舰载：空中掩护", { carrierEscort: 2 }),
+  n("rob_carrier_relay", "舰载中继机", 8, ["rob_carrier_hull"], { "舰载机体": 2, "中继模块": 2 }, 38, "舰载：全城通讯不断联", { carrierRelay: 2 }),
+  n("rob_carrier_rescue", "舰载救援机", 8, ["rob_carrier_hull"], { "舰载机体": 2, "救援吊舱": 2 }, 42, "舰载：投送药品与弹药", { carrierRescue: 2 }),
+  n("rob_carrier_spotter", "舰载校射机", 8, ["rob_carrier_attack"], { "校射模块": 1, "观测吊舱": 1 }, 36, "舰载：为地面火力校正弹着点", { carrierSpotter: 1 }),
+  n("rob_carrier_bomber", "舰载重型轰炸机", 9, ["rob_carrier_attack"], { "重型机体": 1, "炸弹舱": 1 }, 88, "舰载：大范围覆盖轰炸", { carrierBomber: 1 }),
+  n("rob_carrier_ew", "舰载电子战机", 9, ["rob_carrier_escort"], { "电子战模块": 2, "大功率天线": 1 }, 80, "舰载：瘫痪敌方电子设备", { carrierEW: 1 }),
+  n("rob_carrier_swarm", "蜂群投放荚舱", 9, ["rob_carrier_bomber"], { "荚舱": 1, "微型机架": 24 }, 96, "舰载：一次投放 24 台微型机", { carrierSwarm: 24 }),
+  n("rob_carrier_wingman", "舰载无人僚机", 9, ["rob_carrier_bomber"], { "僚机机体": 2, "协同模块": 2 }, 84, "舰载：与攻击机编队协同", { carrierWingman: 2 })
 ];
 
 // ============ 能源 ============
@@ -179,7 +282,48 @@ const energy: TechNode[] = [
   n("en_fuel_synth", "燃料合成", 7, ["en_geo_large"], { "电解槽": 1, "合成塔": 1 }, 56, "电 + 水 → 氢燃料，能源闭环"),
   n("en_fusion_small", "聚变电站（小型）", 7, ["en_fuel_synth"], { "稀有同位素": 5, "约束装置": 1 }, 72, "日发电 500kWh（实验性，有事故风险）", { powerPerDay: 500, risk: 1 }),
   n("en_fusion_stable", "聚变电站（稳定）", 8, ["en_fusion_small"], { "稳定约束场": 1, "冗余系统": 1 }, 96, "日发电 1000kWh，100% 稳定", { powerPerDay: 1000 }),
-  n("en_grid", "分布式电网", 8, ["en_fusion_stable"], { "全基地布线": 1, "智能配电": 1 }, 64, "全基地电力自由调配")
+  n("en_grid", "分布式电网", 8, ["en_fusion_stable"], { "全基地布线": 1, "智能配电": 1 }, 64, "全基地电力自由调配"),
+
+  // ---- 生物质与废物利用 ----
+  n("en_biogas", "沼气池", 3, ["en_diesel"], { "发酵罐": 2, "密封池": 1 }, 18, "厨余与粪便产沼气，做饭与照明", { biogas: 1 }),
+  n("en_biogas_up", "沼气升级", 4, ["en_biogas"], { "提纯塔": 1, "储气罐": 2 }, 24, "沼气提纯，可驱动发电机", { biogasGen: 1 }),
+  n("en_compost", "堆肥与肥料", 3, ["en_biogas"], { "堆肥箱": 3 }, 12, "废物转肥料，供温室使用", { compost: 1 }),
+  n("en_biodiesel", "生物柴油", 4, ["en_biogas_up"], { "酯化设备": 1, "甲醇": 20 }, 32, "废弃油脂与作物转柴油，替代燃油", { biodiesel: 1 }),
+  n("en_wood_gas", "木材气化", 4, ["en_biogas"], { "气化炉": 1, "过滤罐": 2 }, 26, "把木柴变成可燃气体，开车也能用", { woodGas: 1 }),
+  n("en_ethanol", "乙醇燃料", 4, ["en_compost"], { "蒸馏塔": 1, "发酵池": 2 }, 30, "粮食/果渣发酵成燃料", { ethanol: 1 }),
+
+  // ---- 储能 ----
+  n("en_battery_bank", "蓄电池组", 3, ["en_solar2"], { "蓄电池": 8, "配电盘": 1 }, 20, "存住白天发的电，夜里也能用", { batteryBank: 1 }),
+  n("en_battery_large", "大容量储能", 5, ["en_battery_bank", "en_solar3"], { "蓄电池": 30, "电池管理": 1 }, 40, "储能翻三倍，撑过连续阴天", { batteryLarge: 1 }),
+  n("en_flow_battery", "液流电池", 6, ["en_battery_large"], { "电解液罐": 4, "电堆": 2 }, 52, "循环寿命极长，几乎不衰减", { flowBattery: 1 }),
+  n("en_flywheel", "飞轮储能", 6, ["en_battery_large"], { "飞轮组": 2, "磁悬浮轴承": 1 }, 48, "瞬时放电，供电磁武器与脉冲塔", { flywheel: 1 }),
+  n("en_thermal_store", "储热罐", 5, ["en_geo_small"], { "保温罐": 2, "热媒": 20 }, 34, "夜里继续供暖与热水", { thermalStore: 1 }),
+
+  // ---- 热电联产与余热 ----
+  n("en_cogen", "热电联产", 6, ["en_diesel", "en_thermal_store"], { "余热回收器": 1, "换热器": 2 }, 44, "发电的废热用来取暖与烧水", { cogen: 1 }),
+  n("en_waste_heat", "余热回收", 5, ["en_thermal_store"], { "换热管路": 10, "循环泵": 2 }, 30, "把机器散的热收集起来", { wasteHeat: 1 }),
+
+  // ---- 车辆多能源 ----
+  n("en_veh_bio", "生物燃料改造", 4, ["en_biodiesel"], { "改装套件": 1, "油路改造": 1 }, 28, "房车可烧生物柴油与乙醇", { vehBio: 1 }),
+  n("en_veh_gas", "气化燃料改造", 5, ["en_wood_gas"], { "气化改装": 1, "储气瓶": 2 }, 32, "房车可烧木材气化气", { vehGas: 1 }),
+  n("en_veh_hybrid", "油电混合", 5, ["en_battery_large"], { "电机套件": 1, "电控单元": 1 }, 36, "低速用电，高速烧油，续航翻倍", { vehHybrid: 1 }),
+  n("en_veh_electric", "纯电驱动", 6, ["en_veh_hybrid", "en_flow_battery"], { "大扭矩电机": 1, "快充模块": 1 }, 46, "静音行驶，夜间不被听见", { vehElectric: 1 }),
+  n("en_veh_solar", "车顶太阳能扩展", 4, ["en_solar2"], { "柔性光伏": 12, "控制器": 1 }, 26, "行车与驻扎都能补电", { vehSolar: 1 }),
+  n("en_veh_charger", "移动充电桩", 5, ["en_veh_hybrid"], { "充电桩": 2, "电缆": 10 }, 28, "外出时给无人机与机器人补电", { vehCharger: 1 }),
+
+  // ---- 其他自然能源 ----
+  n("en_waterwheel", "水轮发电", 3, ["en_hydro"], { "水轮": 2, "传动轴": 1 }, 22, "溪谷常流水，24 小时不断电", { waterwheel: 1 }),
+  n("en_micro_hydro", "微型水电群", 5, ["en_waterwheel"], { "微型水轮": 6, "管渠": 20 }, 36, "多级布置，把水能榨干", { microHydro: 1 }),
+  n("en_wind_turbine", "中型风机", 4, ["en_wind"], { "叶片组": 3, "塔架": 2, "发电机": 1 }, 30, "山顶风大，夜里也能发", { windTurbine: 1 }),
+  n("en_wind_farm", "风电阵列", 6, ["en_wind_turbine"], { "风机": 8, "变流器": 2 }, 50, "成排风机，大风天满发", { windFarm: 8 }),
+  n("en_solar_track", "追踪式光伏", 6, ["en_solar_concentrated"], { "追踪支架": 8, "控制单元": 1 }, 42, "跟着太阳转，发电 +35%", { solarTrack: 0.35 }),
+  n("en_geothermal_loop", "地热闭环", 7, ["en_geo_large"], { "闭环管路": 20, "热泵组": 2 }, 58, "不取水只换热，永久可用", { geoLoop: 1 }),
+
+  // ---- 能源管理与自给 ----
+  n("en_grid_manage", "能源管理中枢", 6, ["en_battery_large", "en_cogen"], { "能源管理软件": 1, "传感器网络": 1 }, 40, "AI 自动调配，用最省的能源", { gridAI: 1 }),
+  n("en_off_grid", "完全离网", 7, ["en_grid_manage", "en_wind_farm", "en_micro_hydro"], { "离网控制器": 1, "冗余线路": 1 }, 66, "不依赖任何外部供应", { offGrid: 1 }),
+  n("en_fuel_independent", "燃料自给", 7, ["en_biodiesel", "en_ethanol", "en_wood_gas"], { "多燃料系统": 1, "储罐组": 3 }, 60, "基地与车辆的燃料全部自产", { fuelSelfSufficient: 1 }),
+  n("en_emergency", "应急电源", 5, ["en_battery_bank"], { "应急电池": 4, "切换开关": 1 }, 24, "主电源断了自动接管关键设施", { emergencyPower: 1 })
 ];
 
 // ============ 制药 ============

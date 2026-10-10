@@ -14,6 +14,7 @@ import { StatusStrip, MessageLog } from "./shell/StatusStrip.tsx";
 import { Overlay } from "./shell/Overlay.tsx";
 import { SettingsPanel } from "./shell/SettingsPanel.tsx";
 import { CheatOverlay } from "./shell/CheatOverlay.tsx";
+import { MainMenu } from "./shell/MainMenu.tsx";
 
 const KEY_MAP: Record<string, string> = {
   i: "items", n: "quests", t: "tech", b: "base", w: "wardrobe",
@@ -40,6 +41,9 @@ export function App() {
   const [generating, setGenerating] = useState(false);
   const [streamText, setStreamText] = useState("");
   const counter = useMemo(() => ({ n: 0 }), []);
+
+  // 主菜单：启动时显示，选择后进入游戏
+  const [inMenu, setInMenu] = useState(true);
 
   // 启动时加载预生成文本库存
   useEffect(() => {
@@ -171,6 +175,25 @@ export function App() {
   const rootStyle = {
     "--fs": `${settings.display.fontSize}px`
   } as React.CSSProperties;
+
+  // 主菜单：未进入游戏时只显示菜单
+  if (inMenu) {
+    return (
+      <MainMenu
+        onEnter={() => setInMenu(false)}
+        onPanel={(tab) => {
+          if (tab === "save") {
+            // 读档面板从菜单打开时不进入游戏，读完再进
+            setInMenu(false);
+            setOverlay("save");
+          } else {
+            setInMenu(false);
+            setOverlay(tab);
+          }
+        }}
+      />
+    );
+  }
 
   return (
     <div className={`game ${settings.gameplay.compactRoster ? "compact" : ""}`} style={rootStyle}>

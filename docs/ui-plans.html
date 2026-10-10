@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>主角位置 · 三个方案对比</title>
+<style>
+:root{--bg:#1a2029;--panel:#2C3649;--panel2:#333E52;--panel3:#3D5174;--line:#4a5668;
+--fg:#e6e9ef;--sub:#9aa8bf;--dim:#6b7889;--accent:#8D31B0;--accent-lt:#D982EF;
+--accent-dk:#6a2585;--ok:#0CD71C;--info:#00F5EF;--lust:#FF00F0;--energy:#FFD207;--warn:#E8C815}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#12161d;color:var(--fg);font-family:"Microsoft YaHei",system-ui,sans-serif;
+font-size:14px;padding:1.5em;line-height:1.5}
+h1{font-size:1.3em;color:var(--accent-lt);margin-bottom:.3em;text-align:center}
+.sub{text-align:center;color:var(--dim);font-size:.85em;margin-bottom:1.8em}
+.plans{display:flex;flex-direction:column;gap:2em;max-width:1500px;margin:0 auto}
+.plan{background:var(--panel);border:1px solid var(--line);border-radius:.5em;padding:1em}
+.plan-head{display:flex;align-items:baseline;gap:.8em;margin-bottom:.8em;flex-wrap:wrap}
+.plan-title{font-size:1.05em;font-weight:700;color:var(--accent-lt)}
+.plan-desc{font-size:.85em;color:var(--sub);flex:1;min-width:20em}
+.badge{font-size:.7em;padding:.15em .5em;border-radius:.2em;border:1px solid}
+.badge.rec{color:var(--ok);border-color:var(--ok)}
+.badge.warn{color:var(--warn);border-color:var(--warn)}
+
+/* 线框 */
+.wire{display:grid;gap:2px;background:var(--line);border:1px solid var(--line);
+border-radius:.3em;overflow:hidden;height:15em}
+.col{background:var(--panel2);padding:.5em;display:flex;flex-direction:column;gap:.35em;
+overflow:hidden;position:relative}
+.col.hl{background:#3a2a48;border:2px solid var(--accent-lt)}
+.col-title{font-size:.7em;color:var(--dim);letter-spacing:.06em;padding-bottom:.2em;
+border-bottom:1px solid var(--line);flex-shrink:0}
+.card{background:var(--panel3);border-radius:.2em;padding:.3em .4em;font-size:.68em;
+border-left:2px solid var(--accent);flex-shrink:0}
+.card.hero{border-left-color:var(--accent-lt);background:#4a2a58}
+.card.ai{border-left-color:var(--info)}
+.card.dim{opacity:.45}
+.card.ghost{background:transparent;border:1px dashed var(--line);border-left:1px dashed var(--line);
+color:var(--dim);text-align:center}
+.bar{height:.3em;background:#1e2532;border-radius:.15em;overflow:hidden;margin-top:.2em}
+.bar i{display:block;height:100%}
+.bars{display:flex;flex-direction:column;gap:.12em}
+.tiny{font-size:.6em;color:var(--dim)}
+.arrow{color:var(--accent-lt);font-size:.75em}
+.note{font-size:.78em;color:var(--sub);margin-top:.7em;padding:.5em .7em;
+background:rgba(0,0,0,.25);border-radius:.25em;border-left:2px solid var(--accent)}
+.note b{color:var(--accent-lt)}
+.note.bad{border-left-color:var(--warn)}
+.note.bad b{color:var(--warn)}
+
+/* 四栏 */
+.g4{grid-template-columns:1.2fr 2.2fr 1.2fr 1.2fr}
+.g4b{grid-template-columns:1.2fr 2.2fr 1fr 1.4fr}
+.g5{grid-template-columns:1.1fr 2fr 1.1fr 1.3fr 0.9fr}
+</style>
+</head>
+<body>
+<h1>主角卡片位置 · 三个方案</h1>
+<p class="sub">当前主角在左栏顶部 —— 以下是把主角移到右侧的三种做法</p>
+
+<div class="plans">
+
+  <!-- 方案 1 -->
+  <div class="plan">
+    <div class="plan-head">
+      <span class="plan-title">方案 1 · 主角并入最右详情侧栏</span>
+      <span class="badge">改动最小</span>
+      <span class="plan-desc">主角卡片固定在详情侧栏顶部；点其他角色时，主角上方保留、下方切换</span>
+    </div>
+    <div class="wire g4b">
+      <div class="col">
+        <div class="col-title">后宫</div>
+        <div class="card ai">AI 核心</div>
+        <div class="card">姐姐 Lv3</div>
+        <div class="card">母亲 Lv3</div>
+        <div class="card">妹妹 Lv2</div>
+        <div class="card ghost">未解锁 17 位</div>
+        <div class="card">快捷操作 1/3</div>
+      </div>
+      <div class="col">
+        <div class="col-title">叙事</div>
+        <div class="card">我醒了 · 节拍 1/4</div>
+        <div class="card">（文本）</div>
+        <div class="card">输入栏 [对话]</div>
+      </div>
+      <div class="col">
+        <div class="col-title">地图</div>
+        <div class="card">当前目标</div>
+        <div class="card">可达区域</div>
+        <div class="card">装备</div>
+      </div>
+      <div class="col hl">
+        <div class="col-title">主角（固定）</div>
+        <div class="card hero">主角 Lv12</div>
+        <div class="bars">
+          <div class="tiny">体力 90</div><div class="bar"><i style="width:90%;background:var(--ok)"></i></div>
+          <div class="tiny">饥饿 80</div><div class="bar"><i style="width:80%;background:var(--energy)"></i></div>
+          <div class="tiny">口渴 70</div><div class="bar"><i style="width:70%;background:var(--info)"></i></div>
+          <div class="tiny">精力 85</div><div class="bar"><i style="width:85%;background:var(--accent-lt)"></i></div>
+          <div class="tiny">心情 60</div><div class="bar"><i style="width:60%;background:var(--warn)"></i></div>
+          <div class="tiny">欲情 35</div><div class="bar"><i style="width:35%;background:var(--lust)"></i></div>
+        </div>
+        <div class="col-title" style="margin-top:.3em">─────────────────</div>
+        <div class="card">姐姐（选中）</div>
+        <div class="card">立绘 + 状态 + 按钮</div>
+      </div>
+    </div>
+    <div class="note">
+      <b>优点</b>：左栏腾出空间给后宫；主角状态一直可见（6 条全展）；点角色时上下分区清晰
+      <br><b>缺点</b>：详情侧栏变长，可能挤
+    </div>
+  </div>
+
+  <!-- 方案 2 -->
+  <div class="plan">
+    <div class="plan-head">
+      <span class="plan-title">方案 2 · 主角独立成第五栏</span>
+      <span class="badge warn">占宽</span>
+      <span class="plan-desc">最右侧单独开一栏只放主角；角色详情挪到中间偏右</span>
+    </div>
+    <div class="wire g5">
+      <div class="col">
+        <div class="col-title">后宫</div>
+        <div class="card ai">AI 核心</div>
+        <div class="card">姐姐 Lv3</div>
+        <div class="card">母亲 Lv3</div>
+        <div class="card">妹妹 Lv2</div>
+        <div class="card">快捷操作</div>
+      </div>
+      <div class="col">
+        <div class="col-title">叙事</div>
+        <div class="card">我醒了</div>
+        <div class="card">（文本）</div>
+        <div class="card">输入栏</div>
+      </div>
+      <div class="col">
+        <div class="col-title">地图</div>
+        <div class="card">目标</div>
+        <div class="card">区域</div>
+      </div>
+      <div class="col">
+        <div class="col-title">角色详情</div>
+        <div class="card">姐姐（选中）</div>
+        <div class="card">立绘 + 状态 + 按钮</div>
+      </div>
+      <div class="col hl">
+        <div class="col-title">主角</div>
+        <div class="card hero">主角 Lv12</div>
+        <div class="bars">
+          <div class="bar"><i style="width:90%;background:var(--ok)"></i></div>
+          <div class="bar"><i style="width:80%;background:var(--energy)"></i></div>
+          <div class="bar"><i style="width:70%;background:var(--info)"></i></div>
+          <div class="bar"><i style="width:85%;background:var(--accent-lt)"></i></div>
+          <div class="bar"><i style="width:60%;background:var(--warn)"></i></div>
+          <div class="bar"><i style="width:35%;background:var(--lust)"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="note bad">
+      <b>优点</b>：主角与详情完全分离，互不干扰
+      <br><b>缺点</b>：五栏在 1440px 屏上每栏太窄（叙事区只剩 ~400px）；主角栏内容少，浪费空间
+    </div>
+  </div>
+
+  <!-- 方案 3 -->
+  <div class="plan">
+    <div class="plan-head">
+      <span class="plan-title">方案 3 · 主角折叠条贴在底栏上方</span>
+      <span class="badge">空间最优</span>
+      <span class="plan-desc">主角做成一条横向状态条，贴在底部状态栏上方；点开可展开为完整卡片</span>
+    </div>
+    <div class="wire g4">
+      <div class="col">
+        <div class="col-title">后宫</div>
+        <div class="card ai">AI 核心</div>
+        <div class="card">姐姐 Lv3</div>
+        <div class="card">母亲 Lv3</div>
+        <div class="card">妹妹 Lv2</div>
+        <div class="card ghost">未解锁 17 位</div>
+        <div class="card">快捷操作 1/3</div>
+      </div>
+      <div class="col">
+        <div class="col-title">叙事</div>
+        <div class="card">我醒了 · 节拍 1/4</div>
+        <div class="card">（文本）</div>
+        <div class="card hl" style="background:#3a2a48">▶ 主角 Lv12 体力 90 饥饿 80 口渴 70 精力 85 心情 60 欲情 35　[展开]</div>
+        <div class="card">输入栏 [对话]</div>
+      </div>
+      <div class="col">
+        <div class="col-title">地图</div>
+        <div class="card">当前目标</div>
+        <div class="card">可达区域</div>
+        <div class="card">装备</div>
+      </div>
+      <div class="col">
+        <div class="col-title">角色详情</div>
+        <div class="card">姐姐（选中）</div>
+        <div class="card">立绘 + 状态</div>
+        <div class="card">8 个按钮</div>
+      </div>
+    </div>
+    <div class="note">
+      <b>优点</b>：完全不占侧栏宽度；主角 6 条状态横排一眼看全；点「展开」才占空间
+      <br><b>缺点</b>：不是「卡片」形态；立绘无处放（可能不需要）
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
