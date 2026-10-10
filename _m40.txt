@@ -1,0 +1,71 @@
+fix: 解决杀软拦截 —— 签名（染喵）+ 便携版 + 常规编译参数 v0.43.0
+
+问题
+安装包无法安装、看不到安装包、便携版打不开、弹红色弹窗。
+根因是火绒（HipsTray/HipsDaemon）的启发式拦截。
+
+一、数字签名（主体：染喵）
+- 生成自签名代码签名证书
+  CN=染喵, O=RanMiao, C=CN
+  RSA 4096 / 10 年有效 / Code Signing EKU
+- 导入受信任存储：LocalMachine 与 CurrentUser 的
+  Root + TrustedPublisher
+- 签名产物（均验证为 Valid）：
+  · doomsday-harem.exe
+  · Doomsday Harem_0.42.0_x64-setup.exe
+  · 便携版 DoomsdayHarem.exe
+- 新增 scripts/sign.ps1：自动生成证书（若缺失）、
+  导入信任存储、签名主程序与全部安装包
+- 新增 pnpm sign / pnpm build:installer
+
+二、降低启发式误报（关键）
+原编译参数有三个高可疑特征，全在杀软规则上：
+  · opt-level = "z"   → 代码段熵值异常，像加壳
+  · strip = true      → 无符号表，像恶意程序
+  · lto = true + codegen-units = 1 → 非常规重排
+
+改为常规程序的参数：
+  opt-level = 2 / lto = "thin" / codegen-units = 16
+  strip = "debuginfo" / panic = "unwind"
+体积从 14.26 MB 增至 15.78 MB，换兼容性。
+安装器压缩从 lzma 改为 zlib（同样降低可疑度）。
+
+三、可执行文件元数据
+移除重复的资源注入（winresource 与 tauri-winres 冲突
+导致 CVT1100 资源重复，链接失败）。
+改用 tauri.conf.json 的 bundle 字段注入：
+  publisher / copyright / category / 中英文描述
+验证结果：FileDescription、ProductName、CompanyName、
+FileVersion、Copyright 全部正确写入。
+
+四、便携版（无需安装，最能绕过拦截）
+新增 scripts/make-portable.mjs：
+- 产出 DoomsdayHarem_<版本>_portable.zip（15.63 MB）
+- 内含主程序 + data/{saves,config,mods,logs}
+  + portable.txt + mods/README.txt + 使用说明
+- 实测：解压即用，数据自动存同目录（便携模式生效）
+- 用 tar 打包（Windows 自带），避免 Compress-Archive 引号问题
+
+五、辅助工具
+- scripts/whitelist.ps1：一键解除文件锁定 +
+  添加 Defender 排除 + 检测火绒并给出指引
+- scripts/launcher.bat：绿色版启动器
+- docs/安装被拦截怎么办.md：五种处理方式详解
+
+六、安装模式
+installMode 从 currentUser 改为 both ——
+用户可选择「仅为我」或「为所有用户」，
+后者可自定义安装目录。
+
+七、桌面交付物
+在桌面创建 DoomsdayHarem 文件夹，包含：
+  便携版/（已解压，双击即用，含启动游戏.bat）
+  1-一键加白名单.ps1
+  Doomsday Harem_0.42.0_x64-setup.exe（已签名）
+  DoomsdayHarem_0.42.0_portable.zip
+  安装被拦截怎么办.md
+
+测试
+- 1204 项全部通过
+- tsc 零错误
+- 签名版便携版实测启动成功

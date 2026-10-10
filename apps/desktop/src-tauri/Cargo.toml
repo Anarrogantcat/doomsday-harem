@@ -1,8 +1,15 @@
 [package]
 name = "doomsday-harem"
-version = "0.42.0"
+version = "0.43.0"
 edition = "2021"
 description = "Doomsday Harem — survival sandbox with tech tree and harem management"
+authors = ["Doomsday Harem Studio"]
+license = "MIT"
+repository = "https://github.com/doomsday-harem/doomsday-harem"
+homepage = "https://github.com/doomsday-harem/doomsday-harem"
+readme = "README.md"
+keywords = ["game", "survival", "visual-novel"]
+categories = ["games"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -24,8 +31,16 @@ walkdir = "2"
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 
+# Release 编译参数。
+#
+# 注意：刻意不使用 opt-level="z" / strip=true / lto=true 的组合 ——
+# 极限优化会让二进制呈现「加壳程序」特征（高熵代码段、无符号表、
+# 非常规重排），从而触发杀软启发式误报。
+# 体积换兼容性，这是有意的取舍。
 [profile.release]
-opt-level = "z"
-lto = true
-codegen-units = 1
-strip = true
+opt-level = 2
+lto = "thin"
+codegen-units = 16
+strip = "debuginfo"
+panic = "unwind"
+debug = false

@@ -1,7 +1,7 @@
 {
   "name": "doomsday-harem",
   "private": true,
-  "version": "0.42.0",
+  "version": "0.43.0",
   "type": "module",
   "workspaces": [
     "packages/*",
@@ -27,7 +27,12 @@
     "pregenerate:dry": "node scripts/pregenerate.mjs --dry",
     "build:demo": "pnpm --filter @doomsday/desktop exec vite build --config vite.demo.config.ts",
     "demo:open": "node scripts/demo.mjs --open",
-    "cleanup:servers": "node scripts/cleanup-servers.mjs"
+    "cleanup:servers": "node scripts/cleanup-servers.mjs",
+    "build:portable": "node scripts/make-portable.mjs",
+    "gen:portraits": "node scripts/gen-portraits.mjs",
+    "gen:stories": "node scripts/gen-stories.mjs",
+    "sign": "powershell -ExecutionPolicy Bypass -File scripts/sign.ps1",
+    "build:installer": "pnpm --filter @doomsday/desktop exec tauri build --bundles nsis && pnpm sign && node scripts/make-portable.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
