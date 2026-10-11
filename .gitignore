@@ -4,7 +4,7 @@ node_modules/
 
 # build
 dist/
-build/
+/build/
 target/
 *.tsbuildinfo
 
@@ -42,3 +42,4 @@ apps/desktop/dist-demo/
 
 # Electron 打包产物
 apps/desktop/dist-electron/
+dist-unsigned/

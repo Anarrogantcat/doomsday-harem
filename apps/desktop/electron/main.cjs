@@ -42,40 +42,44 @@ function log(msg) {
 // 抢锁失败的一方立刻退出，由已有实例处理聚焦请求。
 // ────────────────────────────────────────────────────────────
 /**
- * GPU 兼容性兜底（**这是「窗口空白」的根治方案**）。
+ * 图形后端：**默认关闭硬件加速**。
  *
- * 症状：窗口打开了，但整片空白，随后进程退出。
- * 日志：gpu_process_host.cc: GPU process launch failed: error_code=18
+ * 为什么默认关：
+ *   本作是纯 2D 文字界面（HTML + Canvas 静态绘制），不需要 GPU。
+ *   而实测发现本机 Chromium 的 GPU 进程会启动失败：
+ *     gpu_process_host.cc: GPU process launch failed: error_code=18
+ *   一旦 GPU 进程反复失败，窗口会打开但**渲染不出任何内容**（整片空白），
+ *   或直接静默退出 —— 表现为「应用打不开」。
  *
- * 原因：Chromium 的 GPU 进程启动失败时，默认会反复重试并最终
- * 判定「GPU 不可用」，此过程渲染器拿不到帧 → 白屏。
+ *   参考项目（bd2 / SillyTavern）没显式处理，但它们不是纯文字界面，
+ *   Chromium 的 GPU 黑名单能兜住；本作必须自己关。
  *
- * 策略（三道保险）：
- *   1) 命令行 --disable-gpu / --soft-render  → 强制软件渲染
- *   2) 环境变量 ELECTRON_DISABLE_GPU=1        → 同上（便于脚本控制）
- *   3) **默认开启软件渲染兜底**：Chromium 的 GPU 黑名单机制
- *      在多数「GPU 启动失败」场景下会自动回退，但 error_code=18
- *      （设备被占用 / 驱动异常）不在黑名单里，需要显式禁用。
- *
- * 代价：软件渲染下画面略慢，但对本作（静态界面为主）无影响。
+ * 如需强制开启硬件加速（例如未来加动画）：
+ *   设环境变量 ELECTRON_ENABLE_GPU=1
  */
-const wantSoftware =
-  process.argv.includes('--disable-gpu') ||
-  process.argv.includes('--soft-render') ||
-  process.env.ELECTRON_DISABLE_GPU === '1'
+const wantGpu = process.env.ELECTRON_ENABLE_GPU === '1'
+const wantSoftware = !wantGpu
+  || process.argv.includes('--disable-gpu')
+  || process.argv.includes('--soft-render')
+  || process.env.ELECTRON_DISABLE_GPU === '1'
 
 if (wantSoftware) {
+  // 彻底关闭 GPU：不初始化 GPU 进程，避免 error_code=18
   app.disableHardwareAcceleration()
-  log('hardware acceleration DISABLED (software rendering)')
-} else {
-  // 保留硬件加速，但关闭可能引发 error_code=18 的 GPU 特性
+  app.commandLine.appendSwitch('disable-gpu')
   app.commandLine.appendSwitch('disable-gpu-compositing')
   app.commandLine.appendSwitch('disable-gpu-sandbox')
-  app.commandLine.appendSwitch('disable-software-rasterizer-fallback')
-  log('hardware acceleration ENABLED (with GPU fallbacks)')
+  // 软件光栅化：用 CPU 绘制
+  app.commandLine.appendSwitch('use-gl', 'swiftshader')
+  app.commandLine.appendSwitch('enable-unsafe-swiftshader')
+  log('graphics: SOFTWARE rendering (GPU disabled)')
+} else {
+  app.commandLine.appendSwitch('disable-gpu-compositing')
+  app.commandLine.appendSwitch('disable-gpu-sandbox')
+  log('graphics: HARDWARE acceleration (GPU enabled by env)')
 }
 
-// GPU 缓存目录隔离（避免多实例 / 上次残留导致 0x20 占用错误）
+// GPU 着色器磁盘缓存：避免多实例 / 上次残留导致 0x20 占用错误
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
 
 // 单实例锁 —— 必须是进程第一件事

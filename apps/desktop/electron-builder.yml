@@ -4,11 +4,14 @@
 #   Tauri 产物是「Rust 外壳 + 运行时自解压」，撞杀软「自解压 + 写文件」
 #   高危特征，火绒误报率最高。
 #
-# 抗误报的四条硬约束（逐条与参考项目对齐）：
-#   1. asar: false        归档会阻止杀软查看内部，易判「隐藏行为」
-#   2. icon: 自定义       默认 Electron 图标是大量木马的特征
-#   3. 元数据非空          CompanyName / FileDescription 为空 → 判「无法识别」
-#   4. 不用 UPX / 混淆    这两项是最强的误报触发器
+# 本配置**逐条对齐**已在同一台机器验证可用的参考项目
+# （sillytavern-shell / bd2-l2d-viewer）：
+#   · files 显式白名单（不用 glob 通配）
+#   · compression: maximum
+#   · asar: false
+#   · 自定义 icon
+#   · afterPack 硬校验
+#   · nsis.include 自定义安装脚本
 
 appId: com.doomsdayharem.app
 productName: DoomsdayHarem
@@ -18,33 +21,30 @@ directories:
   output: dist-electron
   buildResources: build
 
-# asar 关闭 —— 与参考项目 bd2 一致。
-# asar 归档会阻止杀软查看内部文件，容易被判定为「隐藏行为」。
-asar: false
+# 最大压缩 —— 与 sillytavern-shell 一致
+compression: maximum
 
-# 只打包运行期真正需要的文件。
-# node_modules 默认会被全量复制（含 vite / typescript 等构建期依赖，
-# 可到 100+ MB），这里显式排除 —— 渲染层依赖已由 Vite 打进 dist/。
-# 只打这三个，其余一律不要。
-# 注意：不要用 '!node_modules/**/*' 排除 —— 那样写不生效，
-# workspace 依赖被 hoist 到仓库根，会被整包拖进 asar（实测 179 个条目）。
+# 显式文件白名单 —— 与 sillytavern-shell 一致。
+# 不用 glob 通配，避免误带 node_modules（实测会拖进 179 个条目）。
 files:
   - dist/**/*
   - electron/**/*
   - package.json
 
-# 显式声明「不打 node_modules」
-npmRebuild: false
+# asar 关闭 —— 与两个参考项目一致。
+# 归档会阻止杀软查看内部文件，容易被判定为「隐藏行为」。
+asar: false
+
+# 打包后硬校验 —— 与 sillytavern-shell 的 afterPack 一致。
+# 缺文件时直接构建失败，避免「装完才发现打不开」。
+afterPack: ./scripts/afterPack.cjs
 
 # Windows 可执行文件的版本资源由 package.json 提供：
-#   author.name  → CompanyName（SmartScreen 判定依据之一）
+#   author.name  → CompanyName
 #   description  → FileDescription
-# 参考项目（SillyTavern / bd2）这两项都有值；为空会被判定为
-# 「无法识别的应用」而弹红框。
+# 必须为纯 ASCII —— rcedit 对中文会静默失败（Unable to commit changes）。
 win:
-  # 必须指定自己的图标。
-  # 用 Electron 默认图标会命中启发式规则 —— 大量木马都用默认图标，
-  # 参考项目（bd2 / SillyTavern）都提供了自己的 icon.ico。
+  # 必须指定自己的图标。默认 Electron 图标是大量木马的特征。
   icon: build/icon.ico
   target:
     - target: nsis
@@ -54,12 +54,14 @@ win:
   artifactName: ${productName}-${version}-${arch}.${ext}
 
 nsis:
+  # 自定义安装脚本 —— 与参考项目一致
+  include: build/installer.nsh
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  # 名称里不能含 / —— Windows 文件名非法字符，会渲染成乱码
+  # 名称不能含 /（Windows 文件名非法字符）
   shortcutName: DoomsdayHarem
   deleteAppDataOnUninstall: false
 

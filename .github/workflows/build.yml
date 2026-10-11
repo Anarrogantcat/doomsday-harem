@@ -1,0 +1,96 @@
+name: Build & Release
+
+# 在 GitHub 的 Windows 运行器上打包。
+#
+# 为什么用 Actions 而不是本地打包：
+#   本地产物在同机上被 SmartScreen 拦，无法验证「干净环境」下的表现。
+#   GitHub 运行器是全新系统，产物从云端分发，可排除本机策略干扰。
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "版本号（留空则用 VERSION 文件）"
+        required: false
+        default: ""
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $input = "${{ github.event.inputs.version }}"
+          if ($input -ne "") {
+            $v = $input
+          } else {
+            $v = (Get-Content VERSION -Raw).Trim()
+          }
+          echo "version=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "版本: $v"
+
+      - name: Build renderer
+        run: pnpm --filter @doomsday/desktop exec vite build
+
+      - name: Package with electron-builder
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm --filter @doomsday/desktop exec electron-builder --win --publish never
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: DoomsdayHarem-${{ steps.ver.outputs.version }}-win
+          path: |
+            apps/desktop/dist-electron/*.exe
+            apps/desktop/dist-electron/*.blockmap
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: DoomsdayHarem v${{ steps.ver.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            apps/desktop/dist-electron/*.exe
+            apps/desktop/dist-electron/*.blockmap
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
