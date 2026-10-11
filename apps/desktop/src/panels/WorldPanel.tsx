@@ -20,31 +20,31 @@ export function WorldPanel() {
   const prog = session.exploration();
 
   return (
-    <div className="grid2">
-      <section className="panel">
+    <div className="proto-grid2">
+      <section className="proto-panel">
         <h2>
-          世界　<span className="sub">
+          世界　<span className="proto-sub">
             探索 {prog.discovered}/{prog.total}（{prog.percent}%）　里程 {session.world.totalKm} km
           </span>
         </h2>
 
         <p>
           <strong>{here?.name}</strong>
-          <span className="sub">　{here ? TERRAIN_LABEL[here.terrain] : ""}　
+          <span className="proto-sub">　{here ? TERRAIN_LABEL[here.terrain] : ""}　
           危险 {here ? DANGER_LABEL[effectiveDanger(session.world, here.id) as DangerLevel] : "?"}</span>
         </p>
-        <p className="sub">{here?.description}</p>
-        <p className="sub">{here?.arrival}</p>
+        <p className="proto-sub">{here?.description}</p>
+        <p className="proto-sub">{here?.arrival}</p>
 
         <h3>交通方式</h3>
-        <div className="controls">
+        <div className="proto-controls">
           {MODES.map((m) => {
             const mode = TRAVEL_MODES[m];
             const disabled = (m === "car" || m === "apc") && !session.vehicleAvailable();
             return (
               <button
                 key={m}
-                className={session.travelMode === m ? "tab active" : "tab"}
+                className={session.travelMode === m ? "proto-tab proto-active" : "proto-tab"}
                 onClick={() => setTravelMode(m)}
                 disabled={disabled}
                 title={disabled ? "需要车库" : `${mode.speed}km/h`}
@@ -54,28 +54,28 @@ export function WorldPanel() {
             );
           })}
         </div>
-        <p className="sub">
+        <p className="proto-sub">
           燃料储备 {session.fuel()}　体力 {Math.round(session.hero.survival.stamina)}
           　{!session.vehicleAvailable() && "（无车库，车辆不可用）"}
         </p>
 
         <h3>当地行动</h3>
-        <div className="controls">
+        <div className="proto-controls">
           <button onClick={lootCurrent}>搜刮（剩余 {session.world.regions[session.world.current]?.nodesLeft ?? 0} 点）</button>
           <button onClick={clearCurrent}>清理区域</button>
         </div>
 
         <h3>当前区域状态</h3>
-        <p className="sub">
+        <p className="proto-sub">
           已搜刮 {session.world.regions[session.world.current]?.looted ?? 0} 次　
           清理 {session.world.regions[session.world.current]?.cleared ?? 0} 级　
           进度 {Math.round((session.world.regions[session.world.current]?.progress ?? 0) * 100)}%
         </p>
       </section>
 
-      <section className="panel">
+      <section className="proto-panel">
         <h2>可达区域</h2>
-        <table className="grid">
+        <table className="proto-grid">
           <thead>
             <tr><th>区域</th><th>地形</th><th>距离</th><th>危险</th><th>搜刮点</th><th>预计</th><th>操作</th></tr>
           </thead>
@@ -85,18 +85,18 @@ export function WorldPanel() {
               const plan = session.planTravelTo(n.def.id);
               const danger = effectiveDanger(session.world, n.def.id);
               return (
-                <tr key={n.def.id} className={!st?.discovered ? "row-dim" : undefined}>
+                <tr key={n.def.id} className={!st?.discovered ? "proto-row-dim" : undefined}>
                   <td>
                     {n.def.name}
-                    {!st?.discovered && <span className="sub"> （未发现）</span>}
+                    {!st?.discovered && <span className="proto-sub"> （未发现）</span>}
                   </td>
-                  <td className="sub">{TERRAIN_LABEL[n.def.terrain]}</td>
+                  <td className="proto-sub">{TERRAIN_LABEL[n.def.terrain]}</td>
                   <td>{n.km} km</td>
-                  <td className={danger >= 4 ? "warn" : "sub"}>
+                  <td className={danger >= 4 ? "proto-warn" : "proto-sub"}>
                     {DANGER_LABEL[danger as DangerLevel]}
                   </td>
                   <td>{st?.nodesLeft ?? 0}/{n.def.lootNodes}</td>
-                  <td className="sub">
+                  <td className="proto-sub">
                     {plan.hours.toFixed(1)}h　体力-{plan.staminaCost.toFixed(1)}
                     {plan.fuelCost > 0 && `　油-${plan.fuelCost.toFixed(1)}`}
                   </td>
@@ -116,18 +116,18 @@ export function WorldPanel() {
         </table>
 
         <h3>全部区域（已发现）</h3>
-        <table className="grid">
+        <table className="proto-grid">
           <thead><tr><th>区域</th><th>地形</th><th>危险</th><th>状态</th></tr></thead>
           <tbody>
             {REGIONS.filter((r) => session.world.regions[r.id]?.discovered).map((r) => {
               const st = session.world.regions[r.id];
               const danger = effectiveDanger(session.world, r.id);
               return (
-                <tr key={r.id} className={r.id === session.world.current ? "row-ok" : undefined}>
+                <tr key={r.id} className={r.id === session.world.current ? "proto-row-ok" : undefined}>
                   <td>{r.name}</td>
-                  <td className="sub">{TERRAIN_LABEL[r.terrain]}</td>
-                  <td className={danger >= 4 ? "warn" : "sub"}>{DANGER_LABEL[danger as DangerLevel]}</td>
-                  <td className="sub">
+                  <td className="proto-sub">{TERRAIN_LABEL[r.terrain]}</td>
+                  <td className={danger >= 4 ? "proto-warn" : "proto-sub"}>{DANGER_LABEL[danger as DangerLevel]}</td>
+                  <td className="proto-sub">
                     {r.id === session.world.current ? "当前位置" : st?.visited ? "已访问" : "未访问"}
                   </td>
                 </tr>
@@ -136,7 +136,7 @@ export function WorldPanel() {
           </tbody>
         </table>
 
-        <p className="hint">
+        <p className="proto-hint">
           移动消耗时间与体力，房车更快更省力但耗油。旅行途中可能发现相邻区域并遭遇敌人。
           危险度可通过清理区域降低（最多三级）。搜刮点耗尽后该区域无产出。
         </p>

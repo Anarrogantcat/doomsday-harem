@@ -18,9 +18,9 @@ function StackTable({
   actionLabel: string;
   emptyText: string;
 }) {
-  if (stacks.length === 0) return <p className="sub">{emptyText}</p>;
+  if (stacks.length === 0) return <p className="proto-sub">{emptyText}</p>;
   return (
-    <table className="grid">
+    <table className="proto-grid">
       <thead><tr><th>物品</th><th>分类</th><th>数量</th><th>品质</th><th>重量</th><th>操作</th></tr></thead>
       <tbody>
         {stacks.map((s, i) => {
@@ -28,10 +28,10 @@ function StackTable({
           return (
             <tr key={s.itemId + i}>
               <td>{def?.name ?? s.itemId}</td>
-              <td className="sub">{def ? CATEGORY_LABEL[def.category] : "?"}</td>
+              <td className="proto-sub">{def ? CATEGORY_LABEL[def.category] : "?"}</td>
               <td>{s.count}</td>
-              <td className="sub">{QUALITY_LABEL[s.quality]}</td>
-              <td className="sub">{((def?.weight ?? 0) * s.count).toFixed(1)}</td>
+              <td className="proto-sub">{QUALITY_LABEL[s.quality]}</td>
+              <td className="proto-sub">{((def?.weight ?? 0) * s.count).toFixed(1)}</td>
               <td><button onClick={() => onAction(s.itemId)}>{actionLabel}</button></td>
             </tr>
           );
@@ -59,32 +59,32 @@ export function InventoryPanel() {
     catFilter ? stacks.filter((s) => itemDef(s.itemId)?.category === catFilter) : stacks;
 
   return (
-    <section className="panel">
-      <h2>物品　<span className="sub">
+    <section className="proto-panel">
+      <h2>物品　<span className="proto-sub">
         背包 {sum.backpack.used.toFixed(1)}/{sum.backpack.max} kg　
         {sum.backpack.slots}/{sum.backpack.maxSlots} 格　
         仓库 {sum.storage.items} 件 / {sum.storage.kinds} 种
       </span></h2>
 
-      <div className="controls">
-        <button className={tab === "backpack" ? "tab active" : "tab"} onClick={() => setTab("backpack")}>背包</button>
-        <button className={tab === "storage" ? "tab active" : "tab"} onClick={() => setTab("storage")}>仓库</button>
-        <button className={tab === "craft" ? "tab active" : "tab"} onClick={() => setTab("craft")}>合成</button>
+      <div className="proto-controls">
+        <button className={tab === "backpack" ? "proto-tab proto-active" : "proto-tab"} onClick={() => setTab("backpack")}>背包</button>
+        <button className={tab === "storage" ? "proto-tab proto-active" : "proto-tab"} onClick={() => setTab("storage")}>仓库</button>
+        <button className={tab === "craft" ? "proto-tab proto-active" : "proto-tab"} onClick={() => setTab("craft")}>合成</button>
       </div>
 
       {tab !== "craft" && (
         <>
-          <div className="controls">
-            <button className={catFilter === "" ? "tab active" : "tab"} onClick={() => setCatFilter("")}>全部</button>
+          <div className="proto-controls">
+            <button className={catFilter === "" ? "proto-tab proto-active" : "proto-tab"} onClick={() => setCatFilter("")}>全部</button>
             {CATS.map((c) => (
-              <button key={c} className={catFilter === c ? "tab active" : "tab"} onClick={() => setCatFilter(c)}>
+              <button key={c} className={catFilter === c ? "proto-tab proto-active" : "proto-tab"} onClick={() => setCatFilter(c)}>
                 {CATEGORY_LABEL[c]}
               </button>
             ))}
           </div>
 
           <h3>搜刮（按当前时间取种子，结果可复现）</h3>
-          <div className="controls">
+          <div className="proto-controls">
             {["ruins", "pharmacy", "workshop", "military", "lab", "residential", "adult_shop"].map((t) => (
               <button key={t} onClick={() => loot(t)}>搜刮 {t}</button>
             ))}
@@ -99,8 +99,8 @@ export function InventoryPanel() {
                 actionLabel="使用"
                 emptyText="（空）"
               />
-              <div className="controls">
-                <span className="sub">常用操作：</span>
+              <div className="proto-controls">
+                <span className="proto-sub">常用操作：</span>
                 {session.backpack.stacks.slice(0, 6).map((s) => (
                   <button key={s.itemId} onClick={() => putToStorage(s.itemId, s.count)}>
                     存入 {itemDef(s.itemId)?.name ?? s.itemId}
@@ -117,8 +117,8 @@ export function InventoryPanel() {
                 actionLabel="取1"
                 emptyText="（空）"
               />
-              <div className="controls">
-                <span className="sub">快速放入背包：</span>
+              <div className="proto-controls">
+                <span className="proto-sub">快速放入背包：</span>
                 {session.storage.stacks.slice(0, 8).map((s) => (
                   <button key={s.itemId} onClick={() => takeFromStorage(s.itemId, 5)}>
                     取5 {itemDef(s.itemId)?.name ?? s.itemId}
@@ -133,7 +133,7 @@ export function InventoryPanel() {
       {tab === "craft" && (
         <>
           <h3>合成台</h3>
-          <table className="grid">
+          <table className="proto-grid">
             <thead><tr><th>产物</th><th>数量</th><th>材料</th><th>工时</th><th>前置科技</th><th>状态</th><th>操作</th></tr></thead>
             <tbody>
               {RECIPES.map((r) => {
@@ -143,12 +143,12 @@ export function InventoryPanel() {
                   <tr key={r.id}>
                     <td>{out?.name ?? r.output.itemId}</td>
                     <td>{r.output.n}</td>
-                    <td className="sub">
+                    <td className="proto-sub">
                       {Object.entries(r.cost).map(([k, v]) => `${k}×${v}`).join("　")}
                     </td>
-                    <td className="sub">{r.hours}h</td>
-                    <td className="sub">{(r.requiresTech ?? []).join("、") || "—"}</td>
-                    <td className={check.ok ? "ok" : "sub"}>
+                    <td className="proto-sub">{r.hours}h</td>
+                    <td className="proto-sub">{(r.requiresTech ?? []).join("、") || "—"}</td>
+                    <td className={check.ok ? "proto-ok" : "proto-sub"}>
                       {check.ok ? "可合成" : check.missingTech.length ? "缺科技" : "缺材料"}
                     </td>
                     <td>
@@ -162,7 +162,7 @@ export function InventoryPanel() {
         </>
       )}
 
-      <p className="hint">
+      <p className="proto-hint">
         背包有重量与槽位上限，仓库无上限。科技研发与合成会同时从仓库与背包扣料（仓库优先）。
         搜刮使用游戏内时间作随机种子，同一时刻结果可复现。
       </p>

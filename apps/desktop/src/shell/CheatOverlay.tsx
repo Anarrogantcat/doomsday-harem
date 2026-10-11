@@ -31,7 +31,7 @@ function FloatingButton({ onOpen, hidden, active }: {
   return (
     <button
       ref={elRef as React.RefObject<HTMLButtonElement>}
-      className={`cheat-fab ${dragging ? "dragging" : ""} ${active ? "active" : ""}`}
+      className={`cheat-fab ${dragging ? "proto-dragging" : ""} ${active ? "proto-active" : ""}`}
       style={{ left: pos.x, top: pos.y }}
       title="作弊器（可拖动，点击开合）"
       {...handlers}
@@ -86,7 +86,7 @@ function CheatWindow({ onClose }: { onClose: () => void }) {
   return (
     <div
       ref={elRef as React.RefObject<HTMLDivElement>}
-      className={`cheat-win ${dragging ? "dragging" : ""}`}
+      className={`cheat-win ${dragging ? "proto-dragging" : ""}`}
       style={{ left: pos.x, top: pos.y }}
     >
       {/* 标题栏 = 拖拽手柄 */}
@@ -118,10 +118,10 @@ function CheatWindow({ onClose }: { onClose: () => void }) {
 
       {/* 分类 */}
       <nav className="cw-cats">
-        <button className={cat === "all" ? "cw-cat active" : "cw-cat"}
+        <button className={cat === "all" ? "cw-cat proto-active" : "cw-cat"}
           onClick={() => setCat("all")}>全部</button>
         {CHEAT_CATEGORIES.map((c) => (
-          <button key={c} className={cat === c ? "cw-cat active" : "cw-cat"}
+          <button key={c} className={cat === c ? "cw-cat proto-active" : "cw-cat"}
             onClick={() => setCat(c)} title={CHEAT_CATEGORY_LABEL[c]}>
             {CHEAT_CATEGORY_ICON[c]}
           </button>
@@ -144,7 +144,7 @@ function CheatWindow({ onClose }: { onClose: () => void }) {
             <span className="cw-act-desc">{a.description}</span>
           </button>
         ))}
-        {shown.length === 0 && <p className="sub">（无匹配操作）</p>}
+        {shown.length === 0 && <p className="proto-sub">（无匹配操作）</p>}
       </div>
     </div>
   );

@@ -137,6 +137,7 @@ border:1px solid transparent;color:var(--sub);cursor:pointer;font-family:inherit
 .proto-ln.proto-mind{color:var(--sub);font-style:italic}
 
 /* 输入栏 */
+.proto-chint{margin-left:auto;font-size:.75em;color:var(--dim)}
 .proto-ibar{border-top:1px solid var(--line);background:var(--panel);padding:.7em .9em;
 display:flex;flex-direction:column;gap:.5em;flex-shrink:0}
 .proto-imodes{display:flex;gap:.4em;align-items:center;font-size:.78em;flex-wrap:wrap}
@@ -1360,3 +1361,750 @@ color:#fff;font-family:inherit;font-size:.9em;cursor:pointer;white-space:nowrap}
 .proto-compact .proto-hitem{padding:.3em .4em}
 .proto-mini{font-size:.78em}
 .proto-active{border-color:var(--accent-lt) !important;color:var(--accent-lt) !important}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   以下为原 styles.css 的功能类，已统一加 proto- 前缀并入本表。
+   面板（物品/科技/主线/成就/插件/存档/设置…）全部使用新UI设计令牌，
+   与主界面同一套视觉体系。冲突项以新UI为准，已在合并时剔除。
+   ═══════════════════════════════════════════════════════════════ */
+
+ /**
+ * 界面样式。
+ *
+ * 设计参考 TiTS（Trials in Tainted Space）的视觉语言：
+ *  - 深色底 + 单一高亮色，信息层级靠明度区分
+ *  - 全部尺寸用 em 相对单位，随根字号缩放
+ *  - 面板用左侧色条而非边框区分类型
+ *  - 按键角标统一为圆角小方块
+ *
+ * 但布局按本作需求重排：后宫名册 / 叙事舞台 / 世界面板 / 角色详情。
+ */
+
+:root{
+  /* 基础色 */
+  --bg: #232a38;
+  --panel: #2C3649;
+  --panel2: #333E52;
+  --panel3: #3a4658;
+  --line: #46536b;
+
+  /* 文字 */
+  --fg: #F3F6FC;
+  --sub: #9aa8bf;
+  --dim: #6b7a91;
+
+  /* 高亮与语义色 */
+  --accent: #8D31B0;
+  --accent-lt: #D982EF;
+  --accent-dk: #6a2085;
+  --ok: #0CD71C;
+  --warn: #E8C815;
+  --danger: #FF4444;
+  --info: #00F5EF;
+  --hp: #00CC2F;
+  --lust: #FF00F0;
+  --energy: #FFD207;
+
+  /* 尺寸 */
+  --fs: 14px;
+  --radius: 0.35em;
+} *{ box-sizing: border-box; } html, body, #root{ height: 100%; } body{
+  margin: 0; background: var(--bg); color: var(--fg);
+  font-family: "Lato", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+  font-size: var(--fs); line-height: 1.5; overflow: hidden;
+} ::-webkit-scrollbar{ width: 0.5em; height: 0.5em; } ::-webkit-scrollbar-track{ background: transparent; } ::-webkit-scrollbar-thumb{ background: var(--line); border-radius: 0.25em; } ::-webkit-scrollbar-thumb:hover{ background: var(--sub); } /* ============ 四栏布局 ============ */
+.proto-game{ display: flex; flex-direction: column; height: 100vh; } .proto-game-body{
+  flex: 1; display: grid;
+  grid-template-columns: 15.5em 1fr 17em 19em;
+  min-height: 0;
+} @media (max-width: 1680px){ .proto-game-body{ grid-template-columns: 14em 1fr 15em 17em; } } @media (max-width: 1440px){ .proto-game-body{ grid-template-columns: 12.5em 1fr 13.5em 15em; } } /* ============ 左：后宫名册 ============ */
+.proto-roster{
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--panel); border-right: 1px solid var(--line);
+} .proto-roster-head{
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 0.55em 0.7em; flex-shrink: 0;
+  border-bottom: 2px solid var(--accent);
+  background: var(--panel2);
+} .proto-roster-title{ font-size: 1em; font-weight: 700; letter-spacing: 0.05em; } .proto-roster-count{ font-size: 0.78em; color: var(--sub); } .proto-roster-pinned{
+  display: flex; flex-direction: column; gap: 0.28em;
+  padding: 0.45em; flex-shrink: 0;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(141,49,176,.14), transparent);
+} .proto-roster-sort{
+  display: flex; gap: 0.2em; padding: 0.4em 0.45em;
+  border-bottom: 1px solid var(--line); flex-shrink: 0;
+} .proto-roster-list{
+  flex: 1; overflow-y: auto; padding: 0.4em;
+  display: flex; flex-direction: column; gap: 0.28em; min-height: 0;
+} .proto-hero-card{ border-left-color: var(--accent); background: #362a45; } .proto-hero-card:hover{ background: #40304f; } .proto-ai-card{ border-left-color: var(--info); background: #26333f; } .proto-ai-card:hover{ background: #2c3d4a; } .proto-rcard-face{
+  position: relative; flex-shrink: 0;
+  width: 3.2em; height: 3.2em; overflow: hidden; border-radius: 0.25em;
+  background: #1a2029;
+} .proto-rcard-face .proto-rig-wrap{
+  width: 100% !important; height: 100% !important;
+  border: none !important; border-radius: 0.25em !important;
+  background: transparent;
+} .proto-rcard-face .proto-rig-img{
+  width: 100% !important; height: 100% !important;
+  object-fit: cover; object-position: center 12%;
+} .proto-rcard-face .proto-portrait-svg{ width: 100% !important; height: 100% !important; } .proto-hero-face{ border: 1px solid var(--accent); } .proto-ai-face{
+  width: 2.6em; height: 2.6em; border-radius: 0.25em; flex-shrink: 0;
+  background: linear-gradient(135deg, #1a3a4a, #2a1a3a);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--info); font-size: 0.75em; font-weight: 700; letter-spacing: 0.08em;
+  border: 1px solid #2a4a5a;
+} .proto-locked-face{
+  width: 2.6em; height: 2.6em; background: #1c2330; border-radius: 0.25em;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--dim); font-size: 1.1em;
+} .proto-rcard-bond{
+  position: absolute; right: 0; bottom: 0; font-size: 0.6em;
+  background: var(--accent); color: #fff; border-radius: 0.2em 0 0 0;
+  padding: 0 0.25em; line-height: 1.4;
+} .proto-rcard-alert{
+  position: absolute; left: 0; top: 0; font-size: 0.65em; font-weight: 700;
+  background: var(--warn); color: #241a00; border-radius: 0 0 0.25em 0;
+  padding: 0 0.3em; line-height: 1.4;
+} .proto-rcard-info{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.18em; } .proto-rcard-name{
+  font-size: 0.85em; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+} .proto-rcard-sub{
+  font-size: 0.7em; color: var(--dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+} .proto-hero-tag, .proto-ai-tag{
+  font-size: 0.62em; margin-left: 0.3em; padding: 0 0.35em;
+  border-radius: 0.2em; vertical-align: middle; font-weight: 600;
+} .proto-hero-tag{ background: var(--accent); color: #fff; } .proto-ai-tag{ background: #2a4a5a; color: var(--info); } .proto-rbars{ display: flex; flex-direction: column; gap: 0.12em; } .proto-rbar{ height: 0.22em; background: #1e2532; border-radius: 0.11em; overflow: hidden; } .proto-rbar-fill{ height: 100%; transition: width .2s; } .proto-roster-divider{
+  font-size: 0.72em; color: var(--dim); text-align: center; padding: 0.45em;
+  cursor: pointer; border-top: 1px dashed var(--line); margin-top: 0.2em;
+} .proto-roster-divider:hover{ color: var(--fg); } .proto-stage-tabs{
+  display: flex; align-items: center; gap: 0.25em; padding: 0.45em 0.7em;
+  border-bottom: 1px solid var(--line); background: var(--panel); flex-shrink: 0;
+} .proto-stagetab{
+  background: transparent; border: 1px solid transparent; color: var(--sub);
+  padding: 0.35em 0.9em; border-radius: var(--radius); font-size: 0.85em; cursor: pointer;
+} .proto-stagetab:hover{ color: var(--fg); background: var(--panel2); } .proto-stage-body{ flex: 1; min-height: 0; overflow: hidden; display: flex; } .proto-stage-body > *{ flex: 1; min-width: 0; } /* ============ 叙事面板 ============ */
+.proto-narration{ display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; } .proto-narration-embedded{ background: transparent; border: none; } .proto-narration-head{
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.45em 0.8em; border-bottom: 1px solid var(--line); flex-shrink: 0;
+} .proto-navbtn{
+  background: var(--panel2); border: 1px solid var(--line); color: var(--fg);
+  border-radius: var(--radius); padding: 0.3em 0.9em; font-size: 0.82em; cursor: pointer;
+} .proto-navbtn:hover:not(:disabled){ border-color: var(--accent-lt); background: var(--panel3); } .proto-navbtn:disabled{ opacity: .35; cursor: not-allowed; } .proto-narration-pos{ font-size: 0.78em; color: var(--dim); font-variant-numeric: tabular-nums; } .proto-narration-body{
+  flex: 1 1 auto; overflow-y: auto; overflow-x: hidden;
+  padding: 1.2em 1.6em 1.8em; min-height: 0;
+} .proto-narration-title{
+  font-size: 1.05em; font-weight: 700; margin-bottom: 0.3em;
+  display: flex; align-items: baseline; gap: 0.6em; flex-wrap: wrap;
+  border-left: 3px solid var(--accent); padding-left: 0.5em;
+} .proto-narration-meta{ font-size: 0.72em; color: var(--sub); font-weight: 400; } .proto-narration-badge{
+  display: inline-block; font-size: 0.72em; color: var(--accent-lt);
+  border: 1px solid var(--accent); border-radius: 0.25em;
+  padding: 0.1em 0.5em; margin-bottom: 0.6em;
+} .proto-narration-text{
+  white-space: pre-wrap; line-height: 1.9; font-size: 0.98em;
+  color: #dde3ee; max-width: 46em;
+} .proto-narration-tier{ margin-top: 1em; font-size: 0.72em; color: var(--dim); } .proto-narration-stream{ margin-top: 1.2em; padding-top: 1em; border-top: 1px dashed var(--line); } .proto-narration-foot{
+  display: flex; align-items: center; gap: 0.6em; padding: 0.5em 0.8em;
+  border-top: 1px solid var(--line); background: var(--panel); flex-shrink: 0;
+} .proto-narration-foot .proto-actbtn{ flex: 1; justify-content: center; } /* ============ 像素场景条 ============ */
+.proto-pixelstrip{
+  flex-shrink: 0; border-top: 2px solid var(--accent);
+  background: #141a24; overflow: hidden; line-height: 0;
+  box-shadow: 0 -0.5em 1.5em rgba(0,0,0,.4);
+} .proto-pixelstrip-canvas{ display: block; image-rendering: pixelated; } /* ============ 右：世界面板 ============ */
+.proto-rightcol{
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--panel); border-left: 1px solid var(--line);
+} .proto-rightcol-nav{
+  display: flex; gap: 0.15em; padding: 0.4em; flex-shrink: 0;
+  border-bottom: 2px solid var(--accent); background: var(--panel2);
+} .proto-rightcol-body{ flex: 1; overflow-y: auto; min-height: 0; } .proto-right-view{ padding: 0.7em; display: flex; flex-direction: column; gap: 0.8em; } .proto-rv-here{
+  display: flex; flex-direction: column; gap: 0.15em;
+  padding-bottom: 0.55em; border-bottom: 1px solid var(--line);
+} .proto-rv-here b{ font-size: 1em; } .proto-rv-building{
+  font-size: 0.78em; color: var(--warn); padding: 0.35em 0.5em;
+  border: 1px solid var(--warn); border-radius: var(--radius);
+  background: rgba(232,200,21,.08);
+} .proto-rv-section{ display: flex; flex-direction: column; gap: 0.35em; } .proto-rv-modes{ display: flex; gap: 0.25em; } .proto-rv-list{ display: flex; flex-direction: column; gap: 0.22em; } .proto-rv-row{
+  display: flex; flex-direction: column; gap: 0.15em; width: 100%;
+  background: var(--panel2); border: 1px solid transparent;
+  border-left: 2px solid var(--line); border-radius: var(--radius);
+  padding: 0.4em 0.55em; cursor: pointer; text-align: left; transition: all .12s;
+} .proto-rv-row:hover:not(:disabled){ background: var(--panel3); border-left-color: var(--accent-lt); } .proto-rv-row:disabled{ opacity: .4; cursor: not-allowed; } .proto-rv-row-main{ font-size: 0.85em; } .proto-rv-row-meta{ font-size: 0.72em; color: var(--dim); display: flex; align-items: center; gap: 0.5em; } .proto-rv-danger{ padding: 0 0.35em; border-radius: 0.2em; } .proto-rv-chips{ display: flex; flex-wrap: wrap; gap: 0.22em; } .proto-chip{
+  font-size: 0.72em; padding: 0.15em 0.45em; border-radius: 0.25em;
+  background: var(--panel2); border: 1px solid var(--line); color: var(--sub);
+} .proto-rv-stats{
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.25em 0.6em;
+  font-size: 0.78em; padding: 0.5em; background: var(--panel2); border-radius: var(--radius);
+} .proto-rv-stats > div{ display: flex; justify-content: space-between; } .proto-rv-stats span{ color: var(--sub); } .proto-rv-actions{ display: flex; flex-direction: column; gap: 0.28em; } .proto-rv-btn{
+  width: 100%; text-align: left; background: var(--panel2);
+  border: 1px solid var(--line); color: var(--fg);
+  border-radius: var(--radius); padding: 0.5em 0.7em; font-size: 0.85em; cursor: pointer;
+  transition: all .12s;
+} .proto-rv-btn:hover{ background: var(--panel3); border-color: var(--accent-lt); } .proto-rv-open{
+  width: 100%; background: transparent; border: 1px solid var(--accent);
+  color: var(--accent-lt); border-radius: var(--radius);
+  padding: 0.5em; font-size: 0.85em; cursor: pointer; transition: all .12s;
+} .proto-rv-open:hover{ background: var(--accent); color: #fff; } .proto-warn-text{ color: var(--warn); } /* ============ 最右：详情 ============ */
+.proto-detailcol{
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto;
+} .proto-detail{ padding: 0.8em; display: flex; flex-direction: column; gap: 0.7em; } .proto-detail-head{ display: flex; gap: 0.7em; align-items: flex-start; } .proto-detail-head .proto-rig-wrap{
+  width: 8.5em !important; height: 15em !important;
+  border: 1px solid var(--accent); border-radius: var(--radius);
+  background: #1a2029;
+} .proto-detail-head .proto-rig-img{ width: 100% !important; height: 100% !important; } .proto-detail-meta{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.2em; } .proto-detail-name{ font-size: 1.05em; font-weight: 700; } .proto-detail-title{ font-size: 0.78em; color: var(--sub); } .proto-detail-tags{ display: flex; gap: 0.25em; flex-wrap: wrap; margin-top: 0.15em; } .proto-detail-tone{
+  font-size: 0.78em; color: var(--sub); padding: 0.4em 0.6em;
+  background: var(--panel2); border-radius: var(--radius);
+  border-left: 2px solid var(--accent-lt);
+} .proto-detail-bars{ display: flex; flex-direction: column; gap: 0.32em; } .proto-dbar{ display: flex; align-items: center; gap: 0.5em; font-size: 0.78em; } .proto-dbar-label{ width: 2.6em; color: var(--sub); flex-shrink: 0; } .proto-dbar-track{ flex: 1; height: 0.5em; background: #1e2532; border-radius: 0.25em; overflow: hidden; } .proto-dbar-fill{ height: 100%; transition: width .2s; } .proto-dbar-fill.proto-hung{ background: var(--warn); } .proto-dbar-fill.proto-thir{ background: #4aa8c0; } .proto-dbar-fill.proto-ener{ background: var(--energy); } .proto-dbar-fill.proto-mood{ background: #c0a84a; } .proto-dbar-value{
+  width: 2em; text-align: right; color: var(--sub);
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+} .proto-detail-rows{
+  display: grid; grid-template-columns: 1fr; gap: 0.2em;
+  font-size: 0.78em; padding: 0.5em; background: var(--panel2); border-radius: var(--radius);
+} .proto-detail-rows > div{ display: flex; justify-content: space-between; } .proto-detail-rows span{ color: var(--sub); } .proto-detail-outfit, .proto-detail-line, .proto-detail-scenes{
+  display: flex; flex-direction: column; gap: 0.3em;
+  padding-top: 0.55em; border-top: 1px solid var(--line);
+} .proto-outfit-text{ font-size: 0.78em; line-height: 1.5; } .proto-quote{ font-size: 0.78em; color: var(--sub); font-style: italic; line-height: 1.5; } .proto-detail-actions{ display: flex; flex-direction: column; gap: 0.35em; } .proto-detail-actions .proto-actbtn{ justify-content: center; } .proto-sceneline{ font-size: 0.78em; display: flex; gap: 0.45em; align-items: center; } .proto-tier-critical{ color: var(--danger); border-color: var(--danger); } .proto-tier-major{ color: var(--warn); border-color: var(--warn); } .proto-tier-minor{ color: var(--ok); border-color: var(--ok); } .proto-cpreg{
+  font-size: 0.78em; color: var(--accent-lt); text-align: center;
+  padding: 0.35em; border: 1px solid var(--accent); border-radius: var(--radius);
+  background: rgba(141,49,176,.10);
+} .proto-fortress-head{
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding-bottom: 0.55em; margin-bottom: 0.7em; border-bottom: 1px solid var(--line);
+} .proto-fortress-title{ font-size: 1em; font-weight: 700; } .proto-fortress-building{
+  font-size: 0.78em; color: var(--warn); padding: 0.4em 0.55em;
+  border: 1px solid var(--warn); border-radius: var(--radius);
+  margin-bottom: 0.7em; background: rgba(232,200,21,.08);
+} .proto-fortress-body{ display: flex; flex-direction: column; gap: 0.7em; } .proto-flevel{
+  position: relative; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 0.55em; background: var(--panel);
+} .proto-flevel-surface{ border-left: 3px solid #6a8a5a; } .proto-flevel-bunker{ border-left: 3px solid #8a7a4a; } .proto-flevel-resource{ border-left: 3px solid #5a6a8a; } .proto-flevel-strip{
+  position: absolute; left: 0; top: 0; width: 100%; height: 1.2em;
+  pointer-events: none; opacity: .5;
+  mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
+} .proto-flevel-head{ display: flex; align-items: baseline; gap: 0.5em; margin-bottom: 0.4em; } .proto-flevel-name{ font-size: 0.9em; font-weight: 700; } .proto-flevel-hint{ font-size: 0.7em; color: var(--dim); } .proto-flevel-count{ margin-left: auto; font-size: 0.78em; color: var(--sub); } .proto-fglyph{ font-size: 1em; line-height: 1; } .proto-fname{ font-size: 0.68em; color: var(--sub); text-align: center; line-height: 1.2; } .proto-ftier{ position: absolute; right: 0.2em; top: 0.1em; font-size: 0.6em; color: var(--ok); } .proto-fbuild{ position: absolute; left: 0.2em; top: 0.1em; font-size: 0.6em; color: var(--warn); } /* ============ 战斗 ============ */
+.proto-combat{ display: flex; flex-direction: column; height: 100%; min-height: 0; } .proto-combat-idle{
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.7em; color: var(--sub);
+} .proto-combat-field{
+  flex: 1; display: flex; flex-direction: column; justify-content: space-between;
+  padding: 1em 1.2em; min-height: 0; overflow-y: auto;
+  background: radial-gradient(ellipse at 50% 50%, #2a3444 0%, #1a2029 75%);
+} .proto-combat-side{ display: flex; flex-direction: column; gap: 0.4em; } .proto-side-label{ font-size: 0.78em; color: var(--dim); letter-spacing: 0.08em; } .proto-units{ display: flex; gap: 0.5em; flex-wrap: wrap; } .proto-unit{
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.2em;
+  width: 6em; padding: 0.5em 0.3em; border-radius: var(--radius);
+  background: var(--panel2); border: 1px solid var(--line);
+  cursor: pointer; transition: all .12s;
+} .proto-unit.proto-enemy:hover:not(:disabled){ border-color: var(--danger); background: #3a2a2a; } .proto-unit.proto-player, .proto-unit.proto-ally{ cursor: default; } .proto-unit.proto-player{ border-color: var(--accent); background: #3a2a48; } .proto-unit.proto-dead{ opacity: .3; filter: grayscale(1); } .proto-unit.proto-statused{ border-color: var(--lust); } .proto-unit-shape{ width: 1.5em; height: 1.5em; } .proto-enemy-shape{ background: var(--danger); clip-path: polygon(50% 100%, 0 0, 100% 0); } .proto-player-shape{ background: var(--accent); clip-path: polygon(50% 0, 0 100%, 100% 100%); } .proto-ally-shape{ background: var(--info); clip-path: polygon(50% 0, 0 100%, 100% 100%); } .proto-unit-name{
+  font-size: 0.75em; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; max-width: 5.5em;
+} .proto-unit-hp{ font-size: 0.65em; color: var(--dim); font-variant-numeric: tabular-nums; } .proto-unit-tag{
+  position: absolute; font-size: 0.6em; color: var(--lust);
+  border: 1px solid var(--lust); border-radius: 0.2em; padding: 0 0.25em;
+  top: 0.2em; right: 0.2em;
+} .proto-hpbar{ width: 4.8em; height: 0.3em; background: #1e2532; border-radius: 0.15em; overflow: hidden; } .proto-hpbar-fill{ height: 100%; transition: width .25s; } .proto-hpbar-fill.proto-danger{ background: var(--danger); } .proto-combat-round{
+  text-align: center; font-size: 0.85em; color: var(--sub);
+  padding: 0.45em 0; letter-spacing: 0.15em;
+} .proto-combat-log{
+  height: 8em; overflow-y: auto; padding: 0.5em 1em;
+  background: #1a2029; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  font-size: 0.8em; line-height: 1.7;
+} .proto-combat-logline{ color: var(--sub); } .proto-combat-logline:last-child{ color: var(--fg); } .proto-combat-actions{
+  display: flex; align-items: center; gap: 0.5em; padding: 0.5em 1em;
+  background: var(--panel); flex-wrap: wrap;
+} /* ============ 底部状态条 ============ */
+.proto-statusstrip{
+  display: flex; align-items: center; gap: 0.7em; flex-wrap: nowrap;
+  padding: 0.4em 0.9em; border-top: 2px solid var(--accent);
+  background: var(--panel2); font-size: 0.8em;
+  flex-shrink: 0; overflow: hidden; white-space: nowrap;
+} .proto-statusstrip .proto-ss-item{ flex-shrink: 0; } .proto-ss-time{ color: var(--fg); font-weight: 600; } .proto-ss-time.proto-ss-day{ color: var(--energy); } .proto-ss-time.proto-ss-dusk{ color: #d98a4a; } .proto-ss-time.proto-ss-night{ color: #7a9ad8; } .proto-ss-sep{ width: 1px; height: 1em; background: var(--line); flex-shrink: 0; } .proto-ss-item{ color: var(--sub); font-variant-numeric: tabular-nums; } .proto-ss-item b{ color: var(--fg); font-weight: 600; } .proto-ss-alert{ color: var(--warn); } /* ============ 消息日志 ============ */
+.proto-msgbog{
+  position: fixed; right: 20em; bottom: 2.2em; width: 18em;
+  display: flex; flex-direction: column; gap: 0.22em; pointer-events: none; z-index: 40;
+} .proto-msgline{
+  font-size: 0.78em; color: var(--sub); background: rgba(44,54,73,.94);
+  border-left: 2px solid var(--line); padding: 0.25em 0.6em; border-radius: 0.2em;
+} .proto-msgline.proto-latest{ color: var(--fg); border-left-color: var(--accent-lt); } .proto-keyhint{
+  position: fixed; left: 16em; bottom: 2.1em;
+  font-size: 0.72em; color: var(--dim); pointer-events: none; z-index: 30;
+} /* ============ 覆盖层 ============ */
+.proto-overlay{
+  position: fixed; inset: 0; background: rgba(20,26,36,.82);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+  backdrop-filter: blur(2px);
+} .proto-overlay-box{
+  width: min(72em, 94vw); height: min(54em, 92vh);
+  background: var(--bg); border: 2px solid var(--accent);
+  border-radius: 0.5em; display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 1.5em 5em rgba(0,0,0,.7);
+} .proto-overlay-head{
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.6em 0.9em; border-bottom: 2px solid var(--accent); background: var(--panel2);
+} .proto-overlay-title{ font-size: 1em; font-weight: 700; } .proto-overlay-body{ flex: 1; overflow: auto; padding: 1em; } /* ============ 通用组件 ============ */
+.proto-panel{ background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 1em; } h2{ margin: 0 0 0.8em; font-size: 1.1em; } h3{ margin: 0.8em 0 0.4em; font-size: 0.9em; color: var(--accent-lt); } .proto-meters{ display: grid; grid-template-columns: repeat(auto-fit, minmax(13em, 1fr)); gap: 0.5em; } .proto-meter{ display: flex; align-items: center; gap: 0.5em; font-size: 0.85em; } .proto-meter-label{ width: 2.6em; color: var(--sub); } .proto-meter-track{ flex: 1; height: 0.55em; background: #1e2532; border-radius: 0.28em; overflow: hidden; } .proto-meter-fill{ height: 100%; background: var(--accent); transition: width .2s; } .proto-meter-fill.proto-danger{ background: var(--danger); } .proto-meter-value{ width: 2em; text-align: right; color: var(--sub); } .proto-grid{ width: 100%; border-collapse: collapse; font-size: 0.85em; } .proto-grid th, .proto-grid td{ text-align: left; padding: 0.5em 0.45em; border-bottom: 1px solid var(--line); } .proto-grid th{ color: var(--sub); font-weight: 500; font-size: 0.9em; } .proto-row-warn td{ background: rgba(232,200,21,.08); } .proto-row-ok td{ background: rgba(12,215,28,.07); } .proto-row-dim td{ opacity: .5; } .proto-row-done td{ background: rgba(141,49,176,.10); } .proto-row-locked td{ opacity: .45; } button{
+  background: var(--panel2); color: var(--fg); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 0.35em 0.8em; cursor: pointer;
+  font-size: 0.85em; font-family: inherit; transition: all .12s;
+} button:hover:not(:disabled){ background: var(--panel3); border-color: var(--accent-lt); } button:disabled{ opacity: .45; cursor: not-allowed; } button.proto-danger{ border-color: var(--danger); color: #ff9090; } button.proto-danger:hover:not(:disabled){ background: rgba(255,68,68,.15); } button.proto-tab{
+  background: transparent; border: 1px solid transparent; color: var(--sub);
+  padding: 0.35em 0.85em; border-radius: var(--radius); font-size: 0.85em;
+} button.proto-tab:hover{ color: var(--fg); } .proto-actbtn{
+  display: inline-flex; align-items: center; gap: 0.45em;
+  background: var(--panel2); border: 1px solid var(--line); color: var(--fg);
+  border-radius: var(--radius); padding: 0.45em 0.75em; font-size: 0.85em;
+  cursor: pointer; transition: all .12s;
+} .proto-actbtn:hover:not(:disabled){ background: var(--panel3); border-color: var(--accent-lt); } .proto-actbtn:disabled{ opacity: .4; cursor: not-allowed; } .proto-actbtn.proto-danger{ border-color: var(--danger); } .proto-akey{
+  font-size: 0.7em; font-weight: 700; color: var(--accent-lt);
+  border: 1px solid var(--line); border-radius: 0.2em; padding: 0 0.35em; line-height: 1.5;
+} select, input[type="text"], input[type="number"]{
+  background: #1c2330; border: 1px solid var(--line); color: var(--fg);
+  border-radius: var(--radius); padding: 0.35em 0.6em; font-size: 0.85em;
+  font-family: inherit;
+} input[type="checkbox"]{ accent-color: var(--accent); } .proto-jobgrid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(13em, 1fr)); gap: 0.5em; } .proto-jobcard{ border: 1px solid var(--line); border-radius: var(--radius); padding: 0.7em; background: var(--panel2); } .proto-jobcard ul{ margin: 0; padding-left: 1em; font-size: 0.85em; } .proto-jobcard li button{ margin-left: 0.5em; font-size: 0.75em; padding: 0.1em 0.4em; } .proto-controls{ display: flex; align-items: center; gap: 0.4em; flex-wrap: wrap; margin-bottom: 0.7em; } .proto-chk{ display: inline-flex; align-items: center; gap: 0.35em; font-size: 0.85em; color: var(--sub); } .proto-scenetext{
+  white-space: pre-wrap; line-height: 1.85; font-size: 0.9em;
+  background: #1c2330; border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 0.9em;
+} fieldset{ border: 1px solid var(--line); border-radius: var(--radius); padding: 0.8em; margin: 0 0 0.8em; } legend{ color: var(--sub); font-size: 0.78em; padding: 0 0.4em; } .proto-cheatlist ul{ margin: 0; padding-left: 1em; font-size: 0.85em; line-height: 1.9; } .proto-branchbar{ display: flex; flex-wrap: wrap; gap: 0.25em; margin-bottom: 0.8em; } .proto-fieldrow{ display: flex; gap: 0.8em; flex-wrap: wrap; margin: 0.7em 0; } .proto-fieldrow label{ display: flex; flex-direction: column; gap: 0.25em; font-size: 0.78em; color: var(--sub); } .proto-fieldrow input{ min-width: 9em; } .proto-grid2{ display: grid; grid-template-columns: 1fr 1fr; gap: 1em; align-items: start; } @media (max-width: 60em){ .proto-grid2{ grid-template-columns: 1fr; } } .proto-loglist{
+  margin: 0; padding-left: 1em; font-size: 0.85em; line-height: 1.9;
+  max-height: 34em; overflow: auto;
+} .proto-loglist li{ color: var(--sub); } /* ============ 设置面板 ============ */
+.proto-settings{ display: flex; flex-direction: column; height: 100%; min-height: 0; } .proto-settings-nav{
+  display: flex; gap: 0.2em; padding: 0.5em 0.8em; flex-wrap: wrap;
+  border-bottom: 2px solid var(--accent); background: var(--panel2); flex-shrink: 0;
+} .proto-settab{
+  display: inline-flex; align-items: center; gap: 0.35em;
+  background: transparent; border: 1px solid transparent; color: var(--sub);
+  padding: 0.35em 0.85em; border-radius: var(--radius); font-size: 0.85em; cursor: pointer;
+} .proto-settab:hover{ color: var(--fg); background: var(--panel3); } .proto-settab-icon{ font-size: 0.95em; opacity: .85; } .proto-settings-body{ flex: 1; overflow-y: auto; padding: 1em; min-height: 0; } .proto-settings-foot{
+  display: flex; gap: 0.5em; padding: 0.6em 1em; flex-shrink: 0;
+  border-top: 1px solid var(--line); background: var(--panel);
+} .proto-settings-foot button:last-child{ margin-left: auto; } .proto-setgroup{ max-width: 48em; } .proto-setgroup h3{
+  margin: 1.1em 0 0.5em; font-size: 0.82em; color: var(--accent-lt);
+  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+} .proto-setgroup h3:first-child{ margin-top: 0; } .proto-setrow{
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1em; padding: 0.55em 0; border-bottom: 1px solid rgba(70,83,107,.5);
+} .proto-setrow-label{ display: flex; flex-direction: column; gap: 0.12em; min-width: 0; } .proto-setrow-label > span:first-child{ font-size: 0.88em; } .proto-setrow-hint{ font-size: 0.75em; color: var(--dim); line-height: 1.4; } .proto-setrow-ctl{ flex-shrink: 0; display: flex; align-items: center; gap: 0.5em; } .proto-segmented{ display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; } .proto-seg{
+  background: transparent; border: none; border-right: 1px solid var(--line);
+  color: var(--sub); padding: 0.35em 0.8em; font-size: 0.82em; cursor: pointer;
+} .proto-seg:last-child{ border-right: none; } .proto-seg:hover:not(:disabled){ background: var(--panel3); color: var(--fg); } .proto-seg:disabled{ opacity: .4; cursor: not-allowed; } .proto-slider-row{ display: flex; align-items: center; gap: 0.7em; min-width: 14em; } .proto-slider-row input[type="range"]{ flex: 1; accent-color: var(--accent); } .proto-slider-value{
+  width: 3.5em; text-align: right; font-size: 0.82em; color: var(--sub);
+  font-variant-numeric: tabular-nums;
+} .proto-audio-ctl{ display: flex; align-items: center; gap: 0.8em; } /* ============ 关于 ============ */
+.proto-about{ max-width: 54em; display: flex; flex-direction: column; gap: 1.6em; } .proto-about-header{
+  padding: 1.2em 0 1em; border-bottom: 2px solid var(--accent);
+  background: linear-gradient(90deg, rgba(141,49,176,.16), transparent 70%);
+} .proto-about-logo{ font-size: 1.6em; font-weight: 700; letter-spacing: 0.12em; } .proto-about-tagline{ font-size: 0.82em; color: var(--sub); margin-top: 0.25em; letter-spacing: 0.08em; } .proto-about-block h3{
+  margin: 0 0 0.7em; font-size: 0.85em; color: var(--accent-lt);
+  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+} .proto-about-intro{ display: flex; flex-direction: column; gap: 0.6em; } .proto-about-intro p{ margin: 0; font-size: 0.9em; line-height: 1.9; color: var(--sub); } .proto-about-intro p.proto-lead{ color: var(--fg); font-size: 1em; font-weight: 500; } .proto-stats-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5em, 1fr)); gap: 0.6em; } .proto-stat-cell{
+  background: var(--panel2); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 0.75em; text-align: center;
+} .proto-stat-value{
+  font-size: 1.4em; font-weight: 700; color: var(--accent-lt);
+  font-variant-numeric: tabular-nums;
+} .proto-stat-label{ font-size: 0.75em; color: var(--sub); margin-top: 0.15em; } .proto-stat-unit{ font-size: 0.9em; color: var(--dim); margin-left: 0.15em; } .proto-feature-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(15em, 1fr)); gap: 0.6em; } .proto-feature-card{
+  background: var(--panel2); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 0.75em; border-left: 3px solid var(--accent);
+} .proto-feature-title{ font-size: 0.9em; font-weight: 600; margin-bottom: 0.3em; } .proto-feature-body{ font-size: 0.82em; color: var(--sub); line-height: 1.75; } .proto-version-row{
+  display: flex; align-items: center; justify-content: space-between; gap: 1em;
+  padding: 0.75em; background: var(--panel2); border: 1px solid var(--line);
+  border-radius: var(--radius); margin-bottom: 0.75em;
+} .proto-version-cur{ font-size: 0.88em; } .proto-version-cur b{ color: var(--accent-lt); font-size: 1.1em; } .proto-update-result{
+  margin-top: 0.75em; padding: 0.75em; border-radius: var(--radius); font-size: 0.85em;
+  border: 1px solid var(--line); background: var(--panel2);
+} .proto-update-result.proto-up-to-date{ border-color: var(--ok); color: var(--ok); } .proto-update-result.proto-has-update{ border-color: var(--warn); } .proto-update-result.proto-has-error{ border-color: var(--warn); color: var(--warn); } .proto-update-title{ font-weight: 600; color: var(--warn); margin-bottom: 0.4em; } .proto-update-notes{ margin: 0 0 0.5em; padding-left: 1.1em; color: var(--sub); line-height: 1.8; } .proto-update-link{
+  display: inline-block; color: var(--accent-lt); text-decoration: none;
+  border: 1px solid var(--accent); border-radius: var(--radius);
+  padding: 0.2em 0.7em; font-size: 0.85em;
+} .proto-update-link:hover{ background: var(--accent); color: #fff; } .proto-changelog{ margin-top: 0.75em; display: flex; flex-direction: column; gap: 0.6em; } .proto-cl-entry{ border-left: 2px solid var(--line); padding-left: 0.75em; } .proto-cl-head{ display: flex; align-items: baseline; gap: 0.5em; font-size: 0.85em; } .proto-cl-head b{ color: var(--accent-lt); } .proto-cl-cur{
+  font-size: 0.7em; color: var(--accent-lt); border: 1px solid var(--accent);
+  border-radius: 0.2em; padding: 0 0.35em;
+} .proto-cl-items{ margin: 0.25em 0 0; padding-left: 1em; font-size: 0.78em; color: var(--sub); line-height: 1.8; } .proto-notice-list{ display: flex; flex-direction: column; gap: 0.4em; } .proto-notice-item{ border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--panel2); } .proto-notice-item.proto-open{ border-color: var(--accent); } .proto-notice-head{
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  background: transparent; border: none; padding: 0.7em 0.9em; cursor: pointer;
+  color: var(--fg); font-size: 0.88em; text-align: left;
+} .proto-notice-head:hover{ background: var(--panel3); } .proto-notice-title{ font-weight: 500; } .proto-notice-arrow{ color: var(--sub); font-size: 1em; } .proto-notice-body{ padding: 0 0.9em 0.85em; font-size: 0.82em; color: var(--sub); line-height: 1.85; } .proto-notice-footer{
+  display: flex; align-items: center; gap: 0.9em; margin-top: 0.9em;
+  padding: 0.9em; border: 1px solid var(--warn); border-radius: var(--radius);
+  background: rgba(232,200,21,.07);
+} .proto-notice-age{
+  font-size: 1.5em; font-weight: 800; color: var(--warn);
+  border: 2px solid var(--warn); border-radius: var(--radius);
+  padding: 0.2em 0.6em; flex-shrink: 0;
+} .proto-notice-footer p{ margin: 0; line-height: 1.75; } .proto-about-footer{
+  display: flex; gap: 0.6em; justify-content: center; padding: 1em 0 0.5em;
+  font-size: 0.75em; color: var(--dim); border-top: 1px solid var(--line);
+} .proto-about-block a{ color: var(--accent-lt); text-decoration: none; } .proto-about-block a:hover{ text-decoration: underline; } .proto-about-block code{
+  background: #1c2330; border: 1px solid var(--line); border-radius: 0.2em;
+  padding: 0.05em 0.35em; font-size: 0.85em;
+} /* ============ 无头像模式 ============ */
+.proto-game.proto-no-portrait .proto-rcard-face, .proto-game.proto-no-portrait .proto-detail-head .proto-rig-wrap{ display: none; } /* ============ 叙事欢迎页 ============ */
+.proto-narration-welcome{
+  display: flex; flex-direction: column; gap: 1em;
+  padding: 1.5em 0; max-width: 40em;
+} .proto-nw-title{
+  font-size: 1.5em; font-weight: 700; letter-spacing: 0.12em;
+  color: var(--accent-lt); border-left: 3px solid var(--accent);
+  padding-left: 0.6em;
+} .proto-nw-body{ display: flex; flex-direction: column; gap: 0.8em; } .proto-nw-body p{ margin: 0; font-size: 0.95em; line-height: 2; color: var(--sub); } .proto-nw-hint{
+  font-size: 0.85em !important; color: var(--dim) !important;
+  border-top: 1px dashed var(--line); padding-top: 0.8em;
+} .proto-nw-hint b{ color: var(--accent-lt); } /* ============ 右栏快捷操作 ============ */
+.proto-rv-tier{
+  font-size: 0.85em; color: var(--accent-lt); margin-left: 0.4em;
+  font-variant-numeric: tabular-nums;
+} .proto-rv-ok{ color: var(--ok); } .proto-rv-lock{ color: var(--dim); } /* ============ 主角等级与成长 ============ */
+.proto-hero-level{ display: flex; flex-direction: column; gap: 0.2em; margin-top: 0.35em; } .proto-hl-row{ display: flex; align-items: baseline; gap: 0.4em; } .proto-hl-label{ font-size: 0.72em; color: var(--sub); } .proto-hl-value{
+  font-size: 1.25em; font-weight: 700; color: var(--accent-lt);
+  font-variant-numeric: tabular-nums; line-height: 1;
+} .proto-hl-points{
+  font-size: 0.68em; color: var(--warn); border: 1px solid var(--warn);
+  border-radius: 0.2em; padding: 0 0.35em; margin-left: auto;
+} .proto-hl-bar{
+  height: 0.35em; background: #1e2532; border-radius: 0.18em;
+  overflow: hidden; margin-top: 0.15em;
+} .proto-hl-fill{
+  height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-lt));
+  transition: width .3s;
+} .proto-hl-exp{
+  font-size: 0.68em; color: var(--dim); text-align: right;
+  font-variant-numeric: tabular-nums;
+} .proto-detail-tabs{
+  display: flex; gap: 0.2em; padding: 0.15em 0;
+  border-bottom: 1px solid var(--line);
+} .proto-growth-note{
+  font-size: 0.75em; color: var(--dim); line-height: 1.6;
+  padding: 0.45em 0.6em; background: var(--panel2);
+  border-left: 2px solid var(--accent); border-radius: var(--radius);
+} .proto-attr-list{ display: flex; flex-direction: column; gap: 0.5em; } .proto-attr-row{ display: flex; flex-direction: column; gap: 0.2em; } .proto-attr-head{ display: flex; align-items: baseline; gap: 0.4em; } .proto-attr-name{ font-size: 0.8em; color: var(--sub); flex: 1; cursor: help; } .proto-attr-val{
+  font-size: 0.88em; font-weight: 600; font-variant-numeric: tabular-nums;
+} .proto-attr-bonus{ font-size: 0.75em; color: var(--ok); margin-left: 0.25em; } .proto-attr-add{
+  width: 1.2em; height: 1.2em; padding: 0; line-height: 1;
+  font-size: 0.9em; font-weight: 700;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 50%; cursor: pointer;
+} .proto-attr-add:hover{ background: var(--accent-lt); } .proto-attr-bar{
+  position: relative; height: 0.4em; background: #1e2532;
+  border-radius: 0.2em; overflow: hidden;
+} .proto-attr-fill{ position: absolute; top: 0; height: 100%; transition: width .25s; } .proto-attr-fill.proto-base{ left: 0; background: var(--accent-lt); } .proto-attr-fill.proto-bonus{ background: var(--ok); opacity: .85; } .proto-skill-list{ display: flex; flex-direction: column; gap: 0.55em; } .proto-skill-row{ display: flex; flex-direction: column; gap: 0.18em; } .proto-skill-head{ display: flex; align-items: baseline; justify-content: space-between; } .proto-skill-name{ font-size: 0.82em; } .proto-skill-lv{
+  font-size: 0.75em; color: var(--accent-lt);
+  font-variant-numeric: tabular-nums;
+} .proto-skill-bar{ height: 0.32em; background: #1e2532; border-radius: 0.16em; overflow: hidden; } .proto-skill-fill{
+  height: 100%; background: var(--info); transition: width .25s;
+} .proto-skill-exp{
+  font-size: 0.68em; color: var(--dim); text-align: right;
+  font-variant-numeric: tabular-nums;
+} /* ============ 动效 ============ */
+@keyframes fadeSlideIn{
+  from { opacity: 0; transform: translateY(0.4em); }
+  to { opacity: 1; transform: translateY(0); }
+} .proto-narration-body > *{ animation: fadeSlideIn .22s ease-out; } .proto-overlay-box{ animation: fadeSlideIn .18s ease-out; } .proto-detail > *{ animation: fadeSlideIn .2s ease-out; } @keyframes pulseGlow{
+  0%, 100% { box-shadow: 0 0 0 0 rgba(141,49,176,.5); }
+  50% { box-shadow: 0 0 0 0.3em rgba(141,49,176,0); }
+} @keyframes barPulse{
+  0%, 100% { opacity: 1; }
+  50% { opacity: .7; }
+} .proto-rv-building, .proto-fortress-building{ animation: barPulse 1.8s infinite; } .proto-actbtn:active:not(:disabled){ transform: scale(0.97); } .proto-rv-btn:active:not(:disabled){ transform: scale(0.98); } .proto-act-list{ display: flex; flex-direction: column; gap: 0.28em; } .proto-act-row{
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5em;
+  width: 100%; background: var(--panel2); border: 1px solid transparent;
+  border-left: 2px solid var(--accent); border-radius: var(--radius);
+  padding: 0.45em 0.6em; cursor: pointer; text-align: left;
+  transition: background-color .14s, border-color .14s;
+} .proto-act-main{ display: flex; align-items: center; gap: 0.45em; min-width: 0; } .proto-act-part{
+  font-size: 0.68em; padding: 0.1em 0.4em; border-radius: 0.2em;
+  background: var(--panel3); color: var(--sub); flex-shrink: 0;
+} .proto-act-part.proto-p-mouth{ color: #ff9ec4; } .proto-act-part.proto-p-vagina{ color: #ff7ab0; } .proto-act-part.proto-p-anus{ color: #c88aff; } .proto-act-part.proto-p-hand{ color: #8ad0e8; } .proto-act-part.proto-p-breast{ color: #ffb88a; } .proto-act-part.proto-p-thigh{ color: #a8d08a; } .proto-act-part.proto-p-foot{ color: #d0c08a; } .proto-act-part.proto-p-toy{ color: #ffd207; } .proto-act-name{
+  font-size: 0.82em; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+} .proto-act-meta{
+  display: flex; align-items: center; gap: 0.4em;
+  font-size: 0.7em; color: var(--dim); flex-shrink: 0;
+} .proto-act-tier{ color: var(--accent-lt); } .proto-act-cost{ color: var(--energy); } .proto-act-lv{ color: var(--ok); } .proto-act-lock{ color: var(--warn); font-size: 0.95em; } .proto-act-divider{
+  font-size: 0.72em; color: var(--dim); text-align: center;
+  padding: 0.5em 0 0.25em; border-top: 1px dashed var(--line); margin-top: 0.3em;
+} /* ============ 熟练度与增益 ============ */
+.proto-prof-list{ display: flex; flex-direction: column; gap: 0.35em; } .proto-prof-row{ display: flex; align-items: center; gap: 0.45em; font-size: 0.78em; } .proto-prof-name{ width: 2.4em; color: var(--sub); flex-shrink: 0; } .proto-prof-bar{
+  flex: 1; height: 0.35em; background: #1e2532;
+  border-radius: 0.18em; overflow: hidden;
+} .proto-prof-fill{
+  height: 100%; background: linear-gradient(90deg, var(--accent), var(--lust));
+  transition: width .25s;
+} .proto-prof-lv{
+  width: 2.2em; text-align: right; color: var(--accent-lt);
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+} .proto-prof-acts{
+  width: 3em; text-align: right; color: var(--dim);
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+} .proto-perk-list{ display: flex; flex-direction: column; gap: 0.35em; } .proto-perk-row{
+  display: flex; flex-direction: column; gap: 0.1em;
+  padding: 0.4em 0.55em; background: var(--panel2);
+  border-left: 2px solid var(--ok); border-radius: var(--radius);
+} .proto-perk-name{ font-size: 0.82em; font-weight: 600; color: var(--ok); } .proto-perk-desc{ font-size: 0.72em; color: var(--sub); } /* ============ 后庭准备流程 ============ */
+.proto-prep-next{
+  display: flex; flex-direction: column; gap: 0.2em;
+  padding: 0.5em 0.6em; background: var(--panel2);
+  border-left: 2px solid var(--warn); border-radius: var(--radius);
+} .proto-prep-step-head{ display: flex; align-items: center; justify-content: space-between; gap: 0.5em; } .proto-prep-step-name{ font-size: 0.85em; font-weight: 600; color: var(--warn); } .proto-prep-do{
+  font-size: 0.75em; padding: 0.2em 0.7em;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: var(--radius); cursor: pointer;
+} .proto-prep-do:hover{ background: var(--accent-lt); } .proto-prep-step-desc{ font-size: 0.72em; color: var(--sub); line-height: 1.5; } .proto-prep-item{ font-size: 0.68em; color: var(--dim); } .proto-prep-done{
+  font-size: 0.8em; color: var(--ok); padding: 0.4em 0.6em;
+  background: rgba(12,215,28,.08); border-left: 2px solid var(--ok);
+  border-radius: var(--radius);
+} .proto-prep-steps{ display: flex; flex-direction: column; gap: 0.15em; } .proto-prep-step{
+  display: flex; align-items: center; gap: 0.45em;
+  font-size: 0.72em; padding: 0.25em 0.45em; border-radius: 0.2em;
+} .proto-prep-step.proto-current{ color: var(--warn); background: rgba(232,200,21,.08); } .proto-prep-idx{
+  width: 1.2em; text-align: center; font-variant-numeric: tabular-nums;
+  opacity: .7;
+} .proto-prep-name{ flex: 1; } .proto-prep-mark{ color: var(--ok); } /* ============ 加成共享面板 ============ */
+.proto-share-summary{
+  font-size: 0.85em; color: var(--sub);
+  padding: 0.5em 0.6em; background: var(--panel2);
+  border-radius: var(--radius); margin: 0.6em 0;
+} .proto-share-summary b{ color: var(--accent-lt); font-size: 1.1em; } .proto-share-cat{
+  margin-bottom: 0.9em; padding: 0.6em;
+  background: var(--panel2); border-radius: var(--radius);
+  border-left: 2px solid var(--accent);
+} .proto-share-cat-head{
+  display: flex; align-items: center; gap: 0.5em; margin-bottom: 0.45em;
+} .proto-share-cat-name{ font-size: 0.88em; font-weight: 600; } .proto-share-cat-desc{ font-size: 0.72em; color: var(--dim); flex: 1; } .proto-share-cat-count{
+  font-size: 0.78em; color: var(--accent-lt);
+  font-variant-numeric: tabular-nums;
+} .proto-share-list{ display: flex; flex-direction: column; gap: 0.15em; } .proto-share-row{
+  display: flex; align-items: center; gap: 0.5em;
+  padding: 0.3em 0.4em; border-radius: 0.2em;
+  font-size: 0.78em; cursor: pointer;
+  transition: background-color .12s;
+} .proto-share-label{ flex: 1; } .proto-share-values{
+  display: flex; gap: 0.6em; font-size: 0.92em;
+  font-variant-numeric: tabular-nums;
+} .proto-share-hero{ color: var(--fg); } .proto-share-harem{ color: var(--accent-lt); } .proto-share-locked{ color: var(--dim); font-size: 0.92em; } .proto-share-dim{ color: var(--dim); } /* ============ 同伴成长扩展 ============ */
+.proto-growth-grid{
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.3em 0.7em;
+  font-size: 0.78em; padding: 0.5em; background: var(--panel2);
+  border-radius: var(--radius);
+} .proto-growth-grid > div{ display: flex; justify-content: space-between; } .proto-growth-grid span{ color: var(--sub); } .proto-tier-badge{
+  display: inline-block; font-size: 0.72em; padding: 0.1em 0.5em;
+  border-radius: 0.25em; border: 1px solid var(--accent);
+  color: var(--accent-lt); margin-left: 0.4em;
+} .proto-companion-skill-list{ display: flex; flex-direction: column; gap: 0.4em; } .proto-cskill-row{ display: flex; align-items: center; gap: 0.5em; font-size: 0.78em; } .proto-cskill-name{ width: 3em; color: var(--sub); flex-shrink: 0; } .proto-cskill-bar{
+  flex: 1; height: 0.32em; background: #1e2532;
+  border-radius: 0.16em; overflow: hidden;
+} .proto-cskill-fill{
+  height: 100%; background: var(--info); transition: width .25s;
+} .proto-cskill-lv{
+  width: 2em; text-align: right; color: var(--accent-lt);
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+} .proto-train-actions{ display: flex; gap: 0.35em; flex-wrap: wrap; } /* ============ 作弊面板 ============ */
+.proto-cheat-root{ display: flex; flex-direction: column; gap: 0.9em; } .proto-cheat-head{ display: flex; flex-direction: column; gap: 0.6em; } .proto-cheat-opts{ border: 1px solid var(--line); border-radius: var(--radius); padding: 0.7em; } .proto-cheat-body{ border: 1px solid var(--line); border-radius: var(--radius); padding: 0.9em; } .proto-cheat-toolbar{
+  display: flex; align-items: center; gap: 0.6em; margin-bottom: 0.8em;
+} .proto-cheat-all{
+  background: var(--accent); border: 1px solid var(--accent-lt); color: #fff;
+  border-radius: var(--radius); padding: 0.5em 1.2em;
+  font-size: 0.9em; font-weight: 600; cursor: pointer;
+} .proto-cheat-all:hover{ background: var(--accent-lt); } .proto-cheat-filter{
+  flex: 1; background: #1c2330; border: 1px solid var(--line); color: var(--fg);
+  border-radius: var(--radius); padding: 0.4em 0.7em; font-size: 0.85em;
+} .proto-cheat-msg{
+  font-size: 0.82em; color: var(--ok); padding: 0.45em 0.7em;
+  background: rgba(12,215,28,.08); border-left: 2px solid var(--ok);
+  border-radius: var(--radius); margin-bottom: 0.7em;
+  white-space: pre-wrap; line-height: 1.6;
+} .proto-cheat-snapshot{
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(5.5em, 1fr));
+  gap: 0.4em; margin-bottom: 0.9em;
+} .proto-snap-cell{
+  background: var(--panel2); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 0.45em; text-align: center;
+} .proto-snap-value{
+  font-size: 1.05em; font-weight: 700; color: var(--accent-lt);
+  font-variant-numeric: tabular-nums;
+} .proto-snap-label{ font-size: 0.68em; color: var(--dim); margin-top: 0.1em; } .proto-cheat-grid{
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(16em, 1fr));
+  gap: 0.7em; align-items: start;
+} .proto-cheat-cat{
+  background: var(--panel2); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 0.6em;
+  border-left: 2px solid var(--accent);
+} .proto-cheat-cat-head{
+  display: flex; align-items: center; gap: 0.4em; margin-bottom: 0.45em;
+} .proto-cheat-cat-icon{ font-size: 0.95em; color: var(--accent-lt); } .proto-cheat-cat-name{ font-size: 0.85em; font-weight: 600; flex: 1; } .proto-cheat-cat-count{
+  font-size: 0.7em; color: var(--dim);
+  background: var(--panel3); border-radius: 0.6em; padding: 0 0.45em;
+} .proto-cheat-actions{ display: flex; flex-direction: column; gap: 0.2em; } .proto-cheat-btn{
+  display: flex; flex-direction: column; gap: 0.05em;
+  width: 100%; text-align: left;
+  background: transparent; border: 1px solid transparent;
+  border-radius: 0.25em; padding: 0.35em 0.5em; cursor: pointer;
+  transition: background-color .12s, border-color .12s;
+} .proto-cheat-btn:hover{ background: var(--panel3); border-color: var(--accent); } .proto-cheat-btn:active{ transform: scale(0.99); } .proto-cheat-btn-name{ font-size: 0.8em; color: var(--fg); } .proto-cheat-btn-desc{ font-size: 0.68em; color: var(--dim); line-height: 1.4; } /* ============ 主菜单 ============ */
+#main-menu{
+  position: fixed; inset: 0; z-index: 900;
+  display: flex; align-items: center; justify-content: center;
+  overflow-y: auto; padding: 1.5em;
+  background: radial-gradient(ellipse at 50% 35%, #2a3444 0%, #12161d 70%);
+} .proto-mm-stack{
+  display: flex; flex-direction: column; align-items: center;
+  gap: 1.6em; max-width: 100%; margin: auto 0;
+} .proto-mm-title{ display: flex; flex-direction: column; align-items: center; gap: 0.4em; } .proto-mm-title h1{
+  font-size: clamp(2.2em, 4.5vw, 3.4em); font-weight: 700; letter-spacing: 0.15em;
+  color: var(--accent-lt); text-shadow: 0 0 0.6em rgba(217,130,239,.55);
+  text-align: center; line-height: 1.15;
+} .proto-mm-title p{
+  color: var(--sub); font-size: 0.85em; letter-spacing: 0.25em; text-align: center;
+} .proto-mm-list{
+  display: flex; flex-direction: column; gap: 0.5em;
+  width: min(19em, 72vw);
+} .proto-mm-btn{
+  padding: 0.8em 1.5em; background: var(--panel2);
+  border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: 0.3em; color: var(--fg); font-size: 1.05em;
+  cursor: pointer; text-align: left; transition: all .15s;
+  display: flex; align-items: center; gap: 0.8em; font-family: inherit;
+} .proto-mm-btn:hover:not(:disabled){
+  background: var(--panel3); border-left-color: var(--accent-lt);
+  transform: translateX(0.3em);
+} .proto-mm-btn:disabled{ opacity: 0.45; cursor: not-allowed; } .proto-mm-key{
+  font-size: 0.75em; color: var(--dim); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 0.2em;
+  padding: 0.1em 0.5em; min-width: 2.2em; text-align: center;
+} .proto-mm-label{ flex: 1; } .proto-mm-right{ font-size: 0.75em; color: var(--dim); } .proto-mm-err{
+  font-size: 0.78em; color: var(--danger); padding: 0.5em 0.8em;
+  background: rgba(255,0,0,.08); border-left: 2px solid var(--danger);
+  border-radius: var(--radius); max-width: min(19em, 72vw);
+} .proto-mm-foot{ color: var(--dim); font-size: 0.76em; text-align: center; line-height: 1.75; } @media (max-height: 820px){ .proto-mm-stack{ gap: 1.2em; } .proto-mm-list{ gap: 0.42em; }
+} @media (max-height: 660px){ .proto-mm-stack{ gap: 0.9em; } .proto-mm-title h1{ font-size: 1.9em; } .proto-mm-title p{ font-size: 0.75em; } .proto-mm-list{ gap: 0.35em; } .proto-mm-btn{ padding: 0.55em 1.1em; font-size: 0.9em; } .proto-mm-foot{ font-size: 0.68em; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   面板功能类（成就 / 序章 / 教程 / 插件 / 立绘 / 状态）
+   全部使用新UI设计令牌，与主界面同一套视觉体系。
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 成就 ── */
+.proto-ach-progress{display:flex;flex-direction:column;gap:.3em;padding:.6em .7em;
+background:var(--panel2);border:1px solid var(--line);border-radius:.3em}
+.proto-ach-progress-row{display:flex;align-items:center;justify-content:space-between;font-size:.82em;color:var(--sub)}
+.proto-ach-bar{height:.5em;background:var(--bg);border:1px solid var(--line);border-radius:.25em;overflow:hidden}
+.proto-ach-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-lt))}
+.proto-ach-pct{font-size:.8em;color:var(--accent-lt);font-weight:600}
+.proto-ach-prog-text{font-size:.78em;color:var(--dim)}
+.proto-ach-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(17em,1fr));gap:.5em}
+.proto-ach-card{display:flex;gap:.55em;padding:.55em .6em;background:var(--panel2);
+border:1px solid var(--line);border-radius:.3em;align-items:flex-start;transition:all .15s}
+.proto-ach-card:hover{border-color:var(--accent)}
+.proto-ach-icon{font-size:1.5em;line-height:1;flex-shrink:0}
+.proto-ach-head{display:flex;align-items:center;gap:.4em}
+.proto-ach-name{font-size:.9em;font-weight:600;color:var(--fg)}
+.proto-ach-desc{font-size:.76em;color:var(--sub);line-height:1.45}
+.proto-ach-mini-bar{height:.32em;background:var(--bg);border-radius:.2em;overflow:hidden;margin-top:.25em}
+.proto-ach-mini-fill{height:100%;background:var(--accent-lt)}
+.proto-ach-rarities{display:flex;gap:.35em;flex-wrap:wrap}
+.proto-ach-rarity{font-size:.72em;padding:.1em .5em;border-radius:.2em;background:var(--bg);
+border:1px solid var(--line);color:var(--sub)}
+.proto-ach-rarity-chip{font-size:.72em;padding:.1em .5em;border-radius:.2em;
+background:rgba(141,49,176,.22);border:1px solid var(--accent);color:var(--accent-lt)}
+
+/* ── 序章 ── */
+.proto-prologue-panel{display:flex;flex-direction:column;gap:.7em}
+.proto-prog-current{padding:.6em .7em;background:var(--panel2);border:1px solid var(--line);
+border-left:3px solid var(--accent);border-radius:.3em}
+.proto-prog-cur-head{display:flex;align-items:center;gap:.5em;margin-bottom:.3em}
+.proto-prog-cur-title{font-size:.95em;font-weight:600;color:var(--fg)}
+.proto-prog-cur-tag{font-size:.72em;padding:.1em .5em;border-radius:.2em;
+background:var(--accent);color:#fff}
+.proto-prog-cur-desc{font-size:.8em;color:var(--sub);line-height:1.5}
+.proto-prog-cur-meta{font-size:.76em;color:var(--dim);margin-top:.25em}
+.proto-prog-countdown{font-size:.85em;color:var(--warn);font-weight:600}
+.proto-prog-days{font-size:.8em;color:var(--sub)}
+.proto-prog-sub{font-size:.78em;color:var(--dim)}
+.proto-prog-bar-wrap{height:.45em;background:var(--bg);border:1px solid var(--line);
+border-radius:.25em;overflow:hidden;margin:.3em 0}
+.proto-prog-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-lt))}
+.proto-prog-fill{height:100%;background:var(--accent-lt)}
+.proto-prog-pct{font-size:.8em;color:var(--accent-lt);font-weight:600}
+.proto-prog-stages{display:flex;flex-direction:column;gap:.4em}
+.proto-prog-stage{display:flex;gap:.6em;padding:.5em .6em;background:var(--panel2);
+border:1px solid var(--line);border-radius:.3em;align-items:flex-start}
+.proto-prog-stage-dot{width:.6em;height:.6em;border-radius:50%;background:var(--line);
+flex-shrink:0;margin-top:.45em}
+.proto-prog-stage-body{flex:1;min-width:0}
+.proto-prog-stage-name{font-size:.86em;font-weight:600;color:var(--fg)}
+.proto-prog-stage-desc{font-size:.76em;color:var(--sub);line-height:1.45}
+.proto-prog-stage-day{font-size:.74em;color:var(--accent-lt);margin-top:.15em}
+.proto-prog-done{opacity:.55}
+.proto-prog-done .proto-prog-stage-dot{background:var(--ok)}
+
+/* ── 教程 ── */
+.proto-tut-list{display:flex;flex-direction:column;gap:.35em}
+.proto-tut-item{display:flex;gap:.55em;padding:.45em .55em;background:var(--panel2);
+border:1px solid var(--line);border-radius:.3em;align-items:flex-start}
+.proto-tut-num{width:1.5em;height:1.5em;border-radius:50%;background:var(--accent);color:#fff;
+display:flex;align-items:center;justify-content:center;font-size:.78em;flex-shrink:0}
+.proto-tut-body{flex:1;min-width:0}
+.proto-tut-title{font-size:.85em;font-weight:600;color:var(--fg)}
+.proto-tut-text{font-size:.78em;color:var(--sub);line-height:1.45}
+
+/* ── 插件 ── */
+.proto-plugin-root{display:flex;flex-direction:column;gap:.6em}
+.proto-plugin-topbar{display:flex;align-items:center;gap:.5em;flex-wrap:wrap;
+padding-bottom:.4em;border-bottom:1px solid var(--line)}
+.proto-plugin-section{display:flex;flex-direction:column;gap:.45em}
+.proto-plugin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(16em,1fr));gap:.5em}
+.proto-plugin-card{padding:.55em .6em;background:var(--panel2);border:1px solid var(--line);
+border-radius:.3em;display:flex;flex-direction:column;gap:.3em}
+.proto-plugin-card:hover{border-color:var(--accent)}
+.proto-plugin-head{display:flex;align-items:center;gap:.4em}
+.proto-plugin-icon{font-size:1.3em;flex-shrink:0}
+.proto-plugin-name{font-size:.88em;font-weight:600;color:var(--fg);flex:1}
+.proto-plugin-meta{font-size:.74em;color:var(--dim)}
+.proto-plugin-desc{font-size:.78em;color:var(--sub);line-height:1.45}
+.proto-plugin-status{font-size:.74em;padding:.1em .5em;border-radius:.2em;
+background:var(--bg);border:1px solid var(--line);color:var(--sub)}
+.proto-plugin-caps{display:flex;gap:.3em;flex-wrap:wrap}
+.proto-plugin-chip{font-size:.72em;padding:.1em .45em;border-radius:.2em;
+background:var(--bg);border:1px solid var(--line);color:var(--sub)}
+.proto-plugin-active-badge{font-size:.7em;padding:.08em .45em;border-radius:.2em;
+background:var(--ok);color:#000;font-weight:600}
+.proto-plugin-params{display:flex;flex-direction:column;gap:.3em;margin-top:.2em}
+.proto-cap-chip{font-size:.72em;padding:.1em .45em;border-radius:.2em;
+background:rgba(0,245,239,.14);border:1px solid var(--info);color:var(--info)}
+.proto-section-icon{font-size:1.1em;margin-right:.35em}
+
+/* ── 立绘 ── */
+.proto-portrait-sprite-wrap{position:relative;display:flex;align-items:center;justify-content:center;
+overflow:hidden;border-radius:.3em;background:var(--panel2)}
+.proto-portrait-sprite{width:100%;height:100%;object-fit:cover;display:block}
+
+/* ── 杂项 ── */
+.proto-node-name{font-size:.88em;font-weight:600;color:var(--fg)}
+.proto-scope-badge{font-size:.7em;padding:.08em .45em;border-radius:.2em;
+background:var(--bg);border:1px solid var(--line);color:var(--sub)}
+.proto-scope-dot{width:.5em;height:.5em;border-radius:50%;background:var(--line);display:inline-block}
+.proto-todo{font-size:.78em;color:var(--warn)}
+.proto-tone{font-size:.78em;color:var(--sub)}
+.proto-personal{border-left:3px solid var(--warn)}
+.proto-shared{border-left:3px solid var(--info)}
+.proto-future{opacity:.5}
+.proto-next{border-color:var(--accent-lt)}
+
+/* ── 战斗血条 + 色调 ── */
+.proto-cbar-track{height:.4em;background:var(--bg);border:1px solid var(--line);border-radius:.25em;overflow:hidden}
+.proto-cbar-fill{height:100%;background:var(--ok);transition:width .2s}
+.proto-cbar-fill.proto-warn{background:var(--warn)}
+.proto-cbar-fill.proto-danger{background:var(--danger)}
+.proto-cbar-fill.proto-energy{background:var(--energy)}
+.proto-energy{background:var(--energy)}
+.proto-danger{color:var(--danger)}
+.proto-research-note{font-size:.78em;color:var(--dim);line-height:1.5}

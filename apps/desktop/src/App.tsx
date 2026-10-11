@@ -403,7 +403,7 @@ export function App() {
       style={rootStyle}
       className={
         "proto-on" +
-        (settings.gameplay.compactRoster ? " compact" : "") +
+        (settings.gameplay.compactRoster ? " proto-compact" : "") +
         (colWidths.left === 0 ? " no-left" : "")
       }
     >

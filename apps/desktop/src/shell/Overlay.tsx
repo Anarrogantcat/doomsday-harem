@@ -1,3 +1,11 @@
+/**
+ * 弹窗宿主。
+ *
+ * 全部面板统一走原型弹窗范式：
+ *   .proto-modal > .proto-mbox > .proto-mhead(.proto-mtitle + .proto-mclose) + .proto-dbody
+ *
+ * 样式来源：styles-proto.css（新UI设计令牌，旧 styles.css 已并入并加 proto- 前缀）。
+ */
 import { useEffect } from "react";
 import { StatusBar } from "../panels/StatusBar.tsx";
 import { HaremPanel } from "../panels/HaremPanel.tsx";
@@ -48,16 +56,17 @@ export const OVERLAY_TITLES: Record<string, string> = {
   "hero-detail": "主角完整资料",
   detail: "角色完整资料",
   solo: "自慰",
-  "anal-prep": "后庭准备"
+  "anal-prep": "后庭准备",
+  about: "关于"
 };
 
+/** 宽弹窗（要塞/地图/房车这类需要横向空间的） */
+const WIDE = new Set(["fortress", "map", "vehicle", "base", "tech", "items"]);
+
 export function Overlay({ tab, onClose, detailId }: { tab: string | null; onClose: () => void; detailId?: string }) {
-  // Esc 关闭
   useEffect(() => {
     if (!tab) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [tab, onClose]);
@@ -97,7 +106,7 @@ export function Overlay({ tab, onClose, detailId }: { tab: string | null; onClos
 
   return (
     <div className="proto-modal proto-on" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="proto-mbox" style={{ width: "min(72em,96vw)", maxWidth: "96vw" }}>
+      <div className="proto-mbox" style={{ width: WIDE.has(tab) ? "min(72em,96vw)" : "min(52em,94vw)", maxWidth: "96vw" }}>
         <div className="proto-mhead">
           <span className="proto-mtitle">{OVERLAY_TITLES[tab] ?? tab}</span>
           <button className="proto-mclose" onClick={onClose}>✕</button>

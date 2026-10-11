@@ -153,7 +153,7 @@ export function CenterTabs({
       <button className={"proto-ctab" + (tab === "combat" ? " proto-on" : "")} onClick={() => onTab("combat")}>
         战斗{combat ? " ●" : ""}
       </button>
-      <span className="chint">视图随操作自动切换</span>
+      <span className="proto-chint">视图随操作自动切换</span>
     </div>
   );
 }

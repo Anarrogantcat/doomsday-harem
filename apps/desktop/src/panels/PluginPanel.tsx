@@ -36,12 +36,12 @@ function PluginCard({
   }
 
   return (
-    <div className={`plugin-card ${isEnabled ? "on" : "off"} ${isActive ? "active" : ""}`}>
-      <div className="plugin-head">
-        <span className="plugin-icon">{PLUGIN_KIND_ICON[plugin.kind]}</span>
-        <span className="plugin-name">{plugin.name}</span>
+    <div className={`proto-plugin-card ${isEnabled ? "proto-on" : "proto-off"} ${isActive ? "proto-active" : ""}`}>
+      <div className="proto-plugin-head">
+        <span className="proto-plugin-icon">{PLUGIN_KIND_ICON[plugin.kind]}</span>
+        <span className="proto-plugin-name">{plugin.name}</span>
         <span
-          className="plugin-status"
+          className="proto-plugin-status"
           style={{ color: PLUGIN_STATUS_COLOR[status] }}
           title={PLUGIN_STATUS_LABEL[status]}
         >
@@ -49,27 +49,27 @@ function PluginCard({
         </span>
       </div>
 
-      <div className="plugin-desc">{plugin.description}</div>
+      <div className="proto-plugin-desc">{plugin.description}</div>
 
-      <div className="plugin-meta">
-        <span className="plugin-chip">{PLUGIN_KIND_LABEL[plugin.kind]}</span>
-        <span className="plugin-chip">{plugin.provider}</span>
-        <span className="plugin-chip">v{plugin.version}</span>
+      <div className="proto-plugin-meta">
+        <span className="proto-plugin-chip">{PLUGIN_KIND_LABEL[plugin.kind]}</span>
+        <span className="proto-plugin-chip">{plugin.provider}</span>
+        <span className="proto-plugin-chip">v{plugin.version}</span>
       </div>
 
-      <div className="plugin-caps">
+      <div className="proto-plugin-caps">
         {plugin.capabilities.map((c) => (
-          <span key={c} className="cap-chip">{c}</span>
+          <span key={c} className="proto-cap-chip">{c}</span>
         ))}
       </div>
 
-      <div className="controls">
-        <label className="chk">
+      <div className="proto-controls">
+        <label className="proto-chk">
           <input type="checkbox" checked={isEnabled}
             onChange={(e) => onToggle(e.target.checked)} />
           启用
         </label>
-        <button className="mini" onClick={async () => {
+        <button className="proto-mini" onClick={async () => {
           setProbing(true);
           onProbe();
           await loadModels();
@@ -78,16 +78,16 @@ function PluginCard({
           {probing ? "探测中…" : "探测"}
         </button>
         {isEnabled && !isActive && (
-          <button className="mini" onClick={onActivate}>设为当前</button>
+          <button className="proto-mini" onClick={onActivate}>设为当前</button>
         )}
-        {isActive && <span className="plugin-active-badge">当前使用</span>}
-        <button className="mini" onClick={() => setExpanded(!expanded)}>
+        {isActive && <span className="proto-plugin-active-badge">当前使用</span>}
+        <button className="proto-mini" onClick={() => setExpanded(!expanded)}>
           {expanded ? "收起参数" : "参数"}
         </button>
       </div>
 
       {expanded && (
-        <div className="plugin-params">
+        <div className="proto-plugin-params">
           <div className="param-row">
             <span className="param-key">服务地址</span>
             <input
@@ -124,7 +124,7 @@ function PluginCard({
           ))}
 
           {plugin.id === "comfyui" && models.length === 0 && (
-            <p className="hint">点「探测」可加载可用模型列表</p>
+            <p className="proto-hint">点「探测」可加载可用模型列表</p>
           )}
         </div>
       )}
@@ -143,23 +143,23 @@ function ImageSection() {
   const list = pluginsOfKind("image");
 
   return (
-    <div className="plugin-section">
+    <div className="proto-plugin-section">
       <h3>
-        <span className="section-icon">▣</span> 文生图插件
-        <span className="sub">（立绘 / 场景图）</span>
+        <span className="proto-section-icon">▣</span> 文生图插件
+        <span className="proto-sub">（立绘 / 场景图）</span>
       </h3>
 
-      <label className="chk big">
+      <label className="proto-chk proto-big">
         <input type="checkbox" checked={cfg.imageEnabled}
           onChange={(e) => setPluginConfig({ imageEnabled: e.target.checked })} />
         启用文生图立绘
       </label>
-      <p className="hint">
+      <p className="proto-hint">
         关闭时使用程序化立绘（会根据身高/体型/怀孕/着装变化，但不如生成图精美）。
         开启后会调用下方插件生成，首次生成较慢，之后走缓存。
       </p>
 
-      <div className="plugin-grid">
+      <div className="proto-plugin-grid">
         {list.map((p) => (
           <PluginCard
             key={p.id}
@@ -176,11 +176,11 @@ function ImageSection() {
         ))}
       </div>
 
-      <div className="controls">
-        <span className="sub">
+      <div className="proto-controls">
+        <span className="proto-sub">
           缓存：内存 {cache.memory} 项　持久 {cache.persisted} 项
         </span>
-        <button className="mini" onClick={() => {
+        <button className="proto-mini" onClick={() => {
           cacheClear();
           setCache(cacheSize());
         }}>清空缓存</button>
@@ -199,34 +199,34 @@ function TtsSection() {
   const list = pluginsOfKind("tts");
 
   return (
-    <div className="plugin-section">
+    <div className="proto-plugin-section">
       <h3>
-        <span className="section-icon">♪</span> 语音合成插件
-        <span className="sub">（角色语音）</span>
+        <span className="proto-section-icon">♪</span> 语音合成插件
+        <span className="proto-sub">（角色语音）</span>
       </h3>
 
-      <label className="chk big">
+      <label className="proto-chk proto-big">
         <input type="checkbox" checked={cfg.ttsEnabled}
           onChange={(e) => setPluginConfig({ ttsEnabled: e.target.checked })} />
         启用角色语音
       </label>
 
-      <div className="controls">
-        <label className="chk">
+      <div className="proto-controls">
+        <label className="proto-chk">
           <input type="checkbox" checked={cfg.autoSpeak}
             onChange={(e) => setPluginConfig({ autoSpeak: e.target.checked })} />
           自动朗读台词
         </label>
-        <span className="sub">音量</span>
+        <span className="proto-sub">音量</span>
         <input
           type="range" min="0" max="1" step="0.05"
           value={cfg.ttsVolume}
           onChange={(e) => setPluginConfig({ ttsVolume: Number(e.target.value) })}
         />
-        <span className="sub">{(cfg.ttsVolume * 100).toFixed(0)}%</span>
+        <span className="proto-sub">{(cfg.ttsVolume * 100).toFixed(0)}%</span>
       </div>
 
-      <div className="plugin-grid">
+      <div className="proto-plugin-grid">
         {list.map((p) => (
           <PluginCard
             key={p.id}
@@ -243,7 +243,7 @@ function TtsSection() {
         ))}
       </div>
 
-      <p className="hint">
+      <p className="proto-hint">
         GPT-SoVITS / IndexTTS 需先启动对应服务。
         Edge TTS 与系统语音零依赖（用浏览器内置），但音色通用、无法克隆。
       </p>
@@ -263,13 +263,13 @@ export function PluginPanel() {
   const online = Object.values(statuses).filter((x) => x === "online").length;
 
   return (
-    <div className="plugin-root">
-      <div className="plugin-topbar">
-        <span className="sub">
+    <div className="proto-plugin-root">
+      <div className="proto-plugin-topbar">
+        <span className="proto-sub">
           共 {stats.total} 个插件　在线 {online}
         </span>
-        <button className="mini" onClick={probe}>全部探测</button>
-        <button className="mini" onClick={() => {
+        <button className="proto-mini" onClick={probe}>全部探测</button>
+        <button className="proto-mini" onClick={() => {
           // 重置为默认
           const cfg = defaultPluginConfig();
           useGame.getState().setPluginConfig(cfg);
@@ -279,9 +279,9 @@ export function PluginPanel() {
       <ImageSection />
       <TtsSection />
 
-      <div className="plugin-section">
+      <div className="proto-plugin-section">
         <h3>说明</h3>
-        <p className="hint">
+        <p className="proto-hint">
           插件通过本地 HTTP 服务调用，不需要安装额外依赖。
           <br />
           · <b>ComfyUI</b>：启动后监听 8188，用 <code>anything-v5</code> 等动漫模型出图

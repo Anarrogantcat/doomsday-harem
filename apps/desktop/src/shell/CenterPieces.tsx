@@ -156,7 +156,7 @@ export function EventBar(p: EventBarProps) {
               <span className="proto-eb-text">{e.text}</span>
             </div>
           ))}
-          {p.entries.length === 0 ? <div className="proto-eb-entry dim">（暂无事件）</div> : null}
+          {p.entries.length === 0 ? <div className="proto-eb-entry proto-dim">（暂无事件）</div> : null}
         </div>
       ) : null}
     </div>
@@ -228,7 +228,7 @@ export function InputBar(p: InputBarProps) {
       <div className="proto-ibody">
         <div className="proto-irow">
           <input
-            className="iinput"
+            className="proto-iinput"
             value={text}
             placeholder={cur.hint}
             onChange={(e) => setText(e.target.value)}
@@ -241,7 +241,7 @@ export function InputBar(p: InputBarProps) {
             disabled={p.busy}
           />
           <button
-            className="isend"
+            className="proto-isend"
             disabled={p.busy || !text.trim()}
             onClick={() => { if (text.trim()) { p.onSubmit?.(text.trim()); setText(""); } }}
           >{p.busy ? "生成中…" : "发送"}</button>

@@ -11,10 +11,10 @@ import { useGame } from "../store/game.ts";
 /** 血条 */
 function Bar({ value, max, tone }: { value: number; max: number; tone?: string }) {
   const pct = max > 0 ? Math.max(0, (value / max) * 100) : 0;
-  const cls = pct > 60 ? "ok" : pct > 30 ? "warn" : "danger";
+  const cls = pct > 60 ? "proto-ok" : pct > 30 ? "proto-warn" : "proto-danger";
   return (
     <div className="cbar-track">
-      <div className={`cbar-fill ${tone ?? cls}`} style={{ width: `${pct}%` }} />
+      <div className={`proto-cbar-fill ${tone ?? cls}`} style={{ width: `${pct}%` }} />
     </div>
   );
 }
@@ -36,7 +36,7 @@ function UnitCard({
 
   return (
     <button
-      className={`cunit ${side} ${dead ? "dead" : ""} ${selected ? "selected" : ""} ${isActive ? "active" : ""}`}
+      className={`cunit ${side} ${dead ? "proto-dead" : ""} ${selected ? "selected" : ""} ${isActive ? "proto-active" : ""}`}
       onClick={onClick}
       disabled={dead || side === "enemy" && !onClick}
       title={dead ? "已倒下" : `${unit.name}　HP ${Math.round(unit.hp)}/${unit.hpMax}`}
@@ -54,7 +54,7 @@ function UnitCard({
         </div>
         <div className="cunit-bar">
           <span className="cunit-bar-label">SP</span>
-          <Bar value={unit.stamina} max={unit.staminaMax} tone="energy" />
+          <Bar value={unit.stamina} max={unit.staminaMax} tone="proto-energy" />
           <span className="cunit-bar-val">{Math.max(0, Math.round(unit.stamina))}</span>
         </div>
       </div>
@@ -216,15 +216,15 @@ export function CombatView() {
   // 不在战斗中
   if (!ext) {
     return (
-      <div className="combat">
-        <div className="combat-idle">
-          <p className="sub">当前不在战斗中。</p>
-          <p className="sub">可从「防御」面板触发事件，或直接进入模拟战斗。</p>
-          <div className="controls" style={{ justifyContent: "center" }}>
+      <div className="proto-combat">
+        <div className="proto-combat-idle">
+          <p className="proto-sub">当前不在战斗中。</p>
+          <p className="proto-sub">可从「防御」面板触发事件，或直接进入模拟战斗。</p>
+          <div className="proto-controls" style={{ justifyContent: "center" }}>
             {(["strays", "horde", "bandits", "mutant", "wildlife", "military"] as RaidKind[]).map((k) => (
               <button
                 key={k}
-                className="actbtn"
+                className="proto-actbtn"
                 onClick={() => {
                   session.beginCombat(k, k === "horde" ? 5 : 3);
                   setSettled(false);
@@ -246,7 +246,7 @@ export function CombatView() {
   const aliveEnemies = ext.base.enemies.filter((e) => e.hp > 0);
 
   return (
-    <div className="combat">
+    <div className="proto-combat">
       {/* 顶部：地形与回合 */}
       <div className="combat-top">
         <span className="ct-round">第 {summary?.round} 回合</span>
@@ -256,15 +256,15 @@ export function CombatView() {
         <span className="ct-count">
           敌 {summary?.enemiesAlive}/{summary?.enemiesTotal}　友 {summary?.alliesAlive}
         </span>
-        <button className="mini" onClick={finish} disabled={settled}>结束战斗</button>
+        <button className="proto-mini" onClick={finish} disabled={settled}>结束战斗</button>
       </div>
 
       {/* 战场 */}
-      <div className="combat-field">
+      <div className="proto-combat-field">
         {/* 敌方 */}
-        <div className="combat-side">
-          <div className="side-label">敌方（{aliveEnemies.length}）</div>
-          <div className="units">
+        <div className="proto-combat-side">
+          <div className="proto-side-label">敌方（{aliveEnemies.length}）</div>
+          <div className="proto-units">
             {ext.base.enemies.map((e) => (
               <UnitCard
                 key={e.id}
@@ -280,9 +280,9 @@ export function CombatView() {
         </div>
 
         {/* 我方 */}
-        <div className="combat-side">
-          <div className="side-label">我方</div>
-          <div className="units">
+        <div className="proto-combat-side">
+          <div className="proto-side-label">我方</div>
+          <div className="proto-units">
             <UnitCard
               unit={player}
               side="player"
@@ -304,20 +304,20 @@ export function CombatView() {
       </div>
 
       {/* 日志 */}
-      <div className="combat-log" ref={logRef}>
-        {log.length === 0 && <div className="combat-logline sub">（等待行动）</div>}
+      <div className="proto-combat-log" ref={logRef}>
+        {log.length === 0 && <div className="proto-combat-logline proto-sub">（等待行动）</div>}
         {log.map((l, i) => (
-          <div key={i} className="combat-logline">{l}</div>
+          <div key={i} className="proto-combat-logline">{l}</div>
         ))}
       </div>
 
       {/* 姿态切换 */}
       <div className="combat-stance">
-        <span className="sub">姿态</span>
+        <span className="proto-sub">姿态</span>
         {(["aggressive", "balanced", "defensive"] as Stance[]).map((s) => (
           <button
             key={s}
-            className={playerUnit?.stance === s ? "mini active" : "mini"}
+            className={playerUnit?.stance === s ? "proto-mini proto-active" : "proto-mini"}
             onClick={() => setExt((prev) => prev ? setStance(prev, player.id, s) : null)}
             title={STANCE_DESC[s]}
           >
@@ -325,7 +325,7 @@ export function CombatView() {
           </button>
         ))}
         {playerStats && (
-          <span className="sub">
+          <span className="proto-sub">
             攻 {Math.round(playerStats.attack)}　
             防 {Math.round(playerStats.defense)}　
             闪 {(playerStats.dodge * 100).toFixed(0)}%　
@@ -336,19 +336,19 @@ export function CombatView() {
 
       {/* 技能栏 */}
       <div className="combat-skills">
-        <span className="sub">技能</span>
+        <span className="proto-sub">技能</span>
         {COMBAT_SKILLS.map((sk) => {
           const check = canUseSkill(ext, player.id, sk.id);
           const cd = ext.units[player.id]?.cooldowns[sk.id] ?? 0;
           return (
             <button
               key={sk.id}
-              className={`cskill ${check.ok ? "" : "locked"} ${cd > 0 ? "cooling" : ""}`}
+              className={`cskill ${check.ok ? "" : "proto-locked"} ${cd > 0 ? "cooling" : ""}`}
               onClick={() => doSkill(sk.id)}
               disabled={!check.ok}
               title={`${sk.description}　（体力 ${sk.cost}，冷却 ${sk.cooldown}）`}
             >
-              <span className="cskill-name">{sk.name}</span>
+              <span className="proto-cskill-name">{sk.name}</span>
               <span className="cskill-cost">{sk.cost}</span>
               {cd > 0 && <span className="cskill-cd">{cd}</span>}
             </button>
@@ -357,20 +357,20 @@ export function CombatView() {
       </div>
 
       {/* 基础操作 */}
-      <div className="combat-actions">
+      <div className="proto-combat-actions">
         <button
-          className="actbtn"
+          className="proto-actbtn"
           onClick={() => selectedEnemy && doAttack(selectedEnemy)}
           disabled={!selectedEnemy || !aliveEnemies.some((e) => e.id === selectedEnemy)}
         >
-          <span className="akey">A</span>
+          <span className="proto-akey">A</span>
           普通攻击{selectedEnemy ? `（${aliveEnemies.find((e) => e.id === selectedEnemy)?.name ?? ""}）` : "（先选目标）"}
         </button>
-        <button className="actbtn" onClick={doDefend}>
-          <span className="akey">D</span>防御
+        <button className="proto-actbtn" onClick={doDefend}>
+          <span className="proto-akey">D</span>防御
         </button>
-        <button className="actbtn" onClick={doFlee}>
-          <span className="akey">F</span>逃跑
+        <button className="proto-actbtn" onClick={doFlee}>
+          <span className="proto-akey">F</span>逃跑
         </button>
       </div>
     </div>

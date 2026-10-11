@@ -92,11 +92,11 @@ export function Portrait({
     // 1) 预生成立绘（随包分发的静态资源）优先
     if (companionId && STATIC_PORTRAITS.has(companionId) && !staticFailed) {
       return (
-        <div className={`rig-wrap ${active ? "active" : ""}`} style={{ width: size, height: h }}>
+        <div className={`proto-rig-wrap ${active ? "proto-active" : ""}`} style={{ width: size, height: h }}>
           <img
             src={"/assets/portraits/" + companionId + ".png"}
             alt={name}
-            className="rig-img"
+            className="proto-rig-img"
             style={{ width: size, height: h, objectFit: "cover" }}
             onError={() => setStaticFailed(true)}
           />
@@ -107,7 +107,7 @@ export function Portrait({
     // 2) 文生图可用且未失败 → 用它
     if (genAvailable && !genFailed && companionId) {
       return (
-        <div className={`rig-wrap ${active ? "active" : ""}`} style={{ width: size, height: h }}>
+        <div className={`proto-rig-wrap ${active ? "proto-active" : ""}`} style={{ width: size, height: h }}>
           <GenPortrait
             companionId={companionId}
             name={name}
@@ -120,7 +120,7 @@ export function Portrait({
             moodText={moodTextFrom(mood, lust)}
             width={size}
             height={h}
-            className="rig-img"
+            className="proto-rig-img"
             onFail={() => setGenFailed(true)}
           />
         </div>
@@ -128,8 +128,8 @@ export function Portrait({
     }
 
     return (
-      <div className={`rig-wrap ${active ? "active" : ""}`} style={{ width: size, height: h }}>
-        <img src={uri} alt={name} className="rig-img" style={{ width: size, height: h }} />
+      <div className={`proto-rig-wrap ${active ? "proto-active" : ""}`} style={{ width: size, height: h }}>
+        <img src={uri} alt={name} className="proto-rig-img" style={{ width: size, height: h }} />
       </div>
     );
   }
@@ -137,11 +137,11 @@ export function Portrait({
   // 优先使用像素头像
   if (useSprite) {
     return (
-      <div className="portrait-sprite-wrap" style={{ width: size, height: size }}>
+      <div className="proto-portrait-sprite-wrap" style={{ width: size, height: size }}>
         <img
           src={avatarFor(name)}
           alt={name}
-          className={`portrait-sprite ${active ? "active" : ""}`}
+          className={`proto-portrait-sprite ${active ? "proto-active" : ""}`}
           style={{ width: size, height: size }}
           onError={(e) => {
             // 加载失败时隐藏图片，露出底下的 SVG 兜底
@@ -162,7 +162,7 @@ export function Portrait({
   const cloth = `hsl(${(hue + 40) % 360}, 42%, 44%)`;
 
   return (
-    <svg viewBox="0 0 120 170" width={size} height={size * (170 / 120)} className="portrait-svg">
+    <svg viewBox="0 0 120 170" width={size} height={size * (170 / 120)} className="proto-portrait-svg">
       <defs>
         <linearGradient id={`pb-${name}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={active ? "#3a2233" : "#241c2c"} />

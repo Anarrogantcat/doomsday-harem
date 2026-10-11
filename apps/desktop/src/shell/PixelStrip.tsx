@@ -257,8 +257,8 @@ export function PixelStrip({ height = 150 }: { height?: number }) {
   }, [session, version, height]);
 
   return (
-    <div className="pixelstrip">
-      <canvas ref={ref} className="pixelstrip-canvas" />
+    <div className="proto-pixelstrip">
+      <canvas ref={ref} className="proto-pixelstrip-canvas" />
     </div>
   );
 }

@@ -14,11 +14,11 @@ export function HaremPanel() {
   const raids = new Set(session.pendingNightRaids().map((c) => c.id));
 
   return (
-    <section className="panel">
+    <section className="proto-panel">
       <h2>
-        后宫　<span className="sub">已解锁 {companions.length} / 21</span>
+        后宫　<span className="proto-sub">已解锁 {companions.length} / 21</span>
       </h2>
-      <table className="grid">
+      <table className="proto-grid">
         <thead>
           <tr>
             <th>角色</th><th>好感</th><th>忠诚</th><th>羁绊</th><th>欲情</th><th>冷落</th><th>岗位</th><th>状态</th><th>操作</th>
@@ -33,10 +33,10 @@ export function HaremPanel() {
               none: "—", hint: "主动暗示", invite: "主动邀约", nightRaid: "夜袭阈值", forced: "强制触发"
             };
             return (
-              <tr key={c.id} className={raid ? "row-warn" : undefined}>
+              <tr key={c.id} className={raid ? "proto-row-warn" : undefined}>
                 <td>
                   {c.identity.name}
-                  <span className="sub"> {c.identity.title}</span>
+                  <span className="proto-sub"> {c.identity.title}</span>
                 </td>
                 <td>{Math.round(c.relationship.affection)}</td>
                 <td>{Math.round(c.relationship.loyalty)}</td>
@@ -46,12 +46,12 @@ export function HaremPanel() {
                 <td>{c.job.id ?? "空闲"}</td>
                 <td>
                   {stageLabel[stage]}
-                  {raid && <span className="warn"> ⚠</span>}
+                  {raid && <span className="proto-warn"> ⚠</span>}
                 </td>
                 <td>
                   <button onClick={() => satisfy(c.id, "active")}>亲密</button>
                   <button onClick={() => refuse(c.id)}>拒绝</button>
-                  {raid && <button className="danger" onClick={() => nightRaid(c.id)}>夜袭</button>}
+                  {raid && <button className="proto-danger" onClick={() => nightRaid(c.id)}>夜袭</button>}
                 </td>
               </tr>
             );
@@ -59,10 +59,10 @@ export function HaremPanel() {
         </tbody>
       </table>
 
-      <p className="hint">
+      <p className="proto-hint">
         好感与忠诚只升不降；拒绝不会扣减任何关系数值，只增加欲情。
         欲情 ≥90 且冷落 ≥10 天时触发夜袭 —— 无拒绝选项。
-        {fx && <span className="warn">　（作弊器生效中）</span>}
+        {fx && <span className="proto-warn">　（作弊器生效中）</span>}
       </p>
     </section>
   );

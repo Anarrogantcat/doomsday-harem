@@ -162,18 +162,18 @@ export function CanvasView({ mode }: { mode: "map" | "battle" | "scene" }) {
         ref={canvasRef}
         style={{ width: "100%", height: 520, display: "block", borderRadius: 8, border: "1px solid var(--line)" }}
       />
-      <div className="controls" style={{ marginTop: 8 }}>
+      <div className="proto-controls" style={{ marginTop: 8 }}>
         <button onClick={registerDemoSheet}>注册示例精灵表</button>
         {(["off", "keyframe", "full"] as ViewConfig["pixel"][]).map((m) => (
           <button
             key={m}
-            className={pixelCfg.pixel === m ? "tab active" : "tab"}
+            className={pixelCfg.pixel === m ? "proto-tab proto-active" : "proto-tab"}
             onClick={() => setPixelConfig({ ...pixelCfg, pixel: m })}
           >
             像素：{m === "off" ? "关闭" : m === "keyframe" ? "关键帧" : "全程"}
           </button>
         ))}
-        <span className="sub">
+        <span className="proto-sub">
           渲染后端：Canvas（实现 core 的 View 接口，可替换为 Phaser / Live2D）
         </span>
       </div>

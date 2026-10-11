@@ -83,7 +83,7 @@ export function UpdatePanel() {
   // 非 Electron 环境（浏览器预览）
   if (!api) {
     return (
-      <div className="growth-note">
+      <div className="proto-growth-note">
         当前在浏览器中预览，自动更新仅在桌面版可用。
       </div>
     );
@@ -92,7 +92,7 @@ export function UpdatePanel() {
   return (
     <>
       <h3>版本与更新</h3>
-      <div className="growth-note">
+      <div className="proto-growth-note">
         当前版本 <b>{current || "…"}</b>
         {latest ? <>　最新 <b style={{ color: "var(--ok)" }}>{latest}</b></> : null}
         <br />
@@ -100,8 +100,8 @@ export function UpdatePanel() {
       </div>
 
       {phase === "downloading" ? (
-        <div className="share-summary" style={{ display: "flex", alignItems: "center", gap: ".6em" }}>
-          <div className="tr" style={{ flex: 1, height: ".6em", background: "var(--panel2)", borderRadius: ".3em", overflow: "hidden" }}>
+        <div className="proto-share-summary" style={{ display: "flex", alignItems: "center", gap: ".6em" }}>
+          <div className="proto-tr" style={{ flex: 1, height: ".6em", background: "var(--panel2)", borderRadius: ".3em", overflow: "hidden" }}>
             <div style={{ width: percent + "%", height: "100%", background: "var(--accent-lt)", transition: "width .2s" }} />
           </div>
           <b>{percent}%</b>
@@ -109,22 +109,22 @@ export function UpdatePanel() {
       ) : null}
 
       {msg ? (
-        <div className="growth-note" style={{ color: phase === "error" ? "var(--danger)" : "var(--sub)" }}>
+        <div className="proto-growth-note" style={{ color: phase === "error" ? "var(--danger)" : "var(--sub)" }}>
           {msg}
         </div>
       ) : null}
 
-      <div className="rv-actions" style={{ display: "flex", gap: ".4em", marginTop: ".6em" }}>
-        <button className="mini" onClick={doCheck} disabled={phase === "checking" || phase === "downloading"}>
+      <div className="proto-rv-actions" style={{ display: "flex", gap: ".4em", marginTop: ".6em" }}>
+        <button className="proto-mini" onClick={doCheck} disabled={phase === "checking" || phase === "downloading"}>
           {phase === "checking" ? "检查中…" : "检查更新"}
         </button>
 
         {phase === "found" ? (
-          <button className="mini" onClick={doDownload}>下载 v{latest}</button>
+          <button className="proto-mini" onClick={doDownload}>下载 v{latest}</button>
         ) : null}
 
         {phase === "ready" ? (
-          <button className="mini" onClick={doInstall} style={{ color: "var(--ok)" }}>重启并安装</button>
+          <button className="proto-mini" onClick={doInstall} style={{ color: "var(--ok)" }}>重启并安装</button>
         ) : null}
       </div>
     </>

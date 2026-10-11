@@ -27,45 +27,45 @@ export function BasePanel() {
   const cats = [...new Set(facilitiesByLevel(level).map((d) => d.category))];
 
   return (
-    <section className="panel">
+    <section className="proto-panel">
       <h2>
-        基地建造　<span className="sub">
+        基地建造　<span className="proto-sub">
           已建成 {sum.built} / {sum.total}　满级 {sum.maxed}
         </span>
       </h2>
 
-      <p className="sub">
+      <p className="proto-sub">
         居住容量 {session.housingCapacity()} 人　
         私密空间 {session.privateUnlocked() ? "已解锁" : "未解锁"}
       </p>
 
       {sum.building && (
-        <p className="warn">
+        <p className="proto-warn">
           建造中：{sum.building}（{Math.round(sum.buildingProgress * 100)}%）
         </p>
       )}
 
-      <div className="controls">
+      <div className="proto-controls">
         {LEVELS.map((l) => {
           const s = sum.byLevel[l];
           return (
-            <button key={l} className={level === l ? "tab active" : "tab"} onClick={() => setLevel(l)}>
+            <button key={l} className={level === l ? "proto-tab proto-active" : "proto-tab"} onClick={() => setLevel(l)}>
               {LEVEL_LABEL[l]} {s.built}/{s.total}
             </button>
           );
         })}
       </div>
 
-      <div className="controls">
-        <button className={catFilter === "" ? "tab active" : "tab"} onClick={() => setCatFilter("")}>全部</button>
+      <div className="proto-controls">
+        <button className={catFilter === "" ? "proto-tab proto-active" : "proto-tab"} onClick={() => setCatFilter("")}>全部</button>
         {cats.map((c) => (
-          <button key={c} className={catFilter === c ? "tab active" : "tab"} onClick={() => setCatFilter(c)}>
+          <button key={c} className={catFilter === c ? "proto-tab proto-active" : "proto-tab"} onClick={() => setCatFilter(c)}>
             {FACILITY_CATEGORY_LABEL[c]}
           </button>
         ))}
       </div>
 
-      <table className="grid">
+      <table className="proto-grid">
         <thead>
           <tr>
             <th>设施</th><th>分类</th><th>等级</th><th>效果</th>
@@ -85,16 +85,16 @@ export function BasePanel() {
               : check.reason === "building-other" ? "其他设施建造中"
               : "可建造";
             return (
-              <tr key={def.id} className={tier > 0 ? "row-ok" : undefined}>
+              <tr key={def.id} className={tier > 0 ? "proto-row-ok" : undefined}>
                 <td>{def.name}</td>
-                <td className="sub">{FACILITY_CATEGORY_LABEL[def.category]}</td>
+                <td className="proto-sub">{FACILITY_CATEGORY_LABEL[def.category]}</td>
                 <td>{tier > 0 ? `Lv${tier}` : "—"}</td>
-                <td className="sub">{tier > 0 ? session.facilityEffect(def.id) : def.description}</td>
-                <td className="sub">
+                <td className="proto-sub">{tier > 0 ? session.facilityEffect(def.id) : def.description}</td>
+                <td className="proto-sub">
                   {tier >= def.maxTier ? "—" : Object.entries(check.cost).map(([k, v]) => `${k}×${v}`).join("　")}
                 </td>
-                <td className="sub">{tier >= def.maxTier ? "—" : `${check.hours}h`}</td>
-                <td className="sub">
+                <td className="proto-sub">{tier >= def.maxTier ? "—" : `${check.hours}h`}</td>
+                <td className="proto-sub">
                   {[...def.requiresTech, ...def.requiresFacility].join("、") || "—"}
                 </td>
                 <td>
@@ -105,7 +105,7 @@ export function BasePanel() {
                     <button onClick={() => finishBuild(def.id)}>秒建</button>
                   )}
                   {tier > 0 && (
-                    <button className="danger" onClick={() => demolishFacility(def.id)}>拆除</button>
+                    <button className="proto-danger" onClick={() => demolishFacility(def.id)}>拆除</button>
                   )}
                 </td>
               </tr>
@@ -115,7 +115,7 @@ export function BasePanel() {
       </table>
 
       {cheat.enabled && (
-        <div className="controls">
+        <div className="proto-controls">
           <button onClick={() => finishAllBuilds("surface")}>秒建地表</button>
           <button onClick={() => finishAllBuilds("bunker")}>秒建避难所</button>
           <button onClick={() => finishAllBuilds("resource")}>秒建资源层</button>
@@ -124,20 +124,20 @@ export function BasePanel() {
       )}
 
       <h3>基地加成（生效中）</h3>
-      <p className="sub">
+      <p className="proto-sub">
         {Object.keys(bonuses).length === 0
           ? "（暂无）"
           : Object.entries(bonuses).map(([k, v]) => `${k}: ${typeof v === "number" ? v.toFixed(2) : v}`).join("　")}
       </p>
 
       <h3>已建成设施</h3>
-      <p className="sub">
+      <p className="proto-sub">
         {session.builtFacilities().length === 0
           ? "（尚未建成任何设施）"
           : session.builtFacilities().map((x) => `${x.def.name} Lv${x.tier}`).join("　")}
       </p>
 
-      <p className="hint">
+      <p className="proto-hint">
         科技只决定「能否建造」，实际建成需要材料与工时。同时只能建造一个设施，
         岗位中的「装备加工」与「资源统筹」会加速建造。
       </p>

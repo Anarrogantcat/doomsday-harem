@@ -35,16 +35,16 @@ function DataDirSection() {
               ? "便携模式（数据与游戏在一起）"
               : "回退模式（安装目录不可写）"}
           </div>
-          <table className="grid">
+          <table className="proto-grid">
             <tbody>
-              <tr><td className="sub">根目录</td><td className="mono">{layout.root}</td></tr>
-              <tr><td className="sub">存档</td><td className="mono">{layout.saves}</td></tr>
-              <tr><td className="sub">配置</td><td className="mono">{layout.config}</td></tr>
-              <tr><td className="sub">Mod</td><td className="mono">{layout.mods}</td></tr>
-              <tr><td className="sub">日志</td><td className="mono">{layout.logs}</td></tr>
+              <tr><td className="proto-sub">根目录</td><td className="mono">{layout.root}</td></tr>
+              <tr><td className="proto-sub">存档</td><td className="mono">{layout.saves}</td></tr>
+              <tr><td className="proto-sub">配置</td><td className="mono">{layout.config}</td></tr>
+              <tr><td className="proto-sub">Mod</td><td className="mono">{layout.mods}</td></tr>
+              <tr><td className="proto-sub">日志</td><td className="mono">{layout.logs}</td></tr>
             </tbody>
           </table>
-          <div className="controls">
+          <div className="proto-controls">
             <button onClick={() => {
               void openModsDir().then((p) => setMsg(p ? `Mod 目录：${p}` : "无法打开"));
             }}>
@@ -53,8 +53,8 @@ function DataDirSection() {
           </div>
         </>
       )}
-      {msg && <p className="ok">{msg}</p>}
-      <p className="hint">
+      {msg && <p className="proto-ok">{msg}</p>}
+      <p className="proto-hint">
         安装时若选择了自定义位置，游戏会安装在你指定的根目录文件夹内，
         并在其下自动创建 data/（存档、配置、Mod、日志）。
         卸载时会询问是否保留 data/。
@@ -123,10 +123,10 @@ function ModList() {
     <div className="mod-section">
       <h3>
         Mod（{mods.length} 个，已启用 {enabled}）
-        {busy && <span className="sub">　扫描中…</span>}
+        {busy && <span className="proto-sub">　扫描中…</span>}
       </h3>
 
-      <div className="controls">
+      <div className="proto-controls">
         <button onClick={refresh} disabled={busy}>重新扫描</button>
         <button onClick={() => { void openModsDir(); }}>打开目录</button>
       </div>
@@ -148,14 +148,14 @@ function ModList() {
         const fileList = files[m.id];
 
         return (
-          <div key={m.id} className={`mod-card ${m.enabled ? "on" : "off"}`}>
+          <div key={m.id} className={`mod-card ${m.enabled ? "proto-on" : "proto-off"}`}>
             <div className="mod-head">
-              <label className="chk">
+              <label className="proto-chk">
                 <input type="checkbox" checked={m.enabled} onChange={() => { void toggle(m); }} />
                 <span className="mod-name">{name}</span>
               </label>
               <span className="mod-ver">v{version}</span>
-              <span className="mod-author sub">{author}</span>
+              <span className="mod-author proto-sub">{author}</span>
             </div>
 
             {desc && <div className="mod-desc">{desc}</div>}
@@ -168,11 +168,11 @@ function ModList() {
 
             {m.error && <div className="mod-error">⚠ {m.error}</div>}
 
-            <div className="controls">
-              <button className="mini" onClick={() => { void showFiles(m); }}>
+            <div className="proto-controls">
+              <button className="proto-mini" onClick={() => { void showFiles(m); }}>
                 {fileList ? "收起文件" : "查看文件"}
               </button>
-              <span className="sub mono">{m.path}</span>
+              <span className="proto-sub mono">{m.path}</span>
             </div>
 
             {fileList && (
@@ -180,19 +180,19 @@ function ModList() {
                 {fileList.map((f) => (
                   <div key={f.path} className="mod-file">
                     <span className="mono">{f.path}</span>
-                    <span className="sub">{Math.round(f.size / 1024 * 10) / 10} KB</span>
+                    <span className="proto-sub">{Math.round(f.size / 1024 * 10) / 10} KB</span>
                   </div>
                 ))}
-                {fileList.length === 0 && <p className="sub">（空目录）</p>}
+                {fileList.length === 0 && <p className="proto-sub">（空目录）</p>}
               </div>
             )}
           </div>
         );
       })}
 
-      {msg && <p className="warn">{msg}</p>}
+      {msg && <p className="proto-warn">{msg}</p>}
 
-      <p className="hint">
+      <p className="proto-hint">
         Mod 可提供剧本（.dsl）、数据覆盖（.json）与素材。
         停用 Mod 会在其目录写入 .disabled 标记，不删除文件。
       </p>

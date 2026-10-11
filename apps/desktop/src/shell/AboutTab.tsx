@@ -9,11 +9,11 @@ import { useGame } from "../store/game.ts";
 /** 游戏介绍 */
 function IntroSection() {
   return (
-    <section className="about-block">
+    <section className="proto-about-block">
       <h3>游戏介绍</h3>
-      <div className="about-intro">
+      <div className="proto-about-intro">
         {ABOUT_INTRO.map((p, i) => (
-          <p key={i} className={i === 0 || i === ABOUT_INTRO.length - 1 ? "lead" : ""}>{p}</p>
+          <p key={i} className={i === 0 || i === ABOUT_INTRO.length - 1 ? "proto-lead" : ""}>{p}</p>
         ))}
       </div>
     </section>
@@ -23,13 +23,13 @@ function IntroSection() {
 /** 玩法要点 */
 function FeaturesSection() {
   return (
-    <section className="about-block">
+    <section className="proto-about-block">
       <h3>玩法要点</h3>
-      <div className="feature-grid">
+      <div className="proto-feature-grid">
         {ABOUT_FEATURES.map((f) => (
-          <div key={f.title} className="feature-card">
-            <div className="feature-title">{f.title}</div>
-            <div className="feature-body">{f.body}</div>
+          <div key={f.title} className="proto-feature-card">
+            <div className="proto-feature-title">{f.title}</div>
+            <div className="proto-feature-body">{f.body}</div>
           </div>
         ))}
       </div>
@@ -55,13 +55,13 @@ function StatsSection() {
   ];
 
   return (
-    <section className="about-block">
+    <section className="proto-about-block">
       <h3>内容规模</h3>
-      <div className="stats-grid">
+      <div className="proto-stats-grid">
         {stats.map((s) => (
-          <div key={s.label} className="stat-cell">
-            <div className="stat-value">{s.value}</div>
-            <div className="stat-label">{s.label}<span className="stat-unit">{s.unit}</span></div>
+          <div key={s.label} className="proto-stat-cell">
+            <div className="proto-stat-value">{s.value}</div>
+            <div className="proto-stat-label">{s.label}<span className="proto-stat-unit">{s.unit}</span></div>
           </div>
         ))}
       </div>
@@ -88,18 +88,18 @@ function UpdateSection() {
   }
 
   return (
-    <section className="about-block">
+    <section className="proto-about-block">
       <h3>版本与更新</h3>
 
-      <div className="version-row">
+      <div className="proto-version-row">
         <div>
-          <div className="version-cur">当前版本 <b>{version}</b></div>
-          <div className="sub">{ABOUT.engine}　构建于 {ABOUT.buildDate}</div>
+          <div className="proto-version-cur">当前版本 <b>{version}</b></div>
+          <div className="proto-sub">{ABOUT.engine}　构建于 {ABOUT.buildDate}</div>
         </div>
         <button onClick={doCheck} disabled={busy}>{busy ? "检查中…" : "检查更新"}</button>
       </div>
 
-      <div className="fieldrow">
+      <div className="proto-fieldrow">
         <label style={{ flex: 1 }}>
           更新源地址（可选）
           <input
@@ -111,25 +111,25 @@ function UpdateSection() {
           />
         </label>
       </div>
-      <p className="hint" style={{ marginTop: 0 }}>
+      <p className="proto-hint" style={{ marginTop: 0 }}>
         本作不内置联网。填写更新源后才会发起请求，期望返回
         <code>{" { version, notes[], url }"}</code>。
       </p>
 
       {result && (
-        <div className={`update-result ${result.hasUpdate ? "has-update" : result.error ? "has-error" : "up-to-date"}`}>
+        <div className={`proto-update-result ${result.hasUpdate ? "proto-has-update" : result.error ? "proto-has-error" : "proto-up-to-date"}`}>
           {result.error ? (
             <div>⚠ {result.error}</div>
           ) : result.hasUpdate ? (
             <>
-              <div className="update-title">发现新版本 {result.latestVersion}</div>
+              <div className="proto-update-title">发现新版本 {result.latestVersion}</div>
               {result.notes.length > 0 && (
-                <ul className="update-notes">
+                <ul className="proto-update-notes">
                   {result.notes.map((n, i) => <li key={i}>{n}</li>)}
                 </ul>
               )}
               {result.url && (
-                <a className="update-link" href={result.url} target="_blank" rel="noreferrer">前往下载</a>
+                <a className="proto-update-link" href={result.url} target="_blank" rel="noreferrer">前往下载</a>
               )}
             </>
           ) : (
@@ -138,22 +138,22 @@ function UpdateSection() {
         </div>
       )}
 
-      <div className="controls" style={{ marginTop: 12 }}>
+      <div className="proto-controls" style={{ marginTop: 12 }}>
         <button onClick={() => setShowLog((v) => !v)}>
           {showLog ? "收起更新日志" : "查看更新日志"}
         </button>
       </div>
 
       {showLog && (
-        <div className="changelog">
+        <div className="proto-changelog">
           {CHANGELOG.map((c) => (
-            <div key={c.version} className="cl-entry">
-              <div className="cl-head">
+            <div key={c.version} className="proto-cl-entry">
+              <div className="proto-cl-head">
                 <b>v{c.version}</b>
-                <span className="sub">{c.date}</span>
-                {compareVersion(c.version, version) === 0 && <span className="cl-cur">当前</span>}
+                <span className="proto-sub">{c.date}</span>
+                {compareVersion(c.version, version) === 0 && <span className="proto-cl-cur">当前</span>}
               </div>
-              <ul className="cl-items">
+              <ul className="proto-cl-items">
                 {c.items.map((it, i) => <li key={i}>{it}</li>)}
               </ul>
             </div>
@@ -169,23 +169,23 @@ function NoticesSection() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <section className="about-block">
+    <section className="proto-about-block">
       <h3>相关声明</h3>
-      <div className="notice-list">
+      <div className="proto-notice-list">
         {ABOUT_NOTICES.map((n, i) => (
-          <div key={n.title} className={`notice-item ${open === i ? "open" : ""}`}>
-            <button className="notice-head" onClick={() => setOpen(open === i ? null : i)}>
-              <span className="notice-title">{n.title}</span>
-              <span className="notice-arrow">{open === i ? "−" : "+"}</span>
+          <div key={n.title} className={`proto-notice-item ${open === i ? "proto-open" : ""}`}>
+            <button className="proto-notice-head" onClick={() => setOpen(open === i ? null : i)}>
+              <span className="proto-notice-title">{n.title}</span>
+              <span className="proto-notice-arrow">{open === i ? "−" : "+"}</span>
             </button>
-            {open === i && <div className="notice-body">{n.body}</div>}
+            {open === i && <div className="proto-notice-body">{n.body}</div>}
           </div>
         ))}
       </div>
 
-      <div className="notice-footer">
-        <div className="notice-age">18+</div>
-        <p className="sub">
+      <div className="proto-notice-footer">
+        <div className="proto-notice-age">18+</div>
+        <p className="proto-sub">
           本作包含成人内容，仅面向成年玩家。所有角色均为虚构的成年人。
           请遵守所在地法律法规，个人非商业使用。
         </p>
@@ -197,9 +197,9 @@ function NoticesSection() {
 /** 素材致谢 */
 function CreditsSection() {
   return (
-    <section className="about-block">
+    <section className="proto-about-block">
       <h3>素材与致谢</h3>
-      <table className="grid">
+      <table className="proto-grid">
         <thead>
           <tr><th>素材</th><th>来源</th><th>授权</th></tr>
         </thead>
@@ -221,7 +221,7 @@ function CreditsSection() {
           </tr>
         </tbody>
       </table>
-      <p className="hint">
+      <p className="proto-hint">
         CC0 1.0 属公有领域授权，无需署名。此处致谢 Kenney.nl 的免费素材。
         角色立绘目前使用程序化 SVG 剪影，接入真实美术只需替换 Portrait 组件。
       </p>
@@ -231,10 +231,10 @@ function CreditsSection() {
 
 export function AboutTab() {
   return (
-    <div className="about">
-      <header className="about-header">
-        <div className="about-logo">末日生存·后宫</div>
-        <div className="about-tagline">{ABOUT.tagline}　·　v{ABOUT.version}</div>
+    <div className="proto-about">
+      <header className="proto-about-header">
+        <div className="proto-about-logo">末日生存·后宫</div>
+        <div className="proto-about-tagline">{ABOUT.tagline}　·　v{ABOUT.version}</div>
       </header>
       <IntroSection />
       <StatsSection />
@@ -242,7 +242,7 @@ export function AboutTab() {
       <UpdateSection />
       <NoticesSection />
       <CreditsSection />
-      <footer className="about-footer">
+      <footer className="proto-about-footer">
         <span>个人非商业使用</span>
         <span>·</span>
         <span>不联网 · 不上传数据</span>

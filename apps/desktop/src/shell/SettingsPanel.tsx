@@ -30,12 +30,12 @@ const DETAIL_LABEL: Record<DetailLevel, string> = {
 /** 一行设置项 */
 function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="setrow">
-      <div className="setrow-label">
+    <div className="proto-setrow">
+      <div className="proto-setrow-label">
         <span>{label}</span>
-        {hint && <span className="setrow-hint">{hint}</span>}
+        {hint && <span className="proto-setrow-hint">{hint}</span>}
       </div>
-      <div className="setrow-ctl">{children}</div>
+      <div className="proto-setrow-ctl">{children}</div>
     </div>
   );
 }
@@ -50,11 +50,11 @@ function Segmented<T extends string>({
   disabled?: boolean;
 }) {
   return (
-    <div className="segmented">
+    <div className="proto-segmented">
       {options.map((o) => (
         <button
           key={o}
-          className={value === o ? "seg active" : "seg"}
+          className={value === o ? "proto-seg proto-active" : "proto-seg"}
           onClick={() => onChange(o)}
           disabled={disabled}
         >
@@ -70,12 +70,12 @@ function Slider({ value, min, max, step, onChange, format }: {
   onChange: (v: number) => void; format?: (v: number) => string;
 }) {
   return (
-    <div className="slider-row">
+    <div className="proto-slider-row">
       <input
         type="range" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(Number(e.target.value))}
       />
-      <span className="slider-value">{format ? format(value) : value}</span>
+      <span className="proto-slider-value">{format ? format(value) : value}</span>
     </div>
   );
 }
@@ -92,14 +92,14 @@ function SharingPanel() {
   const comparison = session.bonusComparison();
 
   return (
-    <section className="setgroup">
+    <section className="proto-setgroup">
       <h3>加成共享</h3>
-      <div className="growth-note">
+      <div className="proto-growth-note">
         主角获得 100% 加成；后宫默认只享受 {(SHARE_RATIO * 100).toFixed(0)}%，
         且需要你逐项授权。主角专属项（研究、制作）无法共享。
       </div>
 
-      <div className="share-summary">
+      <div className="proto-share-summary">
         已授权 <b>{stats.shared}</b> / {stats.total} 项
       </div>
 
@@ -108,22 +108,22 @@ function SharingPanel() {
         const list = session.bonusesByCategory(cat);
         const allOn = catStats.shared === catStats.total;
         return (
-          <div key={cat} className="share-cat">
-            <div className="share-cat-head">
-              <span className="share-cat-name">{BONUS_CATEGORY_LABEL[cat]}</span>
-              <span className="share-cat-desc">{BONUS_CATEGORY_DESC[cat]}</span>
-              <span className="share-cat-count">
+          <div key={cat} className="proto-share-cat">
+            <div className="proto-share-cat-head">
+              <span className="proto-share-cat-name">{BONUS_CATEGORY_LABEL[cat]}</span>
+              <span className="proto-share-cat-desc">{BONUS_CATEGORY_DESC[cat]}</span>
+              <span className="proto-share-cat-count">
                 {catStats.shared}/{catStats.total}
               </span>
               <button
-                className="mini"
+                className="proto-mini"
                 onClick={() => setCategoryShare(cat, !allOn)}
               >
                 {allOn ? "全部取消" : "全部授权"}
               </button>
             </div>
 
-            <div className="share-list">
+            <div className="proto-share-list">
               {list.map((b) => {
                 const shared = session.isSharedWithHarem(b.key);
                 const locked = b.appliesTo === "none";
@@ -131,7 +131,7 @@ function SharingPanel() {
                 return (
                   <label
                     key={b.key}
-                    className={`share-row ${locked ? "locked" : ""} ${shared ? "on" : ""}`}
+                    className={`proto-share-row ${locked ? "proto-locked" : ""} ${shared ? "proto-on" : ""}`}
                     title={locked ? "主角专属，无法共享" : b.description}
                   >
                     <input
@@ -140,17 +140,17 @@ function SharingPanel() {
                       disabled={locked}
                       onChange={() => toggleShare(b.key)}
                     />
-                    <span className="share-label">{b.label}</span>
-                    <span className="share-values">
+                    <span className="proto-share-label">{b.label}</span>
+                    <span className="proto-share-values">
                       {locked ? (
-                        <span className="share-locked">主角专属</span>
+                        <span className="proto-share-locked">主角专属</span>
                       ) : cmp ? (
                         <>
-                          <span className="share-hero">主角 {Math.round(cmp.heroValue)}</span>
-                          <span className="share-harem">后宫 {Math.round(cmp.haremValue)}</span>
+                          <span className="proto-share-hero">主角 {Math.round(cmp.heroValue)}</span>
+                          <span className="proto-share-harem">后宫 {Math.round(cmp.haremValue)}</span>
                         </>
                       ) : (
-                        <span className="share-dim">未建成</span>
+                        <span className="proto-share-dim">未建成</span>
                       )}
                     </span>
                   </label>
@@ -161,7 +161,7 @@ function SharingPanel() {
         );
       })}
 
-      <p className="hint">
+      <p className="proto-hint">
         授权是可选的 —— 你可以让后宫只享受生存与舒适类加成，
         而把战斗与特殊类留给自己。已授权状态随存档保存。
       </p>
@@ -186,23 +186,23 @@ export function SettingsPanel() {
   const stock = (() => { try { return stockStats(); } catch { return null; } })();
 
   return (
-    <div className="settings">
-      <nav className="settings-nav">
+    <div className="proto-settings">
+      <nav className="proto-settings-nav">
         {TABS.map((t) => (
           <button
             key={t}
-            className={tab === t ? "settab active" : "settab"}
+            className={tab === t ? "proto-settab proto-active" : "proto-settab"}
             onClick={() => setTab(t)}
           >
-            <span className="settab-icon">{SETTINGS_TAB_ICON[t]}</span>
+            <span className="proto-settab-icon">{SETTINGS_TAB_ICON[t]}</span>
             <span>{SETTINGS_TAB_LABEL[t]}</span>
           </button>
         ))}
       </nav>
 
-      <div className="settings-body">
+      <div className="proto-settings-body">
         {tab === "display" && (
-          <section className="setgroup">
+          <section className="proto-setgroup">
             <h3>画面风格</h3>
             <Row label="渲染方式" hint={RENDER_STYLE_DESC[settings.display.renderStyle]}>
               <Segmented
@@ -246,7 +246,7 @@ export function SettingsPanel() {
         )}
 
         {tab === "gameplay" && (
-          <section className="setgroup">
+          <section className="proto-setgroup">
             <h3>时间</h3>
             <Row label="时间流速" hint="影响每次行动推进的游戏时间">
               <Segmented value={settings.gameplay.timeScale} options={TIME_SCALES}
@@ -281,7 +281,7 @@ export function SettingsPanel() {
         )}
 
         {tab === "content" && (
-          <section className="setgroup">
+          <section className="proto-setgroup">
             <h3>成人内容</h3>
             <Row label="启用成人内容" hint="关闭后场景只保留情节推进">
               <input type="checkbox" checked={settings.content.adultEnabled}
@@ -314,7 +314,7 @@ export function SettingsPanel() {
             </Row>
 
             {stock && stock.total > 0 && (
-              <p className="hint">
+              <p className="proto-hint">
                 预生成文本库存：{stock.total} 条 / {stock.totalChars.toLocaleString()} 字
                 （命中库存的场景直接取用，省去推理）
               </p>
@@ -325,7 +325,7 @@ export function SettingsPanel() {
         {tab === "sharing" && <SharingPanel />}
 
         {tab === "audio" && (
-          <section className="setgroup">
+          <section className="proto-setgroup">
             <h3>总音量</h3>
             <Row label="主音量">
               <Slider value={settings.audio.master} min={0} max={1} step={0.05}
@@ -336,7 +336,7 @@ export function SettingsPanel() {
             <h3>通道</h3>
             {CHANNELS.map((ch) => (
               <Row key={ch} label={CHANNEL_LABEL[ch]}>
-                <div className="audio-ctl">
+                <div className="proto-audio-ctl">
                   <Slider
                     value={settings.audio.channels[ch]} min={0} max={1} step={0.05}
                     onChange={(v) => patchAudio({
@@ -344,7 +344,7 @@ export function SettingsPanel() {
                     })}
                     format={(v) => `${Math.round(v * 100)}%`}
                   />
-                  <label className="chk">
+                  <label className="proto-chk">
                     <input type="checkbox" checked={settings.audio.muted[ch]}
                       onChange={(e) => patchAudio({
                         muted: { ...settings.audio.muted, [ch]: e.target.checked }
@@ -361,7 +361,7 @@ export function SettingsPanel() {
                 format={(v) => `${v}ms`} />
             </Row>
 
-            <p className="hint">
+            <p className="proto-hint">
               音频系统已就绪（24 条音轨 / 4 个通道），当前缺实际音源文件。
               接入音频后此设置立即生效。
             </p>
@@ -369,13 +369,13 @@ export function SettingsPanel() {
         )}
 
         {tab === "lang" && (
-          <section className="setgroup">
+          <section className="proto-setgroup">
             <h3>界面语言</h3>
             <Row label="语言">
               <Segmented value={settings.lang.locale} options={LOCALES}
                 labels={LOCALE_LABEL} onChange={(v) => patchLang({ locale: v })} />
             </Row>
-            <p className="hint">
+            <p className="proto-hint">
               三种语言的 UI 文案已完整（各 70+ 条）。剧本文本目前以中文为主，
               模型生成会跟随提示词语言。
             </p>
@@ -392,10 +392,10 @@ export function SettingsPanel() {
         )}
       </div>
 
-      <footer className="settings-foot">
+      <footer className="proto-settings-foot">
         <button onClick={exportSettings}>导出设置</button>
         <button onClick={importSettings}>导入设置</button>
-        <button className="danger" onClick={resetSettings}>恢复默认</button>
+        <button className="proto-danger" onClick={resetSettings}>恢复默认</button>
       </footer>
     </div>
   );

@@ -17,7 +17,7 @@ function ResearchTeam({ nodeId }: { nodeId: string }) {
 
   if (!info.canDelegate) {
     return (
-      <div className="research-note personal">
+      <div className="proto-research-note proto-personal">
         该科技为主角个人专属，后宫科研人员无法参与。
       </div>
     );
@@ -36,7 +36,7 @@ function ResearchTeam({ nodeId }: { nodeId: string }) {
       </div>
       <div className="rt-list">
         {list.map((c) => (
-          <div key={c.id} className={`rt-row ${c.eligible ? "on" : "off"}`} title={c.reason}>
+          <div key={c.id} className={`rt-row ${c.eligible ? "proto-on" : "proto-off"}`} title={c.reason}>
             <span className="rt-name">{c.name}</span>
             <span className="rt-skills">
               制作 {c.craftLevel}　医护 {c.medicalLevel}
@@ -49,7 +49,7 @@ function ResearchTeam({ nodeId }: { nodeId: string }) {
           </div>
         ))}
       </div>
-      <p className="hint" style={{ marginTop: "0.3em" }}>
+      <p className="proto-hint" style={{ marginTop: "0.3em" }}>
         贡献度由制作/医护技能与岗位决定，单人上限 {(COMPANION_RESEARCH_CAP * 100).toFixed(0)}%。
         需在「设置 → 共享」中授权「研究效率」后才会生效。
       </p>
@@ -82,15 +82,15 @@ export function TechTreePanel() {
     });
 
   return (
-    <section className="panel">
+    <section className="proto-panel">
       <h2>
-        科技树　<span className="sub">
+        科技树　<span className="proto-sub">
           已解锁 {session.tech.unlocked.size} / {progress.reduce((s, b) => s + b.total, 0)} 节点
           　·　共用 {scopeStats.shared}　个人 {scopeStats.personal}
         </span>
       </h2>
 
-      <div className="controls">
+      <div className="proto-controls">
         {BRANCHES.map((b) => {
           const p = progress.find((x) => x.branch === b.id)!;
           const bs = scopeStats.byBranch[b.id];
@@ -98,12 +98,12 @@ export function TechTreePanel() {
           return (
             <button
               key={b.id}
-              className={branch === b.id ? "tab active" : "tab"}
+              className={branch === b.id ? "proto-tab proto-active" : "proto-tab"}
               onClick={() => setBranch(b.id)}
               title={isShared ? "含共用科技" : "主角个人科技"}
             >
               {BRANCH_NAMES[b.id]} {p.unlocked}/{p.total}
-              <span className={`scope-dot ${isShared ? "shared" : "personal"}`}>
+              <span className={`proto-scope-dot ${isShared ? "proto-shared" : "proto-personal"}`}>
                 {isShared ? SCOPE_ICON.shared : SCOPE_ICON.personal}
               </span>
             </button>
@@ -111,31 +111,31 @@ export function TechTreePanel() {
         })}
       </div>
 
-      <div className="controls">
-        <span className="sub">筛选</span>
-        <button className={scopeFilter === "all" ? "mini active" : "mini"}
+      <div className="proto-controls">
+        <span className="proto-sub">筛选</span>
+        <button className={scopeFilter === "all" ? "proto-mini proto-active" : "proto-mini"}
           onClick={() => setScopeFilter("all")}>全部</button>
-        <button className={scopeFilter === "shared" ? "mini active" : "mini"}
+        <button className={scopeFilter === "shared" ? "proto-mini proto-active" : "proto-mini"}
           onClick={() => setScopeFilter("shared")}>
           {SCOPE_ICON.shared} 共用（{scopeStats.shared}）
         </button>
-        <button className={scopeFilter === "personal" ? "mini active" : "mini"}
+        <button className={scopeFilter === "personal" ? "proto-mini proto-active" : "proto-mini"}
           onClick={() => setScopeFilter("personal")}>
           {SCOPE_ICON.personal} 个人（{scopeStats.personal}）
         </button>
       </div>
 
-      <p className="hint" style={{ marginTop: 0 }}>
+      <p className="proto-hint" style={{ marginTop: 0 }}>
         {SCOPE_DESC.shared}；{SCOPE_DESC.personal}。
       </p>
 
       {researching && (
-        <p className="warn">
+        <p className="proto-warn">
           研究中：{researching.nodeId}（已投入 {researching.hours.toFixed(1)} 小时）
         </p>
       )}
 
-      <table className="grid">
+      <table className="proto-grid">
         <thead>
           <tr>
             <th>层</th>
@@ -169,23 +169,23 @@ export function TechTreePanel() {
               <tr
                 key={node.id}
                 className={
-                  unlocked ? "row-ok"
-                  : isResearching ? "row-warn"
-                  : av.ok ? "" : "row-dim"
+                  unlocked ? "proto-row-ok"
+                  : isResearching ? "proto-row-warn"
+                  : av.ok ? "" : "proto-row-dim"
                 }
               >
                 <td>T{node.tier}</td>
                 <td>
-                  <span className="node-name">{node.name}</span>
+                  <span className="proto-node-name">{node.name}</span>
                   {showTeam === node.id && <ResearchTeam nodeId={node.id} />}
                 </td>
                 <td>
-                  <span className={`scope-badge ${scope}`} title={SCOPE_DESC[scope]}>
+                  <span className={`proto-scope-badge ${scope}`} title={SCOPE_DESC[scope]}>
                     {SCOPE_ICON[scope]} {SCOPE_LABEL[scope]}
                   </span>
                 </td>
-                <td className="sub">{node.effect}</td>
-                <td className="sub">
+                <td className="proto-sub">{node.effect}</td>
+                <td className="proto-sub">
                   {Object.entries(node.cost)
                     .map(([k, v]) => `${k}×${v}`)
                     .join(" ")}
@@ -201,7 +201,7 @@ export function TechTreePanel() {
                   )}
                   {rate.canDelegate && (
                     <button
-                      className="mini"
+                      className="proto-mini"
                       onClick={() => setShowTeam(showTeam === node.id ? null : node.id)}
                       title="查看科研人员"
                     >
@@ -209,7 +209,7 @@ export function TechTreePanel() {
                     </button>
                   )}
                   {cheat.enabled && !unlocked && (
-                    <button className="mini" onClick={() => forceComplete(node.id)}>
+                    <button className="proto-mini" onClick={() => forceComplete(node.id)}>
                       秒完成
                     </button>
                   )}

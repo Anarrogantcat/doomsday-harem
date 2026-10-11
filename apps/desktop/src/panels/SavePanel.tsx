@@ -32,24 +32,24 @@ export function SavePanel() {
   };
 
   return (
-    <section className="panel">
+    <section className="proto-panel">
       <h2>
-        存档　<span className="sub">
+        存档　<span className="proto-sub">
           已用 {stats.used} / {stats.total}　手动 {stats.byKind.manual.used}/{stats.byKind.manual.total}
           　自动 {stats.byKind.auto.used}/{stats.byKind.auto.total}
         </span>
       </h2>
 
-      {lastSaveMsg && <p className="ok">{lastSaveMsg}</p>}
-      <p className="sub">存储后端：{backendInfo()}{busy && `　（${busy}中…）`}</p>
+      {lastSaveMsg && <p className="proto-ok">{lastSaveMsg}</p>}
+      <p className="proto-sub">存储后端：{backendInfo()}{busy && `　（${busy}中…）`}</p>
 
-      <div className="controls">
+      <div className="proto-controls">
         <button onClick={() => run("自动存档", autoSave)} disabled={!!busy}>立即自动存档</button>
         <button onClick={() => run("快速存档", () => saveToSlot("quick"))} disabled={!!busy}>快速存档</button>
         <button onClick={() => run("刷新", refreshSlots)} disabled={!!busy}>刷新列表</button>
       </div>
 
-      <table className="grid">
+      <table className="proto-grid">
         <thead>
           <tr><th>槽位</th><th>类型</th><th>内容</th><th>大小</th><th>操作</th></tr>
         </thead>
@@ -57,21 +57,21 @@ export function SavePanel() {
           {allSlots().map((def) => {
             const meta = slots.metas.find((m) => m.slot === def.slot) ?? null;
             return (
-              <tr key={def.slot} className={meta ? "row-ok" : undefined}>
-                <td>{def.label}<span className="sub"> {def.slot}</span></td>
-                <td className="sub">
+              <tr key={def.slot} className={meta ? "proto-row-ok" : undefined}>
+                <td>{def.label}<span className="proto-sub"> {def.slot}</span></td>
+                <td className="proto-sub">
                   {def.kind === "manual" ? "手动" : def.kind === "auto" ? "自动" : "快速"}
                 </td>
-                <td className="sub">
+                <td className="proto-sub">
                   {meta ? describeMeta(meta) : "（空）"}
                 </td>
-                <td className="sub">
+                <td className="proto-sub">
                   {meta ? `${(meta.bytes / 1024).toFixed(1)} KB` : "—"}
                 </td>
                 <td>
                   <button onClick={() => run("保存", () => saveToSlot(def.slot))} disabled={!!busy}>保存</button>
                   {meta && <button onClick={() => run("读取", () => loadFromSlot(def.slot))} disabled={!!busy}>读取</button>}
-                  {meta && <button className="danger" onClick={() => run("删除", () => deleteSlot(def.slot))} disabled={!!busy}>删除</button>}
+                  {meta && <button className="proto-danger" onClick={() => run("删除", () => deleteSlot(def.slot))} disabled={!!busy}>删除</button>}
                 </td>
               </tr>
             );
@@ -80,7 +80,7 @@ export function SavePanel() {
       </table>
 
       <h3>当前进度（即将写入的内容）</h3>
-      <p className="sub">
+      <p className="proto-sub">
         第 {session.time.day} 天　同伴 {session.joined().length} 人　
         科技 {session.tech.unlocked.size} 节点　
         设施 {session.base.facilities.filter((f) => f.tier > 0).length} 座　
@@ -89,12 +89,12 @@ export function SavePanel() {
       </p>
 
       {stats.latest && (
-        <p className="sub">
+        <p className="proto-sub">
           最近存档：{stats.latest.slot}　{formatSlotTime(stats.latest)}
         </p>
       )}
 
-      <p className="hint">
+      <p className="proto-hint">
         Tauri 环境下存档经 AES-256-GCM 加密 + HMAC 校验后写入应用数据目录；
         浏览器环境降级为 localStorage（明文，仅供开发预览）。
         读取时校验完整性、结构版本与六项不变式，任一失败拒绝加载。

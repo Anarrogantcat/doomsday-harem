@@ -13,16 +13,16 @@ export function QuestPanel() {
   const sum = session.questSummary();
 
   return (
-    <div className="grid2">
-      <section className="panel">
+    <div className="proto-grid2">
+      <section className="proto-panel">
         <h2>
-          主线　<span className="sub">
+          主线　<span className="proto-sub">
             完成 {sum.completed}/{sum.total}　进行中 {sum.started}　暂停 {sum.paused}
           </span>
         </h2>
-        <p className="sub">已完成解锁后宫 {sum.unlockedCompanions} 人</p>
+        <p className="proto-sub">已完成解锁后宫 {sum.unlockedCompanions} 人</p>
 
-        <table className="grid">
+        <table className="proto-grid">
           <thead>
             <tr><th>主线</th><th>目标</th><th>进度</th><th>当前步骤</th><th>状态</th><th>操作</th></tr>
           </thead>
@@ -40,12 +40,12 @@ export function QuestPanel() {
                 : check?.ok ? "可推进"
                 : "未开始";
               return (
-                <tr key={def.id} className={state.completed ? "row-ok" : undefined}>
+                <tr key={def.id} className={state.completed ? "proto-row-ok" : undefined}>
                   <td>{def.title}</td>
-                  <td className="sub">{def.companionName}</td>
+                  <td className="proto-sub">{def.companionName}</td>
                   <td>{state.stage}/{def.steps.length}</td>
-                  <td className="sub">{step?.name ?? "—"}</td>
-                  <td className={state.completed ? "ok" : check?.ok ? "warn" : "sub"}>{status}</td>
+                  <td className="proto-sub">{step?.name ?? "—"}</td>
+                  <td className={state.completed ? "proto-ok" : check?.ok ? "proto-warn" : "proto-sub"}>{status}</td>
                   <td>
                     {!state.completed && check?.ok && (
                       <button onClick={() => advanceQuest(def.id)}>推进</button>
@@ -63,56 +63,56 @@ export function QuestPanel() {
           </tbody>
         </table>
 
-        <p className="hint">
+        <p className="proto-hint">
           主线只用于解锁后宫，与科技树完全独立。每条 3-5 步，可随时暂停后续接。
           主线不是唯一途径 —— 随机遭遇也能招募到后宫。
         </p>
       </section>
 
-      <section className="panel">
+      <section className="proto-panel">
         <h2>主线详情</h2>
         {sum.list.filter((x) => x.state.started && !x.state.completed).map(({ def, state }) => {
           const step = def.steps.find((s) => s.stage === state.stage + 1);
           return (
-            <div key={def.id} className="jobcard" style={{ marginBottom: 10 }}>
-              <h3>{def.title} <span className="sub">— {def.companionName}</span></h3>
-              <p className="sub">{def.summary}</p>
+            <div key={def.id} className="proto-jobcard" style={{ marginBottom: 10 }}>
+              <h3>{def.title} <span className="proto-sub">— {def.companionName}</span></h3>
+              <p className="proto-sub">{def.summary}</p>
               {step && (
                 <>
                   <p><strong>第 {step.stage} 步：{step.name}</strong></p>
-                  <p className="sub">{step.description}</p>
-                  {step.region && <p className="sub">地点：{step.region}</p>}
+                  <p className="proto-sub">{step.description}</p>
+                  {step.region && <p className="proto-sub">地点：{step.region}</p>}
                   {step.requiresItems && (
-                    <p className="sub">
+                    <p className="proto-sub">
                       需要：{Object.entries(step.requiresItems).map(([k, v]) => `${k}×${v}`).join("、")}
                     </p>
                   )}
                 </>
               )}
-              <p className="sub">完成奖励：{def.rewards.join("、")}</p>
+              <p className="proto-sub">完成奖励：{def.rewards.join("、")}</p>
             </div>
           );
         })}
         {sum.list.filter((x) => x.state.started && !x.state.completed).length === 0 && (
-          <p className="sub">（暂无进行中的主线。到达对应区域并满足条件即可推进。）</p>
+          <p className="proto-sub">（暂无进行中的主线。到达对应区域并满足条件即可推进。）</p>
         )}
 
         <h3>随机遭遇招募</h3>
-        <p className="sub">当前区域：{session.here()?.name ?? "?"}</p>
-        <div className="controls">
+        <p className="proto-sub">当前区域：{session.here()?.name ?? "?"}</p>
+        <div className="proto-controls">
           <button onClick={tryRecruitHere}>搜索附近幸存者</button>
         </div>
 
         <h3>招募类型库（{RECRUIT_TEMPLATES.length} 种）</h3>
-        <table className="grid">
+        <table className="proto-grid">
           <thead><tr><th>类型</th><th>身份</th><th>特长</th><th>出现区域</th></tr></thead>
           <tbody>
             {RECRUIT_TEMPLATES.map((t) => (
               <tr key={t.id}>
                 <td>{t.name}</td>
-                <td className="sub">{t.title}</td>
-                <td className="sub">{t.trait}</td>
-                <td className="sub">{t.regions.join("、")}</td>
+                <td className="proto-sub">{t.title}</td>
+                <td className="proto-sub">{t.trait}</td>
+                <td className="proto-sub">{t.regions.join("、")}</td>
               </tr>
             ))}
           </tbody>
