@@ -65,10 +65,13 @@ jobs:
       - name: Build renderer
         run: pnpm --filter @doomsday/desktop exec vite build
 
-      - name: Package with electron-builder
+      # 打包并发布到 GitHub Release。
+      # 用 --publish always 是因为 electron-updater 依赖 Release 里的
+      # latest.yml 来判断是否有新版本；--publish never 不会生成它。
+      - name: Package & publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pnpm --filter @doomsday/desktop exec electron-builder --win --publish never
+        run: pnpm --filter @doomsday/desktop exec electron-builder --win --publish always
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -77,11 +80,14 @@ jobs:
           path: |
             apps/desktop/dist-electron/*.exe
             apps/desktop/dist-electron/*.blockmap
+            apps/desktop/dist-electron/latest.yml
           if-no-files-found: error
           retention-days: 30
 
+      # --publish always 已在上面创建/更新 Release，
+      # 这里只在 tag 触发时补充 release notes。
       - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.version }}
@@ -92,5 +98,6 @@ jobs:
           files: |
             apps/desktop/dist-electron/*.exe
             apps/desktop/dist-electron/*.blockmap
+            apps/desktop/dist-electron/latest.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

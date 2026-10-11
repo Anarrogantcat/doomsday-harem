@@ -35,5 +35,41 @@ contextBridge.exposeInMainWorld('dh', {
     layout: () => ipcRenderer.invoke('data:layout'),
     openDir: () => ipcRenderer.invoke('data:openDir'),
     setDir: () => ipcRenderer.invoke('data:setDir')
+  },
+
+  /**
+   * 自动更新（照 sillytavern-shell）。
+   *
+   * 流程：check() → 有新版本 → download() → 进度事件 → downloaded → install()
+   * 全程由用户确认，不后台静默下载。
+   */
+  update: {
+    /** 当前版本 */
+    version: () => ipcRenderer.invoke('update:version'),
+    /** 检查更新 → { hasUpdate, version, current } 或 { error } */
+    check: () => ipcRenderer.invoke('update:check'),
+    /** 开始下载 → { success } 或 { error } */
+    download: () => ipcRenderer.invoke('update:download'),
+    /** 安装并重启 */
+    install: () => ipcRenderer.invoke('update:install'),
+
+    /** 下载进度：{ percent, transferred, total, bytesPerSecond } */
+    onProgress: (cb) => {
+      const h = (_e, p) => cb(p)
+      ipcRenderer.on('update:progress', h)
+      return () => ipcRenderer.removeListener('update:progress', h)
+    },
+    /** 下载完成 */
+    onDownloaded: (cb) => {
+      const h = () => cb()
+      ipcRenderer.on('update:downloaded', h)
+      return () => ipcRenderer.removeListener('update:downloaded', h)
+    },
+    /** 出错 */
+    onError: (cb) => {
+      const h = (_e, m) => cb(m)
+      ipcRenderer.on('update:error', h)
+      return () => ipcRenderer.removeListener('update:error', h)
+    }
   }
 })

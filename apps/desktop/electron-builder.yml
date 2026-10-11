@@ -13,6 +13,13 @@
 #   · afterPack 硬校验
 #   · nsis.include 自定义安装脚本
 
+# 更新源 —— electron-updater 靠这个找 GitHub Release 里的 latest.yml。
+# 与本仓库的 owner/repo 一致。
+publish:
+  provider: github
+  owner: Anarrogantcat
+  repo: doomsday-harem
+
 appId: com.doomsdayharem.app
 productName: DoomsdayHarem
 copyright: Copyright (c) 2026 RanMiao. Free to play, no resale, no commercial use.

@@ -10,6 +10,7 @@ import {
 } from "@doomsday/core";
 import { useGame } from "../store/game.ts";
 import { AboutTab } from "./AboutTab.tsx";
+import { UpdatePanel } from "./UpdatePanel.tsx";
 import { CheatPanel } from "../panels/CheatPanel.tsx";
 
 const TABS: SettingsTab[] = ["display", "gameplay", "content", "sharing", "audio", "lang", "cheat", "about"];
@@ -383,7 +384,12 @@ export function SettingsPanel() {
 
         {tab === "cheat" && <CheatPanel />}
 
-        {tab === "about" && <AboutTab />}
+        {tab === "about" && (
+          <>
+            <UpdatePanel />
+            <AboutTab />
+          </>
+        )}
       </div>
 
       <footer className="settings-foot">

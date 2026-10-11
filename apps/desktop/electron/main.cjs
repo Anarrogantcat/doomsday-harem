@@ -17,6 +17,9 @@
  */
 
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron')
+// 自动更新（照 sillytavern-shell 的做法）
+let autoUpdater = null
+try { ({ autoUpdater } = require('electron-updater')) } catch { /* 未安装时降级 */ }
 const path = require('node:path')
 const fs = require('node:fs')
 const crypto = require('node:crypto')
@@ -331,14 +334,97 @@ app.on('second-instance', () => {
   }
 })
 
+// ────────────────────────────────────────────────────────────
+// 自动更新（照 sillytavern-shell 移植）
+//
+// 为什么自己写而不用 electron-updater 的默认行为：
+//   1) 默认 autoDownload=true 会在用户不知情时后台下载上百 MB
+//   2) 默认不设 installDirectory，NSIS 会装到 %LOCALAPPDATA%\Programs
+//      而不是**当前安装目录**，更新后出现两份
+//   3) 日志默认走 stdout，打包后不可见，且管道断开时会 EPIPE 崩主进程
+//
+// 流程：检查 → 用户确认 → 下载（带进度）→ 用户确认 → 重启安装
+// ────────────────────────────────────────────────────────────
+let updateVersion = null
+
+function setupUpdater() {
+  if (!autoUpdater) {
+    log('updater: electron-updater 未安装，跳过')
+    return
+  }
+
+  // 不自动下载、不自动安装 —— 全部由用户确认
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = false
+
+  // 关键：固定安装目录，否则更新会装到默认路径而非当前位置
+  try {
+    autoUpdater.installDirectory = path.dirname(app.getPath('exe'))
+  } catch { /* 忽略 */ }
+
+  // 日志走文件，避免 stdout EPIPE 崩主进程
+  autoUpdater.logger = {
+    info: (m) => log('[updater] ' + m),
+    warn: (m) => log('[updater] ' + m),
+    error: (m) => log('[updater] ' + m),
+    debug: (m) => log('[updater] ' + m)
+  }
+
+  const send = (channel, payload) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(channel, payload)
+    }
+  }
+
+  autoUpdater.on('download-progress', (p) => send('update:progress', p))
+  autoUpdater.on('update-downloaded', () => send('update:downloaded'))
+  autoUpdater.on('error', (e) => send('update:error', e.message))
+
+  // 检查更新
+  ipcMain.handle('update:check', async () => {
+    try {
+      const r = await autoUpdater.checkForUpdates()
+      updateVersion = r && r.updateInfo ? r.updateInfo.version : null
+      if (!r || !r.updateInfo) return { hasUpdate: false }
+      const cur = app.getVersion()
+      // 版本相同则视为无更新
+      if (r.updateInfo.version === cur) return { hasUpdate: false, version: cur }
+      return { hasUpdate: true, version: r.updateInfo.version, current: cur }
+    } catch (e) {
+      return { error: e.message }
+    }
+  })
+
+  // 下载更新
+  ipcMain.handle('update:download', async () => {
+    if (!updateVersion) {
+      return { error: '请先检查更新' }
+    }
+    try {
+      await autoUpdater.downloadUpdate()
+      return { success: true }
+    } catch (e) {
+      return { error: e.message }
+    }
+  })
+
+  // 安装并重启
+  ipcMain.handle('update:install', () => {
+    autoUpdater.quitAndInstall(true, true)
+    return { success: true }
+  })
+
+  // 当前版本
+  ipcMain.handle('update:version', () => app.getVersion())
+
+  log('updater: ready (channel=github)')
+}
+
 app.whenReady().then(() => {
   initDataRoot()
   createWindow()
+  setupUpdater()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
-})
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
 })
