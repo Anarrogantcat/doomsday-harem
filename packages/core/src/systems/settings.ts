@@ -240,7 +240,7 @@ export const ABOUT: AboutInfo = {
   tagline: "Doomsday Harem",
   version: "0.27.0",
   buildDate: "2026-10",
-  engine: "TypeScript + Tauri 2 + React 18",
+  engine: "TypeScript + Electron 41 + React 18",
   license: "个人非商业使用",
   repository: ""
 };

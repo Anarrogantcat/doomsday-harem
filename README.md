@@ -1,7 +1,7 @@
 # Doomsday Harem
 
 > 末日生存沙盒 + 科技树 + 后宫养成 + 成人文字游戏
-> 版本 **0.6.1** · 平台 PC（Tauri 2 + React + Phaser）
+> 版本 **1.0.0** · 平台 PC（Electron 41 + React 18 + Canvas）
 
 一个隐藏天才的扶她御姐，在末日降临前觉醒预知并编写出 AI，用 180 天在山体里
 建起要塞、买下房车。末日之后，她靠科技树强化自身、收集女性同伴，在无限自由的
@@ -152,7 +152,7 @@ node scripts/version.mjs --set 0.7.0  # 升版并同步
 
 ### 技术约束
 
-- `packages/core` 保持零依赖，不引用 Phaser / React / SQLite
+- `packages/core` 保持零依赖，不引用 React / Electron / SQLite
 - TypeScript 启用 `erasableSyntaxOnly` —— 不使用 `enum`、命名空间、构造函数参数属性
 - 模块路径必须带 `.ts` 扩展名（`NodeNext` 解析）
 - 渲染层与文本来源解耦：模型生成与手写剧本产出同构的 `Scene`

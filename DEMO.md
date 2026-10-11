@@ -148,7 +148,7 @@ doomsday-harem/
 │  ├─ data/scripts/     20 个手写 DSL 剧本
 │  └─ data/generated/   预生成文本库存（gitignore）
 ├─ packages/llm/        本地模型接口（7 种后端）
-├─ apps/desktop/        Tauri 2 + React 18 + Canvas
+├─ apps/desktop/        Electron 41 + React 18 + Canvas
 │  └─ public/assets/    CC0 像素素材
 └─ scripts/             构建与批量生成脚本
 ```
