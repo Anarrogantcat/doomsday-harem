@@ -1,56 +1,79 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { renderScene, type Scene } from "@doomsday/core";
+import { renderScene, type Scene, type PrologueScene, PROLOGUE_LABEL } from "@doomsday/core";
 import { buildSceneContext } from "@doomsday/llm";
 import { useGame } from "./store/game.ts";
 import { LeftColumn } from "./shell/LeftColumn.tsx";
 import { RightColumn } from "./shell/RightColumn.tsx";
 import { Stage, CenterTabs, type NarrationEntry } from "./shell/Stage.tsx";
-import { PixelStrip } from "./shell/PixelStrip.tsx";
 import { CombatView } from "./shell/CombatView.tsx";
-import { StatusStrip, MessageLog } from "./shell/StatusStrip.tsx";
 import { Overlay } from "./shell/Overlay.tsx";
 import { SettingsPanel } from "./shell/SettingsPanel.tsx";
-import { CheatOverlay } from "./shell/CheatOverlay.tsx";
 import { MainMenu } from "./shell/MainMenu.tsx";
 import { BigMap } from "./shell/GridMap.tsx";
 import { FortressSections } from "./shell/FortressSections.tsx";
 import { OptionsBar, EventBar, InputBar, type Option, type EventEntry } from "./shell/CenterPieces.tsx";
 import { DetailPanel } from "./shell/DetailTabs.tsx";
 
+/** 底部状态条（原型 .strip：文字型，不是像素画） */
+function StatusStripBar({ session }: { session: ReturnType<typeof useGame.getState>["session"] }) {
+  const version = useGame((s) => s.version);
+  void version;
+  const day = session.time.day;
+  const prologueDone = session.prologueDone();
+  const dayText = prologueDone ? `第 ${Math.max(1, day)} 天` : `末日前 ${day} 天`;
+  const sv = session.hero.survival;
+  const reset = () => {
+    try { localStorage.removeItem("dh-col-widths"); } catch { /* 忽略 */ }
+    location.reload();
+  };
+  const resourceTotal = Object.values(session.resources).reduce((a, b) => a + b, 0);
+  return (
+    <div className="strip">
+      <span className="st">{dayText}</span>
+      <span className="si">体力 <b>{Math.round(sv.stamina)}</b></span>
+      <span className="si">饥饿 <b>{Math.round(sv.hunger)}</b></span>
+      <span className="si">口渴 <b>{Math.round(sv.thirst)}</b></span>
+      <span className="si">精力 <b>{Math.round(sv.energy)}</b></span>
+      <span className="si">心情 <b>{Math.round(sv.mood)}</b></span>
+      <span className="si">欲情 <b>{Math.round(session.hero.lust.value)}</b></span>
+      <span className="sp" />
+      <span className="si">同伴 <b>{session.joined().length}</b></span>
+      <span className="si">防御 <b>{session.defenseLevel().total}</b></span>
+      <span className="si">物资 <b>{resourceTotal}</b></span>
+      <button className="colreset" onClick={reset} title="双击分隔条也可恢复">↺ 默认栏宽</button>
+    </div>
+  );
+}
+
+/** 把序章场景转成叙事条目（进 .stage 的 .beat，不弹窗） */
+function prologueToEntry(scene: PrologueScene, id: number): NarrationEntry {
+  const text = scene.beats.map((b, i) => {
+    const head = `—— 节拍 ${i + 1}/${scene.beats.length} ——`;
+    const lines = [
+      b.action,
+      b.sense,
+      b.mind ? `（${b.mind}）` : null,
+      b.speaker && b.speech ? `${b.speaker}：「${b.speech}」` : null
+    ].filter(Boolean);
+    return [head, ...lines].join("\n");
+  }).join("\n\n");
+  return {
+    id,
+    kind: "narration",
+    title: scene.title,
+    meta: `序章 · ${PROLOGUE_LABEL[scene.stage]}`,
+    text
+  };
+}
+
 const KEY_MAP: Record<string, string> = {
   i: "items", n: "quests", t: "tech", b: "base", w: "wardrobe",
   h: "harem", j: "jobs", v: "vehicle", d: "defense", m: "llm",
-  s: "save", c: "cheats", r: "roster", k: "canvas", o: "status", l: "mods", g: "achievements", x: "plugins", y: "prologue"
+  s: "save", c: "cheats", r: "roster", k: "canvas", o: "status", l: "mods", g: "achievements", x: "plugins"
 };
 
 /** 中栏只有两个视图（原型 .ctabs：叙事 / 战斗） */
 type CenterTab = "narration" | "combat";
-
-/**
- * 大地图弹窗宿主。
- *
- * 从 store 直接取状态，避免把 7 个 prop 一路透传进 App。
- */
-function BigMapHost() {
-  const mapId = useGame((s) => s.mapId);
-  const cellId = useGame((s) => s.cellId);
-  const explored = useGame((s) => s.explored);
-  const open = useGame((s) => s.bigMapOpen);
-  const setMapId = useGame((s) => s.setMapId);
-  const mapTravel = useGame((s) => s.mapTravel);
-  const openBigMap = useGame((s) => s.openBigMap);
-  return (
-    <BigMap
-      mapId={mapId}
-      cellId={cellId}
-      explored={explored}
-      open={open}
-      onClose={() => openBigMap(false)}
-      onSelectMap={setMapId}
-      onGo={(m, c) => mapTravel(m, c, "前往")}
-    />
-  );
-}
 
 export function App() {
   const session = useGame((s) => s.session);
@@ -61,7 +84,13 @@ export function App() {
 
   const settings = useGame((s) => s.settings);
   const [overlay, setOverlay] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>("hero");
+  /**
+   * 当前选中角色。
+   *
+   * 默认选**第一位同伴**（照原型：.hitem.sel 落在姐姐身上），
+   * 而不是 "hero" —— 详情栏右侧那段本来就是「选中角色」。
+   */
+  const [selected, setSelected] = useState<string | null>(null);
   const [centerTab, setCenterTab] = useState<CenterTab>("narration");
   const [showStrip, setShowStrip] = useState(true);
   const [entries, setEntries] = useState<NarrationEntry[]>([]);
@@ -81,12 +110,6 @@ export function App() {
   // 启动时加载 Mod 剧本（仅 Tauri 环境有效）
   useEffect(() => {
     void useGame.getState().loadMods();
-  }, []);
-
-  // 序章未完成时，自动打开序章面板作为引导
-  useEffect(() => {
-    const s = useGame.getState().session;
-    if (!s.prologueDone()) setOverlay("prologue");
   }, []);
 
   // 日志 → 叙事条目（过滤系统噪音）
@@ -116,6 +139,22 @@ export function App() {
    *   → effect 再跑 → 无限循环 → 内存暴涨。
    * 改用 seenScenes ref 去重，依赖只保留 session。
    */
+  /**
+   * 序章叙事流（原型 .stage 的 .beat 文本，绝不弹窗）。
+   *
+   * currentPrologueScene() 返回当前应触发的序章场景（未触发过的第一个）。
+   * 把每拍渲染成 .beat：action/sense → .ln，mind → .ln mind，speech → .ln speech。
+   * 玩家点「继续」推进到最后一拍后，触发 advancePrologue() 进入下一幕。
+   */
+  const prologueScene = session.currentPrologueScene();
+  const prologueSeen = useRef<string | null>(null);
+  useEffect(() => {
+    if (!prologueScene) return;
+    if (prologueSeen.current === prologueScene.id) return;
+    prologueSeen.current = prologueScene.id;
+    setEntries((prev) => [...prev, prologueToEntry(prologueScene, ++counter.n)].slice(-200));
+  }, [prologueScene, counter]);
+
   const seenScenes = useRef<Set<string>>(new Set());
   useEffect(() => {
     const scenes = session.availableScenes();
@@ -140,6 +179,8 @@ export function App() {
   }, [session, counter]);
 
   const current = entries[index] ?? entries[entries.length - 1];
+  /** 当前显示的是否为序章条目（用于「继续」末页推进） */
+  const currentIsPrologue = entries[index]?.meta?.startsWith("序章") === true;
 
   /**
    * 选项区（原型 .obar）。
@@ -147,7 +188,27 @@ export function App() {
    */
   const options: Option[] = useMemo(() => {
     const out: Option[] = [
-      { icon: "▶", text: "继续", hint: "空格", primary: true, onPick: () => setIndex((i) => Math.min(i + 1, entries.length - 1)) }
+      {
+        icon: "▶",
+        text: "继续",
+        hint: "空格",
+        primary: true,
+        onPick: () => {
+          if (index < entries.length - 1) { setIndex(index + 1); return; }
+          // 序章末页：推进序章（场景效果写 flags，下一幕由 effect 自动注入叙事流）
+          if (currentIsPrologue && prologueScene) {
+            const next = session.advancePrologue();
+            useGame.getState().refresh();
+            if (next === "done") {
+              setEntries((prev) => [...prev, {
+                id: ++counter.n, kind: "system" as const,
+                title: "第一天", meta: "生存开始",
+                text: "末日降临后的第一个清晨。你在安全屋里醒来。一切才刚刚开始。"
+              } as NarrationEntry].slice(-200));
+            }
+          }
+        }
+      }
     ];
     if (current?.scene) {
       out.push({
@@ -170,7 +231,7 @@ export function App() {
     }
     out.push({ icon: "🔒", text: "锁定（暂不可用）", hint: "—", locked: true });
     return out;
-  }, [current, entries.length, session]);
+  }, [current, entries.length, session, index, currentIsPrologue, prologueScene]);
 
   /** 事件栏条目（原型 .eventbar）：从 log 取最近 40 条 */
   const eventEntries: EventEntry[] = useMemo(
@@ -417,17 +478,10 @@ export function App() {
       </div>
 
       {/* ═══ 底条 ═══ */}
-      {showStrip ? <div className="strip"><PixelStrip height={44} /></div> : null}
+      {showStrip ? <StatusStripBar session={session} /> : null}
 
-      <StatusStrip />
-      <MessageLog />
       <Overlay tab={overlay} onClose={() => setOverlay(null)} detailId={selected && selected !== "hero" ? selected : undefined} />
-      <CheatOverlay />
-      <BigMapHost />
 
-      <div className="keyhint">
-        Tab 切换视图　P 画面　I 物品　N 主线　T 科技　B 基地　W 服装　M 模型　L Mod　S 存档　←/→ 翻页　Esc 关闭
-      </div>
     </div>
   );
 }
