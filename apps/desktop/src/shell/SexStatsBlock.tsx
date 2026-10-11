@@ -9,9 +9,9 @@ import type { SexStatsView } from "@doomsday/core";
 /** 单元格 */
 function cell(k: string, v: string | number, dim = false) {
   return (
-    <div className="dcell" key={k}>
-      <span className="k">{k}</span>
-      <span className="v" style={dim ? { color: "var(--dim)" } : undefined}>{v}</span>
+    <div className="proto-dcell" key={k}>
+      <span className="proto-k">{k}</span>
+      <span className="proto-v" style={dim ? { color: "var(--dim)" } : undefined}>{v}</span>
     </div>
   );
 }
@@ -19,12 +19,12 @@ function cell(k: string, v: string | number, dim = false) {
 /** 熟练度进度条 */
 function profBar(k: string, lv: number) {
   return (
-    <div className="kv" key={k}>
-      <span className="k">{k}</span>
-      <div className="tr">
-        <div className="fl" style={{ width: Math.min(100, lv * 10) + "%", background: "var(--accent-lt)" }} />
+    <div className="proto-kv" key={k}>
+      <span className="proto-k">{k}</span>
+      <div className="proto-tr">
+        <div className="proto-fl" style={{ width: Math.min(100, lv * 10) + "%", background: "var(--accent-lt)" }} />
       </div>
-      <span className="v">Lv{lv}</span>
+      <span className="proto-v">Lv{lv}</span>
     </div>
   );
 }

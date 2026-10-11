@@ -91,18 +91,18 @@ export function Overlay({ tab, onClose, detailId }: { tab: string | null; onClos
       case "detail": return <DetailTabs kind="companion" id={detailId} />;
       case "solo": return <SoloPanel onClose={onClose} />;
       case "anal-prep": return <AnalPrepPanel id={detailId ?? "sister"} onClose={onClose} />;
-      default: return <p className="sub">（未知面板）</p>;
+      default: return <p className="proto-sub">（未知面板）</p>;
     }
   })();
 
   return (
-    <div className="modal on" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="mbox" style={{ width: "min(72em,96vw)", maxWidth: "96vw" }}>
-        <div className="mhead">
-          <span className="mtitle">{OVERLAY_TITLES[tab] ?? tab}</span>
-          <button className="mclose" onClick={onClose}>✕</button>
+    <div className="proto-modal proto-on" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="proto-mbox" style={{ width: "min(72em,96vw)", maxWidth: "96vw" }}>
+        <div className="proto-mhead">
+          <span className="proto-mtitle">{OVERLAY_TITLES[tab] ?? tab}</span>
+          <button className="proto-mclose" onClick={onClose}>✕</button>
         </div>
-        <div className="dbody">{body}</div>
+        <div className="proto-dbody">{body}</div>
       </div>
     </div>
   );

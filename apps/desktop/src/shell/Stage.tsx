@@ -34,7 +34,7 @@ function toBeats(entry: NarrationEntry): Array<{ num: string; lines: Line[] }> {
   let cur: { num: string; lines: Line[] } | null = null;
   let idx = 0;
   for (const line of raw) {
-    const m = line.match(/^[—-]{2,}\s*节拍\s*(\d+)\s*\/\s*(\d+)\s*[—-]{2,}$/);
+    const m = line.match(/^[—–-]{1,}\s*节拍\s*(\d+)\s*\/\s*(\d+)\s*[—–-]{1,}$/);
     if (m) {
       if (cur) beats.push(cur);
       cur = { num: `—— 节拍 ${m[1]}/${m[2]} ——`, lines: [] };
@@ -42,8 +42,9 @@ function toBeats(entry: NarrationEntry): Array<{ num: string; lines: Line[] }> {
     }
     if (!cur) cur = { num: "", lines: [] };
     // 对白：「名字」内容 或 名字：内容
-    const sp = line.match(/^[「『]?(.{1,12}?)[」』]?[：:]\s*(.+)$/);
-    const speech = /^[「『]/.test(line) || /[」』]$/.test(line);
+    // 对白识别：`名字：「内容」` / `名字：内容` / `「内容」`
+    const sp = line.match(/^(.{1,12}?)[：:]\s*[「『]?(.+?)[」』]?$/);
+    const speech = /[：:]\s*[「『]/.test(line) || /^[「『]/.test(line) || /[」』]$/.test(line);
     if (speech && sp) {
       cur.lines.push({ type: "speech", sp: sp[1], text: sp[2] });
     } else if (/^（|^\*|心理|想/.test(line)) {
@@ -87,32 +88,32 @@ export function Stage({
     <div className="proto-stage" ref={bodyRef}>
       {!entry ? (
         <>
-          <div className="stitle">末日生存 · 后宫</div>
-          <div className="smeta">你是这世上唯一知道末日何时到来的人</div>
-          <div className="beat">
-            <div className="ln">三十天后，城市陷落。而你已经准备好了 —— 特殊 AI 写完了，安全屋建起来了，山体深处的避难所也已就位。</div>
-            <div className="ln mind">在右侧推进时间，或在地图前往其他区域。</div>
+          <div className="proto-stitle">末日生存 · 后宫</div>
+          <div className="proto-smeta">你是这世上唯一知道末日何时到来的人</div>
+          <div className="proto-beat">
+            <div className="proto-ln">三十天后，城市陷落。而你已经准备好了 —— 特殊 AI 写完了，安全屋建起来了，山体深处的避难所也已就位。</div>
+            <div className="proto-ln proto-mind">在右侧推进时间，或在地图前往其他区域。</div>
           </div>
         </>
       ) : (
         <>
-          <div className="stitle">{entry.title ?? "叙事"}</div>
-          {entry.meta ? <div className="smeta">{entry.meta}</div> : null}
+          <div className="proto-stitle">{entry.title ?? "叙事"}</div>
+          {entry.meta ? <div className="proto-smeta">{entry.meta}</div> : null}
           {entry.kind === "generated" ? (
-            <div className="ln" style={{ color: "var(--accent-lt)", fontSize: ".78em" }}>本地模型生成</div>
+            <div className="proto-ln" style={{ color: "var(--accent-lt)", fontSize: ".78em" }}>本地模型生成</div>
           ) : null}
 
           {beats.map((b, bi) => (
-            <div className="beat" key={bi}>
-              {b.num ? <div className="bnum">{b.num}</div> : null}
+            <div className="proto-beat" key={bi}>
+              {b.num ? <div className="proto-bnum">{b.num}</div> : null}
               {b.lines.map((l, li) =>
                 l.type === "speech" ? (
-                  <div className="ln speech" key={li}>
-                    {l.sp ? <span className="sp">{l.sp}</span> : null}
+                  <div className="proto-ln proto-speech" key={li}>
+                    {l.sp ? <span className="proto-sp">{l.sp}</span> : null}
                     「{l.text}」
                   </div>
                 ) : (
-                  <div className={"ln" + (l.type === "mind" ? " mind" : "")} key={li}>
+                  <div className={"proto-ln" + (l.type === "mind" ? " proto-mind" : "")} key={li}>
                     {l.text}
                   </div>
                 )
@@ -120,14 +121,14 @@ export function Stage({
             </div>
           ))}
 
-          {tier ? <div className="ln" style={{ color: "var(--dim)", fontSize: ".78em" }}>分级：{describeTier(entry.scene!.id)}</div> : null}
+          {tier ? <div className="proto-ln" style={{ color: "var(--dim)", fontSize: ".78em" }}>分级：{describeTier(entry.scene!.id)}</div> : null}
         </>
       )}
 
       {generating ? (
-        <div className="beat">
-          <div className="bnum">—— 生成中 ——</div>
-          <div className="ln">{streamText || "…"}</div>
+        <div className="proto-beat">
+          <div className="proto-bnum">—— 生成中 ——</div>
+          <div className="proto-ln">{streamText || "…"}</div>
         </div>
       ) : null}
     </div>
@@ -147,9 +148,9 @@ export function CenterTabs({
   combat: boolean;
 }) {
   return (
-    <div className="ctabs">
-      <button className={"ctab" + (tab === "narration" ? " on" : "")} onClick={() => onTab("narration")}>叙事</button>
-      <button className={"ctab" + (tab === "combat" ? " on" : "")} onClick={() => onTab("combat")}>
+    <div className="proto-ctabs">
+      <button className={"proto-ctab" + (tab === "narration" ? " proto-on" : "")} onClick={() => onTab("narration")}>叙事</button>
+      <button className={"proto-ctab" + (tab === "combat" ? " proto-on" : "")} onClick={() => onTab("combat")}>
         战斗{combat ? " ●" : ""}
       </button>
       <span className="chint">视图随操作自动切换</span>

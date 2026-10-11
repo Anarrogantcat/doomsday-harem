@@ -24,14 +24,14 @@ export function Modal({
   width?: string;
 }) {
   return (
-    <div className="modal on" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="mbox" style={{ width }}>
-        <div className="mhead">
-          <span className="mtitle">{title}</span>
-          <button className="mclose" onClick={onClose}>✕</button>
+    <div className="proto-modal proto-on" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="proto-mbox" style={{ width }}>
+        <div className="proto-mhead">
+          <span className="proto-mtitle">{title}</span>
+          <button className="proto-mclose" onClick={onClose}>✕</button>
         </div>
-        <div className="dbody">{children}</div>
-        {acts ? <div className="acts">{acts}</div> : null}
+        <div className="proto-dbody">{children}</div>
+        {acts ? <div className="proto-acts">{acts}</div> : null}
       </div>
     </div>
   );
@@ -60,7 +60,7 @@ export function SoloPanel({ onClose }: { onClose: () => void }) {
       acts={
         <>
           <button
-            className="abtn primary"
+            className="proto-abtn proto-primary"
             onClick={() => {
               // core 尚无单人行为 API（S-11 待办），此处先耗体力与时间
               useGame.getState().advanceHours(1, "idle");
@@ -69,49 +69,49 @@ export function SoloPanel({ onClose }: { onClose: () => void }) {
               onClose();
             }}
           >开始（体力 -{cost}）</button>
-          <button className="abtn" onClick={onClose}>取消</button>
+          <button className="proto-abtn" onClick={onClose}>取消</button>
         </>
       }
     >
-      <div className="sec">方式</div>
-      <div className="mode-grid">
+      <div className="proto-sec">方式</div>
+      <div className="proto-mode-grid">
         {SOLO_MODES.map((m, i) => (
-          <button key={m} className={"mode-btn" + (i === mode ? " on" : "")} onClick={() => setMode(i)}>{m}</button>
+          <button key={m} className={"proto-mode-btn" + (i === mode ? " proto-on" : "")} onClick={() => setMode(i)}>{m}</button>
         ))}
       </div>
 
-      <div className="sec">部位</div>
-      <div className="part-grid">
+      <div className="proto-sec">部位</div>
+      <div className="proto-part-grid">
         {SOLO_PARTS.map((p, i) => (
-          <button key={p} className={"part-btn" + (i === part ? " on" : "")} onClick={() => setPart(i)}>{p}</button>
+          <button key={p} className={"part-btn" + (i === part ? " proto-on" : "")} onClick={() => setPart(i)}>{p}</button>
         ))}
       </div>
 
-      <div className="sec">道具</div>
-      <div className="toy-grid">
-        <button className={"toy-btn" + (useToy ? " on" : "")} onClick={() => setUseToy((v) => !v)}>
+      <div className="proto-sec">道具</div>
+      <div className="proto-toy-grid">
+        <button className={"proto-toy-btn" + (useToy ? " proto-on" : "")} onClick={() => setUseToy((v) => !v)}>
           🧸 使用玩具{useToy ? "（已选）" : ""}
         </button>
       </div>
-      <div className="hint-line">道具需持有；使用后计入性爱统计的「道具」次数</div>
+      <div className="proto-hint-line">道具需持有；使用后计入性爱统计的「道具」次数</div>
 
       {soloActs.length > 0 ? (
         <>
-          <div className="sec">可用单人行为</div>
-          <div className="dgrid">
+          <div className="proto-sec">可用单人行为</div>
+          <div className="proto-dgrid">
             {soloActs.map((a) => (
-              <div className="dcell" key={a.id}>
-                <span className="k">{a.name}</span><span className="v">可用</span>
+              <div className="proto-dcell" key={a.id}>
+                <span className="proto-k">{a.name}</span><span className="proto-v">可用</span>
               </div>
             ))}
           </div>
         </>
       ) : null}
 
-      <div className="cost-box">
-        <div className="cb-row"><span>体力消耗</span><b>-{cost}</b></div>
-        <div className="cb-row"><span>欲情下降</span><b>-{12 + mode * 6}</b></div>
-        <div className="cb-row"><span>熟练度</span><b>{SOLO_PARTS[part]} +1</b></div>
+      <div className="proto-cost-box">
+        <div className="proto-cb-row"><span>体力消耗</span><b>-{cost}</b></div>
+        <div className="proto-cb-row"><span>欲情下降</span><b>-{12 + mode * 6}</b></div>
+        <div className="proto-cb-row"><span>熟练度</span><b>{SOLO_PARTS[part]} +1</b></div>
       </div>
     </Modal>
   );
@@ -138,7 +138,7 @@ export function AnalPrepPanel({ id, onClose }: { id: string; onClose: () => void
       acts={
         <>
           <button
-            className="abtn primary"
+            className="proto-abtn proto-primary"
             disabled={done}
             onClick={() => {
               const next = steps.find((x) => x.available && !x.done);
@@ -150,27 +150,27 @@ export function AnalPrepPanel({ id, onClose }: { id: string; onClose: () => void
               useGame.getState().refresh();
             }}
           >{done ? "已就绪" : "进行下一步"}</button>
-          <button className="abtn" onClick={onClose}>关闭</button>
+          <button className="proto-abtn" onClick={onClose}>关闭</button>
         </>
       }
     >
-      <div className="hint-line">
+      <div className="proto-hint-line">
         完成后才能进行后庭行为。共 {ENEMA_STEPS.length} 步，当前 {level}/{ENEMA_STEPS.length}。
       </div>
 
-      <div className="steps">
+      <div className="proto-steps">
         {steps.map((s) => (
-          <div key={s.id} className={"step" + (s.done ? " done" : s.available ? " now" : "")}>
-            <span className="sn">{s.name}</span>
-            <span className="sd">{s.description ?? ""}</span>
+          <div key={s.id} className={"proto-step" + (s.done ? " proto-done" : s.available ? " proto-now" : "")}>
+            <span className="proto-sn">{s.name}</span>
+            <span className="proto-sd">{s.description ?? ""}</span>
           </div>
         ))}
       </div>
 
-      <div className="cost-box">
-        <div className="cb-row"><span>当前等级</span><b>{level} / {ENEMA_STEPS.length}</b></div>
-        <div className="cb-row"><span>已完成步骤</span><b>{session.analPrepSteps(id).filter((x) => x.done).length}</b></div>
-        <div className="cb-row"><span>状态</span><b style={{ color: done ? "var(--ok)" : "var(--dim)" }}>{done ? "已就绪" : "未完成"}</b></div>
+      <div className="proto-cost-box">
+        <div className="proto-cb-row"><span>当前等级</span><b>{level} / {ENEMA_STEPS.length}</b></div>
+        <div className="proto-cb-row"><span>已完成步骤</span><b>{session.analPrepSteps(id).filter((x) => x.done).length}</b></div>
+        <div className="proto-cb-row"><span>状态</span><b style={{ color: done ? "var(--ok)" : "var(--dim)" }}>{done ? "已就绪" : "未完成"}</b></div>
       </div>
     </Modal>
   );

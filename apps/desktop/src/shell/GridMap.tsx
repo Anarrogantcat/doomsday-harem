@@ -149,7 +149,7 @@ export function MiniMap(p: MiniMapProps) {
                 {seen ? (dense ? v.c.name.slice(0, 2) : KIND_ICON[v.c.kind]) : "?"}
               </span>
               {seen && (mk?.items ?? 0) > 0 ? <span className="proto-mbadge loot">◆</span> : null}
-              {seen && (mk?.events ?? 0) > 0 ? <span className="proto-mbadge ev">!</span> : null}
+              {seen && (mk?.events ?? 0) > 0 ? <span className="proto-mbadge proto-ev">!</span> : null}
             </div>
           );
         })}
@@ -233,7 +233,7 @@ export function BigMap(p: BigMapProps) {
                   className={
                     "proto-bgc " + dangerCls(c.danger) +
                     (isCur ? " proto-cur" : "") +
-                    (c.id === picked ? " picked" : "") +
+                    (c.id === picked ? " proto-picked" : "") +
                     (seen ? "" : " proto-fog")
                   }
                   onClick={() => setPicked(c.id)}
@@ -281,7 +281,7 @@ export function BigMap(p: BigMapProps) {
 
         <div className="proto-acts" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
           <button
-            className="proto-abtn primary"
+            className="proto-abtn proto-primary"
             style={{ justifyContent: "center" }}
             disabled={!picked}
             onClick={() => { if (picked) { p.onGo(p.mapId, picked); p.onClose(); } }}
@@ -330,12 +330,12 @@ export function CellInfo(p: CellInfoProps) {
           <div className="proto-dgrid">
             {mk?.people?.map((n, i) => (
               <div key={i} className="proto-dcell">
-                <span className="k">人物</span><span className="v">{n}</span>
+                <span className="proto-k">人物</span><span className="proto-v">{n}</span>
               </div>
             ))}
             {hasItems ? (
               <div className="proto-dcell">
-                <span className="k">可搜刮</span><span className="v">{mk?.items} 处</span>
+                <span className="proto-k">可搜刮</span><span className="proto-v">{mk?.items} 处</span>
               </div>
             ) : null}
           </div>
@@ -348,7 +348,7 @@ export function CellInfo(p: CellInfoProps) {
           <div className="proto-dgrid">
             {cell.loot.slice(0, 6).map((l, i) => (
               <div key={i} className="proto-dcell">
-                <span className="k">物资</span><span className="v">{l}</span>
+                <span className="proto-k">物资</span><span className="proto-v">{l}</span>
               </div>
             ))}
           </div>
@@ -359,13 +359,13 @@ export function CellInfo(p: CellInfoProps) {
         {cell.exits?.map((e, i) => (
           <button
             key={i}
-            className="proto-abtn primary"
+            className="proto-abtn proto-primary"
             onClick={() => p.onExit?.(e.toMap, e.toCell, e.label)}
           >{DIR_LABEL[e.dir]} · {e.label}</button>
         ))}
         {cell.sub ? (
           <button
-            className="proto-abtn primary"
+            className="proto-abtn proto-primary"
             onClick={() => p.onEnterSub?.(cell.sub!.id, cell.sub!.at, cell.sub!.label)}
           >{cell.sub.label}</button>
         ) : null}

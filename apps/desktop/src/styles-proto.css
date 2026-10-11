@@ -1343,3 +1343,20 @@ border-radius:.2em;padding:.2em .6em;cursor:pointer;font-family:inherit;font-siz
 /* 右栏补充 */
 .proto-rbody{display:flex;flex-direction:column;gap:.4em;padding:.5em;overflow-y:auto;flex:1;min-height:0}
 .proto-modes{display:flex;flex-wrap:wrap;gap:.25em;padding:.2em 0}
+
+/* ── 自造类补丁（组件用到但原型没有的） ── */
+.proto-ibar-collapsed{display:flex;align-items:center;gap:.6em;padding:.5em .9em;
+border-top:1px solid var(--line);background:var(--panel);font-size:.78em;color:var(--dim);cursor:pointer}
+.proto-ibar-collapsed:hover{color:var(--accent-lt)}
+.proto-dim{color:var(--dim)}
+.proto-info{color:var(--info)}
+.proto-iinput{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:.25em;
+padding:.45em .6em;color:var(--fg);font-family:inherit;font-size:.9em}
+.proto-iinput:focus{outline:none;border-color:var(--accent-lt)}
+.proto-isend{padding:.45em .9em;background:var(--accent);border:1px solid var(--accent-lt);border-radius:.25em;
+color:#fff;font-family:inherit;font-size:.9em;cursor:pointer;white-space:nowrap}
+.proto-isend:hover{background:var(--accent-lt);color:#000}
+.proto-isend:disabled{opacity:.45;cursor:not-allowed}
+.proto-compact .proto-hitem{padding:.3em .4em}
+.proto-mini{font-size:.78em}
+.proto-active{border-color:var(--accent-lt) !important;color:var(--accent-lt) !important}

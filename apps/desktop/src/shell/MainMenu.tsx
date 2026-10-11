@@ -43,71 +43,71 @@ export function MainMenu({ onEnter, onPanel }: MainMenuProps) {
   };
 
   return (
-    <div id="menu" className="on">
-      <div className="mstack">
-        <div className="mtitle">
+    <div id="menu" className="proto-on">
+      <div className="proto-mstack">
+        <div className="proto-mtitle">
           <h1>末日生存 · 后宫</h1>
           <p>DOOMSDAY HAREM</p>
         </div>
 
-        <div className="mlist">
+        <div className="proto-mlist">
           <button
-            className="mbtn"
+            className="proto-mbtn"
             disabled={busy}
             onClick={() => run(async () => { await newGame(); onEnter(); })}
           >
-            <span className="k">N</span>
-            <span className="l">新游戏</span>
-            <span className="r">{dayText}</span>
+            <span className="proto-k">N</span>
+            <span className="proto-l">新游戏</span>
+            <span className="proto-r">{dayText}</span>
           </button>
 
           <button
-            className="mbtn"
+            className="proto-mbtn"
             disabled={busy || !latest}
             onClick={() => latest && run(async () => { await loadFromSlot(latest.slot); onEnter(); })}
             title={latest ? `最近存档：${formatSlotTime(latest)}` : "暂无存档"}
           >
-            <span className="k">C</span>
-            <span className="l">继续游戏</span>
-            <span className="r">{latest ? `第 ${latest.day} 天` : "暂无存档"}</span>
+            <span className="proto-k">C</span>
+            <span className="proto-l">继续游戏</span>
+            <span className="proto-r">{latest ? `第 ${latest.day} 天` : "暂无存档"}</span>
           </button>
 
           <button
-            className="mbtn"
+            className="proto-mbtn"
             disabled={busy}
             onClick={() => run(() => { onPanel("save"); })}
           >
-            <span className="k">L</span>
-            <span className="l">读取存档</span>
-            <span className="r">{metas.length} 个存档</span>
+            <span className="proto-k">L</span>
+            <span className="proto-l">读取存档</span>
+            <span className="proto-r">{metas.length} 个存档</span>
           </button>
 
-          <button className="mbtn" disabled={busy} onClick={() => onPanel("cheats")}>
-            <span className="k">S</span>
-            <span className="l">设置</span>
+          <button className="proto-mbtn" disabled={busy} onClick={() => onPanel("cheats")}>
+            <span className="proto-k">S</span>
+            <span className="proto-l">设置</span>
           </button>
 
-          <button className="mbtn" disabled={busy} onClick={() => onPanel("plugins")}>
-            <span className="k">P</span>
-            <span className="l">插件</span>
+          <button className="proto-mbtn" disabled={busy} onClick={() => onPanel("plugins")}>
+            <span className="proto-k">P</span>
+            <span className="proto-l">插件</span>
           </button>
 
-          <button className="mbtn" disabled={busy} onClick={() => onPanel("about")}>
-            <span className="k">A</span>
-            <span className="l">关于</span>
+          <button className="proto-mbtn" disabled={busy} onClick={() => onPanel("about")}>
+            <span className="proto-k">A</span>
+            <span className="proto-l">关于</span>
           </button>
 
           <button
-            className="mbtn"
+            className="proto-mbtn"
             disabled={busy}
             onClick={() => { void useGame.getState().quitApp?.(); }}
           >
-            <span className="k">Q</span>
-            <span className="l">退出</span>
+            <span className="proto-k">Q</span>
+            <span className="proto-l">退出</span>
           </button>
         </div>
 
-        <div className="mfoot">
+        <div className="proto-mfoot">
           v{VERSION}<br />
           本游戏完全免费 · 禁止售卖 · 禁止商用 · 禁止直播录播<br />
           内容含成人元素，请确认您已满 18 岁

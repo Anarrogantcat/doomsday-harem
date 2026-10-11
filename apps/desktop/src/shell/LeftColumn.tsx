@@ -64,29 +64,63 @@ function AiCard() {
   const version = useGame((s) => s.version);
   void version;
   const ai = session.companion("ai");
-  if (!ai) return null;
+  /**
+   * AI 未觉醒兜底（原型左栏**永远**有「基地核心」）。
+   *
+   * 序章 ai_birth 阶段之前，特殊 AI 还没被写出来，
+   * 此时显示「未觉醒」状态而不是整块消失——否则左栏顶部会空一块。
+   */
+  if (!ai) {
+    return (
+      <div className="proto-block">
+        <div className="proto-bhead">基地核心</div>
+        <div className="proto-aicard">
+          <div className="proto-aiface">AI</div>
+          <div className="proto-hinfo">
+            <div className="proto-hname">
+              特殊AI
+              <span className="proto-tag" style={{ background: "var(--dim)", color: "#000" }}>未觉醒</span>
+            </div>
+            <div className="proto-hsub">尚无载体 · 等待第一行代码</div>
+            <div className="proto-bars">
+              <div className="proto-brow">
+                <span className="proto-blabel">好感</span>
+                <div className="proto-btrack"><div className="proto-bfill proto-aff" style={{ width: "0%" }} /></div>
+                <span className="proto-bval">—</span>
+              </div>
+              <div className="proto-brow">
+                <span className="proto-blabel">忠诚</span>
+                <div className="proto-btrack"><div className="proto-bfill proto-loy" style={{ width: "0%" }} /></div>
+                <span className="proto-bval">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const r = ai.relationship;
   return (
-    <div className="block">
-      <div className="bhead">基地核心</div>
-      <div className="aicard">
-        <div className="aiface">AI</div>
-        <div className="hinfo">
-          <div className="hname">
+    <div className="proto-block">
+      <div className="proto-bhead">基地核心</div>
+      <div className="proto-aicard">
+        <div className="proto-aiface">AI</div>
+        <div className="proto-hinfo">
+          <div className="proto-hname">
             {ai.identity.name}
-            <span className="tag" style={{ background: "var(--info)", color: "#000" }}>核心</span>
+            <span className="proto-tag" style={{ background: "var(--info)", color: "#000" }}>核心</span>
           </div>
-          <div className="hsub">T{ai.growth ? 6 : 6} · 已有移动载体</div>
-          <div className="bars">
-            <div className="brow">
-              <span className="blabel">好感</span>
-              <div className="btrack"><div className="bfill aff" style={{ width: r.affection + "%" }} /></div>
-              <span className="bval">{Math.round(r.affection)}</span>
+          <div className="proto-hsub">T{ai.growth ? 6 : 6} · 已有移动载体</div>
+          <div className="proto-bars">
+            <div className="proto-brow">
+              <span className="proto-blabel">好感</span>
+              <div className="proto-btrack"><div className="proto-bfill proto-aff" style={{ width: r.affection + "%" }} /></div>
+              <span className="proto-bval">{Math.round(r.affection)}</span>
             </div>
-            <div className="brow">
-              <span className="blabel">忠诚</span>
-              <div className="btrack"><div className="bfill loy" style={{ width: r.loyalty + "%" }} /></div>
-              <span className="bval">{Math.round(r.loyalty)}</span>
+            <div className="proto-brow">
+              <span className="proto-blabel">忠诚</span>
+              <div className="proto-btrack"><div className="proto-bfill proto-loy" style={{ width: r.loyalty + "%" }} /></div>
+              <span className="proto-bval">{Math.round(r.loyalty)}</span>
             </div>
           </div>
         </div>
@@ -111,17 +145,17 @@ function HaremBlock({ selected, onSelect, onOpen }: { selected: string | null; o
   const hidden = Math.max(0, joined.length - shown.length);
 
   return (
-    <div className="block">
-      <div className="bhead">
-        后宫<span className="cnt">{joined.length} / 20</span>
+    <div className="proto-block">
+      <div className="proto-bhead">
+        后宫<span className="proto-cnt">{joined.length} / 20</span>
       </div>
-      <div className="hlist">
+      <div className="proto-hlist">
         {shown.map((c) => {
           const r = c.relationship;
           return (
             <div
               key={c.id}
-              className={"hitem" + (selected === c.id ? " sel" : "")}
+              className={"proto-hitem" + (selected === c.id ? " proto-sel" : "")}
               data-id={c.id}
               onClick={() => onSelect(c.id)}
               onDoubleClick={() => { onSelect(c.id); onOpen("roster"); }}
@@ -134,22 +168,22 @@ function HaremBlock({ selected, onSelect, onOpen }: { selected: string | null; o
                 size={38}
                 active={selected === c.id}
               />
-              <div className="hi">
-                <div className="hn">
+              <div className="proto-hi">
+                <div className="proto-hn">
                   {c.identity.name}
-                  <span className="lv">Lv{c.growth ? (c.growth.level ?? 3) : 3}</span>
+                  <span className="proto-lv">Lv{c.growth ? (c.growth.level ?? 3) : 3}</span>
                 </div>
-                <div className="hj">{c.job.id ?? "待分配"}</div>
-                <div className="bars">
-                  <div className="brow">
-                    <span className="blabel">好感</span>
-                    <div className="btrack"><div className="bfill aff" style={{ width: r.affection + "%" }} /></div>
-                    <span className="bval">{Math.round(r.affection)}</span>
+                <div className="proto-hj">{c.job.id ?? "待分配"}</div>
+                <div className="proto-bars">
+                  <div className="proto-brow">
+                    <span className="proto-blabel">好感</span>
+                    <div className="proto-btrack"><div className="proto-bfill proto-aff" style={{ width: r.affection + "%" }} /></div>
+                    <span className="proto-bval">{Math.round(r.affection)}</span>
                   </div>
-                  <div className="brow">
-                    <span className="blabel">欲情</span>
-                    <div className="btrack"><div className="bfill lust" style={{ width: c.lust.value + "%" }} /></div>
-                    <span className="bval">{Math.round(c.lust.value)}</span>
+                  <div className="proto-brow">
+                    <span className="proto-blabel">欲情</span>
+                    <div className="proto-btrack"><div className="proto-bfill proto-lust" style={{ width: c.lust.value + "%" }} /></div>
+                    <span className="proto-bval">{Math.round(c.lust.value)}</span>
                   </div>
                 </div>
               </div>
@@ -158,7 +192,7 @@ function HaremBlock({ selected, onSelect, onOpen }: { selected: string | null; o
         })}
       </div>
       {hidden > 0 || expand ? (
-        <div className="lrow" onClick={() => setExpand((v) => !v)}>
+        <div className="proto-lrow" onClick={() => setExpand((v) => !v)}>
           {expand ? "收起 ▴" : `未解锁 ${hidden} 位 ▾`}
         </div>
       ) : null}
@@ -178,33 +212,33 @@ function QuickPanel({ onOpen }: { onOpen: (tab: string) => void }) {
   };
 
   return (
-    <div className="qpanel">
-      <div className="qhead">
-        <button className="qarrow" onClick={() => setIdx((i) => (i - 1 + QPAGES.length) % QPAGES.length)}>‹</button>
-        <span className="qtitle">快捷操作</span>
-        <span className="qpage"><b>{idx + 1}</b>/{QPAGES.length}</span>
-        <button className="qarrow" onClick={() => setIdx((i) => (i + 1) % QPAGES.length)}>›</button>
+    <div className="proto-qpanel">
+      <div className="proto-qhead">
+        <button className="proto-qarrow" onClick={() => setIdx((i) => (i - 1 + QPAGES.length) % QPAGES.length)}>‹</button>
+        <span className="proto-qtitle">快捷操作</span>
+        <span className="proto-qpage"><b>{idx + 1}</b>/{QPAGES.length}</span>
+        <button className="proto-qarrow" onClick={() => setIdx((i) => (i + 1) % QPAGES.length)}>›</button>
       </div>
-      <div className="qgrid">
+      <div className="proto-qgrid">
         {page.items.map((it) => (
           <button
             key={it.n}
-            className="qbtn"
+            className="proto-qbtn"
             title={it.n + (it.k ? `（快捷键 ${it.k}）` : "")}
             onClick={() => pick(it.n)}
           >
-            <span className="qi">{it.i}</span>
-            <span className="qn">{it.n}</span>
-            {it.k ? <span className="qk">{it.k}</span> : null}
+            <span className="proto-qi">{it.i}</span>
+            <span className="proto-qn">{it.n}</span>
+            {it.k ? <span className="proto-qk">{it.k}</span> : null}
           </button>
         ))}
       </div>
-      <div className="qdots">
+      <div className="proto-qdots">
         {QPAGES.map((_, i) => (
-          <i key={i} className={i === idx ? "on" : ""} onClick={() => setIdx(i)} />
+          <i key={i} className={i === idx ? "proto-on" : ""} onClick={() => setIdx(i)} />
         ))}
       </div>
-      <div className="qfoot">{page.hint}</div>
+      <div className="proto-qfoot">{page.hint}</div>
     </div>
   );
 }

@@ -113,18 +113,18 @@ export function FortressSections({ onOpenBase }: { onOpenBase?: () => void }) {
       </div>
 
       <div className="proto-eq-sum" style={{ gridTemplateColumns: "repeat(6,1fr)" }}>
-        <div className="proto-c"><div className="n">{stats.total}</div><div className="l">设施总数</div></div>
-        <div className="proto-c"><div className="n">{summary.built}</div><div className="l">已建成</div></div>
-        <div className="proto-c"><div className="n">{stats.building}</div><div className="l">建造中</div></div>
-        <div className="proto-c"><div className="n">3</div><div className="l">层数</div></div>
-        <div className="proto-c"><div className="n">{summary.built}</div><div className="l">个人房间</div></div>
-        <div className="proto-c"><div className="n">{summary.built + " / " + summary.total}</div><div className="l">建成 / 总数</div></div>
+        <div className="proto-c"><div className="proto-n">{stats.total}</div><div className="proto-l">设施总数</div></div>
+        <div className="proto-c"><div className="proto-n">{summary.built}</div><div className="proto-l">已建成</div></div>
+        <div className="proto-c"><div className="proto-n">{stats.building}</div><div className="proto-l">建造中</div></div>
+        <div className="proto-c"><div className="proto-n">3</div><div className="proto-l">层数</div></div>
+        <div className="proto-c"><div className="proto-n">{summary.built}</div><div className="proto-l">个人房间</div></div>
+        <div className="proto-c"><div className="proto-n">{summary.built + " / " + summary.total}</div><div className="proto-l">建成 / 总数</div></div>
       </div>
 
       {sections.map((s) => {
         const built = s.cells.filter((c) => c.tier > 0).length;
         return (
-          <div key={s.cat} className={"proto-fsec" + (isCollapsed(s.cat) ? " collapsed" : "")}>
+          <div key={s.cat} className={"proto-fsec" + (isCollapsed(s.cat) ? " proto-collapsed" : "")}>
             <div
               className={"proto-fsec-h " + CAT_KEY[s.cat]}
               onClick={() => toggle(s.cat)}
@@ -171,7 +171,7 @@ export function FortressSections({ onOpenBase }: { onOpenBase?: () => void }) {
 
       {onOpenBase ? (
         <div className="proto-acts" style={{ gridTemplateColumns: "1fr 1fr" }}>
-          <button className="proto-abtn primary" onClick={onOpenBase}>打开基地面板</button>
+          <button className="proto-abtn proto-primary" onClick={onOpenBase}>打开基地面板</button>
           <button className="proto-abtn" onClick={() => { useGame.getState().session.finishAllBuilds(); useGame.getState().refresh(); }}>一键建成</button>
         </div>
       ) : null}

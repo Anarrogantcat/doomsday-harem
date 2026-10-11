@@ -28,19 +28,19 @@ function StatusStripBar({ session }: { session: ReturnType<typeof useGame.getSta
   };
   const resourceTotal = Object.values(session.resources).reduce((a, b) => a + b, 0);
   return (
-    <div className="strip">
-      <span className="st">{dayText}</span>
-      <span className="si">体力 <b>{Math.round(sv.stamina)}</b></span>
-      <span className="si">饥饿 <b>{Math.round(sv.hunger)}</b></span>
-      <span className="si">口渴 <b>{Math.round(sv.thirst)}</b></span>
-      <span className="si">精力 <b>{Math.round(sv.energy)}</b></span>
-      <span className="si">心情 <b>{Math.round(sv.mood)}</b></span>
-      <span className="si">欲情 <b>{Math.round(session.hero.lust.value)}</b></span>
-      <span className="sp" />
-      <span className="si">同伴 <b>{session.joined().length}</b></span>
-      <span className="si">防御 <b>{session.defenseLevel().total}</b></span>
-      <span className="si">物资 <b>{resourceTotal}</b></span>
-      <button className="colreset" onClick={reset} title="双击分隔条也可恢复">↺ 默认栏宽</button>
+    <div className="proto-strip">
+      <span className="proto-st">{dayText}</span>
+      <span className="proto-si">体力 <b>{Math.round(sv.stamina)}</b></span>
+      <span className="proto-si">饥饿 <b>{Math.round(sv.hunger)}</b></span>
+      <span className="proto-si">口渴 <b>{Math.round(sv.thirst)}</b></span>
+      <span className="proto-si">精力 <b>{Math.round(sv.energy)}</b></span>
+      <span className="proto-si">心情 <b>{Math.round(sv.mood)}</b></span>
+      <span className="proto-si">欲情 <b>{Math.round(session.hero.lust.value)}</b></span>
+      <span className="proto-sp" />
+      <span className="proto-si">同伴 <b>{session.joined().length}</b></span>
+      <span className="proto-si">防御 <b>{session.defenseLevel().total}</b></span>
+      <span className="proto-si">物资 <b>{resourceTotal}</b></span>
+      <button className="proto-colreset" onClick={reset} title="双击分隔条也可恢复">↺ 默认栏宽</button>
     </div>
   );
 }
@@ -112,23 +112,8 @@ export function App() {
     void useGame.getState().loadMods();
   }, []);
 
-  // 日志 → 叙事条目（过滤系统噪音）
-  // 系统噪音：这些不进叙事流，避免覆盖剧情
-  const NOISE = /文本库存|已载入|存档|设置已|自动存档|已保存|已读取|交通方式|调岗为|换上了|脱下了|开始研究|秒完成|获得物资|睡了一觉/;
-  const lastLogRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (log.length === 0) return;
-    const latest = log[0];
-    if (NOISE.test(latest)) return;
-    // 用 ref 去重，避免把 counter 放进依赖导致反复触发
-    if (lastLogRef.current === latest) return;
-    lastLogRef.current = latest;
-    setEntries((prev) => {
-      const next = [...prev, { id: ++counter.n, kind: "event" as const, title: "事件", text: latest }];
-      setIndex(next.length - 1);
-      return next.slice(-200);
-    });
-  }, [log, counter]);
+  // 系统日志只进 .eventbar（原型设计：.stage 是叙事，.eventbar 是事件记录），
+  // 不再污染叙事流、也不抢 index 焦点。
 
   /**
    * 可触发场景 → 叙事条目。
@@ -152,12 +137,18 @@ export function App() {
     if (!prologueScene) return;
     if (prologueSeen.current === prologueScene.id) return;
     prologueSeen.current = prologueScene.id;
-    setEntries((prev) => [...prev, prologueToEntry(prologueScene, ++counter.n)].slice(-200));
+    setEntries((prev) => {
+      const next = [...prev, prologueToEntry(prologueScene, ++counter.n)].slice(-200);
+      setIndex(next.length - 1);   // 新序章场景自动置顶显示
+      return next;
+    });
   }, [prologueScene, counter]);
 
   const seenScenes = useRef<Set<string>>(new Set());
   useEffect(() => {
-    const scenes = session.availableScenes();
+    // 序章场景由 prologueToEntry 单独渲染（含 action/sense/mind/speech 五要素），
+    // 这里必须过滤掉，否则会重复注入一份 renderScene 的产物。
+    const scenes = session.availableScenes().filter((x) => !x.id.startsWith("prologue_"));
     if (scenes.length === 0) return;
     const fresh = scenes.filter((x) => !seenScenes.current.has(x.id));
     if (fresh.length === 0) return;
@@ -174,6 +165,7 @@ export function App() {
         text,
         scene
       }];
+      setIndex(next.length - 1);
       return next.slice(-200);
     });
   }, [session, counter]);
@@ -334,8 +326,9 @@ export function App() {
   /** 拖动开始（3 个 splitter 共用） */
   const startDrag = useCallback((e: React.PointerEvent, which: "left" | "right" | "detail") => {
     dragRef.current = { which, x: e.clientX, w: colWidths[which] };
-    (e.currentTarget as HTMLElement).classList.add("dragging");
+    (e.currentTarget as HTMLElement).classList.add("proto-dragging");
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* 合成事件无 capture */ }
+    document.body.classList.add("proto-col-resizing");
   }, [colWidths]);
 
   // 拖动中 / 结束（全局监听，避免指针移出 splitter 后丢失）
@@ -356,7 +349,8 @@ export function App() {
     const onUp = () => {
       if (!dragRef.current) return;
       dragRef.current = null;
-      document.querySelectorAll(".splitter.dragging").forEach((x) => x.classList.remove("dragging"));
+      document.querySelectorAll(".proto-splitter.proto-dragging").forEach((x) => x.classList.remove("proto-dragging"));
+      document.body.classList.remove("proto-col-resizing");
       setColWidths((v) => {
         try { localStorage.setItem("dh-col-widths", JSON.stringify(v)); } catch { /* 忽略 */ }
         return v;
@@ -408,20 +402,20 @@ export function App() {
       id="game"
       style={rootStyle}
       className={
-        "on" +
+        "proto-on" +
         (settings.gameplay.compactRoster ? " compact" : "") +
         (colWidths.left === 0 ? " no-left" : "")
       }
     >
       {/* ═══ 左栏：特殊AI + 后宫名册 + 快捷面板 ═══ */}
-      <div className="left">
+      <div className="proto-left">
         <LeftColumn selected={selected} onSelect={setSelected} onOpen={setOverlay} />
       </div>
 
-      <div className="splitter" onPointerDown={(e) => startDrag(e, "left")} onDoubleClick={() => resetCol("left")} title="拖动调节宽度 · 双击复位" />
+      <div className="proto-splitter" onPointerDown={(e) => startDrag(e, "left")} onDoubleClick={() => resetCol("left")} title="拖动调节宽度 · 双击复位" />
 
       {/* ═══ 中栏：舞台 + 选项 + 事件 + 输入 ═══ */}
-      <div className="center">
+      <div className="proto-center">
         <CenterTabs
           tab={centerTab}
           onTab={setCenterTab}
@@ -459,17 +453,17 @@ export function App() {
         />
       </div>
 
-      <div className="splitter" onPointerDown={(e) => startDrag(e, "right")} onDoubleClick={() => resetCol("right")} title="拖动调节宽度 · 双击复位" />
+      <div className="proto-splitter" onPointerDown={(e) => startDrag(e, "right")} onDoubleClick={() => resetCol("right")} title="拖动调节宽度 · 双击复位" />
 
       {/* ═══ 右栏：地图 / 基地 / 房车 / 行动 ═══ */}
-      <div className="right">
+      <div className="proto-right">
         <RightColumn onOpen={setOverlay} />
       </div>
 
-      <div className="splitter" onPointerDown={(e) => startDrag(e, "detail")} onDoubleClick={() => resetCol("detail")} title="拖动调节宽度 · 双击复位" />
+      <div className="proto-splitter" onPointerDown={(e) => startDrag(e, "detail")} onDoubleClick={() => resetCol("detail")} title="拖动调节宽度 · 双击复位" />
 
       {/* ═══ 详情栏：主角段 + 分隔 + 同伴段 ═══ */}
-      <div className="detail-side">
+      <div className="proto-detail-side">
         <DetailPanel
           kind={selected === "hero" || !selected ? "hero" : "companion"}
           id={selected ?? undefined}
